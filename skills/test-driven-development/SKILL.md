@@ -203,55 +203,11 @@ Next failing test for next feature.
 | **Clear** | Name describes behavior | `test('test1')` |
 | **Shows intent** | Demonstrates desired API | Obscures what code should do |
 
-## Why Order Matters
-
-**"I'll write tests after to verify it works"**
-
-Tests written after code pass immediately. Passing immediately proves nothing:
-- Might test wrong thing
-- Might test implementation, not behavior
-- Might miss edge cases you forgot
-- You never saw it catch the bug
-
-Test-first forces you to see the test fail, proving it actually tests something.
-
-**"I already manually tested all the edge cases"**
-
-Manual testing is ad-hoc. You think you tested everything but:
-- No record of what you tested
-- Can't re-run when code changes
-- Easy to forget cases under pressure
-- "It worked when I tried it" ≠ comprehensive
-
-Automated tests are systematic. They run the same way every time.
-
-**"Deleting X hours of work is wasteful"**
-
-Sunk cost fallacy. The time is already gone. Your choice now:
-- Delete and rewrite with TDD (X more hours, high confidence)
-- Keep it and add tests after (30 min, low confidence, likely bugs)
-
-The "waste" is keeping code you can't trust. Working code without real tests is technical debt.
-
-**"TDD is dogmatic, being pragmatic means adapting"**
-
-TDD IS pragmatic:
-- Finds bugs before commit (faster than debugging after)
-- Prevents regressions (tests catch breaks immediately)
-- Documents behavior (tests show how to use code)
-- Enables refactoring (change freely, tests catch breaks)
-
-"Pragmatic" shortcuts = debugging in production = slower.
-
-**"Tests after achieve the same goals - it's spirit not ritual"**
-
-No. Tests-after answer "What does this do?" Tests-first answer "What should this do?"
-
-Tests-after are biased by your implementation. You test what you built, not what's required. You verify remembered edge cases, not discovered ones.
-
-Tests-first force edge case discovery before implementing. Tests-after verify you remembered everything (you didn't).
-
-30 minutes of tests after ≠ TDD. You get coverage, lose proof tests work.
+When writing or changing any test, read [writing-good-tests.md](writing-good-tests.md) for the rules that keep tests honest:
+- Name the production change that would make the test fail — before writing it
+- Assert on real behavior, never on mock behavior
+- Keep test-only code in test utilities, out of production classes
+- Understand a dependency's side effects before mocking it
 
 ## Common Rationalizations
 
@@ -286,6 +242,8 @@ Tests-first force edge case discovery before implementing. Tests-after verify yo
 - "This is different because..."
 
 **All of these mean: Delete code. Start over with TDD.**
+
+**When deletion is genuinely not viable** — the code already landed, or a parallel session shipped it — `.claude/rules/common/testing.md` owns the recovery under "When the RED Was Skipped": mutate the implementation one change at a time and prove the new tests catch each mutation, then declare in the PR that RED was skipped. That rule is always-on and it wins here. It is a repair with a cost, never an equivalent path — it recovers confidence that the tests are load-bearing, and nothing recovers the design pressure of writing the test first.
 
 ## Example: Bug Fix
 
@@ -356,10 +314,12 @@ Never fix bugs without a test.
 
 ## Testing Anti-Patterns
 
-When adding mocks or test utilities, read [testing-anti-patterns.md](testing-anti-patterns.md) to avoid common pitfalls:
-- Testing mock behavior instead of real behavior
-- Adding test-only methods to production classes
-- Mocking without understanding dependencies
+When adding mocks or test utilities, read [writing-good-tests.md](writing-good-tests.md). Its two principles:
+
+1. **Name the break.** Every test names the production change that should make it fail — a bug, not a decision. Asserting that a script, skill, or config *contains* an exact line proves only that the source is the source.
+2. **Exercise the real thing.** The mock earns no assertions; mock the slow or external level and keep what the test depends on real.
+
+Finish with its **Mutation Check** — mentally mutate the production code and confirm at least one test fails for each realistic mutation.
 
 ## Final Rule
 
