@@ -5,10 +5,22 @@ name: validate
 # a reference file is unreachable. All logic lives in scripts/, so the same commands
 # run locally — a green local run means the same thing as a green CI run.
 
+# Manual only **while this directory lives inside the Odin monorepo**.
+#
+# An automatic trigger here fires on GitHub's runners the moment a push lands, with no `gh`
+# command involved — the exact gap Layer 1D of `.claude/hooks/odin-safety-guard.sh` closes, and
+# it is scoped to `projects/*/.github/workflows/` precisely because Odin's own root workflows
+# must keep triggering (they are branch-protection status checks). With `pull_request`/`push`
+# declared here, that guard refuses **every `git add`/`commit`/`push` in the whole monorepo** —
+# it is not a warning, and there is no opt-out short of editing the hook.
+#
+# Restore `pull_request:` and `push: branches: [main]` in the same change that publishes this
+# directory as its own repository, where the guard does not apply and CONTRIBUTING-style status
+# checks are the point. Until then the validator runs locally, which is Odin's convention anyway:
+#
+#     bash projects/Odin-Skills/scripts/tests/validate.test.sh
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
