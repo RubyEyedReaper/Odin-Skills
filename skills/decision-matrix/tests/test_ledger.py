@@ -172,7 +172,7 @@ class TestWriteDecRecord(unittest.TestCase):
             decisions_dir = Path(tmp) / "decisions"
             spec = _spec()
             result = _result()
-            path = write_dec_record("DEC-0001", spec, result, decisions_dir)
+            path, _ = write_dec_record("DEC-0001", spec, result, decisions_dir)
             self.assertTrue(path.exists())
             self.assertTrue(path.name.startswith("DEC-0001-"))
             self.assertTrue(path.name.endswith(".md"))
@@ -186,35 +186,35 @@ class TestWriteDecRecord(unittest.TestCase):
     def test_frontmatter_has_dec_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertIn("dec_id: DEC-0001", content)
 
     def test_frontmatter_has_date_in_iso_format(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertRegex(content, r"date: \d{4}-\d{2}-\d{2}")
 
     def test_frontmatter_has_goal(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertIn("Pick the best caching layer for the API", content)
 
     def test_frontmatter_has_reversibility(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertIn("reversibility: two-way", content)
 
     def test_frontmatter_has_winner_and_confidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertIn("winner: redis", content)
             self.assertIn("confidence: high", content)
@@ -222,14 +222,14 @@ class TestWriteDecRecord(unittest.TestCase):
     def test_frontmatter_has_fragile(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertIn("fragile: false", content)
 
     def test_body_has_recommendation_section(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertIn("## Recommendation", content)
             self.assertIn("Redis ranks first by weighted-sum across 2 criteria", content)
@@ -237,7 +237,7 @@ class TestWriteDecRecord(unittest.TestCase):
     def test_body_has_scored_matrix_table(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertIn("|", content)  # markdown table present
             self.assertIn("Redis", content)
@@ -247,14 +247,14 @@ class TestWriteDecRecord(unittest.TestCase):
     def test_body_has_sensitivity_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             content = path.read_text()
             self.assertIn("## Sensitivity", content)
 
     def test_returns_path_object(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
-            path = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            path, _ = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             self.assertIsInstance(path, Path)
 
 
@@ -354,6 +354,51 @@ class TestPromoteToAdrHint(unittest.TestCase):
         result["reversibility"] = "one-way"
         result["recommendation"]["confidence"] = "medium"
         self.assertTrue(promote_to_adr_hint(result))
+
+
+class TestWriteDecRecordReturnsResolvedId(unittest.TestCase):
+    """The caller must learn which id was actually written.
+
+    write_dec_record bumps the number on collision (a concurrent session claiming the
+    slot between the read and the write). A caller that keeps using the id it *asked*
+    for labels the ledger row with one id and links a file carrying another — and, since
+    the index upserts on the id prefix, overwrites the row belonging to the real holder.
+    """
+
+    def test_returns_bumped_id_when_the_number_is_already_taken(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp)
+            (decisions_dir / "DEC-0001-claimed-by-another-session.md").write_text(
+                "---\ndec_id: DEC-0001\n---\n", encoding="utf-8"
+            )
+
+            path, resolved_id = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+
+            self.assertEqual(resolved_id, "DEC-0002")
+            self.assertTrue(path.name.startswith("DEC-0002-"), path.name)
+
+    def test_returned_id_matches_the_records_own_frontmatter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp)
+            (decisions_dir / "DEC-0001-claimed.md").write_text("x", encoding="utf-8")
+
+            path, resolved_id = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+
+            self.assertIn(f"dec_id: {resolved_id}\n", path.read_text(encoding="utf-8"))
+
+    def test_index_row_built_from_the_returned_id_does_not_clobber_the_holder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp)
+            holder = decisions_dir / "DEC-0001-claimed.md"
+            holder.write_text("x", encoding="utf-8")
+            update_readme_index("DEC-0001", "Claimed first", holder, decisions_dir, winner="first")
+
+            path, resolved_id = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
+            update_readme_index(resolved_id, "Second decision", path, decisions_dir, winner="redis")
+
+            readme = (decisions_dir / "README.md").read_text(encoding="utf-8")
+            self.assertIn("| DEC-0001 | Claimed first |", readme)
+            self.assertIn("| DEC-0002 | Second decision |", readme)
 
 
 if __name__ == "__main__":

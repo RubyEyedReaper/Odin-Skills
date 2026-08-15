@@ -52,11 +52,43 @@ from scripts.recall import search_prior_decisions
 SCHEMA_VERSION = "1"
 
 # Default decisions ledger directory: <skill-root>/../../docs/decisions resolved relative
-# to this file (scripts/score.py), i.e. the repo's .claude/docs/decisions.
-_DEFAULT_DECISIONS_DIR = (Path(__file__).resolve().parent / ".." / ".." / ".." / "docs" / "decisions").resolve()
+# to this file (scripts/score.py), i.e. the repo's .claude/docs/decisions. This is the
+# HARNESS ledger, and it is the fallback only — a decision about a project belongs in that
+# project's ledger, which the spec declares (see resolve_decisions_dir).
+DEFAULT_DECISIONS_DIR = (Path(__file__).resolve().parent / ".." / ".." / ".." / "docs" / "decisions").resolve()
+_DEFAULT_DECISIONS_DIR = DEFAULT_DECISIONS_DIR  # retained name, same object
+
+# Repository root (.claude/skills/decision-matrix/scripts -> up four). A relative
+# `decisions_dir` is resolved against this, never against the process CWD: SKILL.md
+# mandates running from the skill directory, so CWD names the skill, not the caller.
+_REPO_ROOT = (Path(__file__).resolve().parent / ".." / ".." / ".." / "..").resolve()
 
 # Bundled Node visual generator (scripts/visual.mjs), used to render the HTML artifact.
 _VISUAL_SCRIPT = Path(__file__).resolve().parent / "visual.mjs"
+
+
+def resolve_decisions_dir(spec: dict, decisions_dir: Path = None) -> Path:
+    """Choose the ledger this run records into.
+
+    Precedence: explicit ``decisions_dir`` argument (the ``--decisions-dir`` flag) >
+    the spec's ``decisions_dir`` key > the harness ledger.
+
+    **A decision about a project is recorded in that project's ledger.** The spec is
+    where that is declared, because it is the one artefact written by whoever owns the
+    decision. The process CWD cannot serve: the engine is mandated to run from the skill
+    directory, so CWD always names the skill. A relative path is therefore resolved
+    against the repository root, which is what a human writing
+    ``projects/<name>/docs/decisions`` means.
+    """
+    if decisions_dir is not None:
+        return Path(decisions_dir)
+
+    declared = spec.get("decisions_dir")
+    if declared:
+        path = Path(declared)
+        return path.resolve() if path.is_absolute() else (_REPO_ROOT / path).resolve()
+
+    return DEFAULT_DECISIONS_DIR
 
 
 def _render_visual(result: dict, dec_path: Path) -> tuple:
@@ -337,10 +369,11 @@ def run(spec: dict, *, decisions_dir: Path = None, record: bool = False) -> tupl
     decisions_dir/record control DEC-ledger recording (Sprint 4):
       - record=False (default): NO file writes. prior_decisions=[], dec_record_path=None.
       - record=True: search prior decisions before scoring, write a DEC record + update
-        the README index after scoring. decisions_dir defaults to the repo's
-        .claude/docs/decisions when not provided.
+        the README index after scoring. When decisions_dir is not provided the spec's
+        `decisions_dir` key decides, falling back to the harness ledger — see
+        resolve_decisions_dir.
     """
-    resolved_decisions_dir = Path(decisions_dir) if decisions_dir is not None else _DEFAULT_DECISIONS_DIR
+    resolved_decisions_dir = resolve_decisions_dir(spec, decisions_dir)
 
     # 1. Validate
     errors = validate_spec(spec)
@@ -485,7 +518,9 @@ def run(spec: dict, *, decisions_dir: Path = None, record: bool = False) -> tupl
             title = spec.get("goal", "Untitled decision")
             dec_number = next_dec_number(resolved_decisions_dir)
             dec_id = f"DEC-{dec_number:04d}"
-            dec_path = write_dec_record(dec_id, spec, result, resolved_decisions_dir)
+            # The id can move: write_dec_record bumps the number if another session
+            # claimed the slot after next_dec_number() read it. Index what was written.
+            dec_path, dec_id = write_dec_record(dec_id, spec, result, resolved_decisions_dir)
             update_readme_index(
                 dec_id, title, dec_path, resolved_decisions_dir, winner=recommendation.get("winner")
             )
@@ -531,7 +566,9 @@ def main() -> None:
         "--decisions-dir",
         metavar="PATH",
         default=None,
-        help="DEC ledger directory (default: .claude/docs/decisions in this repo).",
+        help="DEC ledger directory. Overrides the spec's decisions_dir key; with neither, "
+             "the harness ledger .claude/docs/decisions. A project's decision belongs in "
+             "projects/<name>/docs/decisions.",
     )
     args = parser.parse_args()
 

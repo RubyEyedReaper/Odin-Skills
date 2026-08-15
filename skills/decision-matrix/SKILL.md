@@ -17,9 +17,17 @@ license: Apache 2.0
 metadata:
   origin: Odin
 allowed-tools:
+  # The cd-prefixed forms are the invocation this skill prescribes (§Engine interface):
+  # `-m scripts.score` needs the skill directory on sys.path, so the cd is not optional,
+  # and a rule that does not match it prompts on the documented happy path.
   - Bash(python3 -m scripts.score *)
   - Bash(python -m scripts.score *)
-  - Bash(node *)
+  - Bash(cd .claude/skills/decision-matrix && python3 -m scripts.score *)
+  - Bash(cd .claude/skills/decision-matrix && python -m scripts.score *)
+  # node is used for exactly one thing — the bundled renderer. `node *` would also permit
+  # `node -e` for the lifetime of the invocation.
+  - Bash(node scripts/visual.mjs *)
+  - Bash(cd .claude/skills/decision-matrix && node scripts/visual.mjs *)
 ---
 
 # Decision Matrix — quantitative weighted-decision engine
@@ -40,12 +48,25 @@ of options is the failure this skill exists to prevent (`.claude/rules/common/de
    set. If you cannot state what distinguishes two options, they are one option.
 3. **Criteria + weights** — propose criteria with default weights (0–100); flag if one criterion
    dominates (>60% of weight). Mark each `higher-is-better` or `lower-is-better`.
+   **Start from a template when one fits** — a complete worked spec, criteria and weights included,
+   is a better starting point than re-deriving the set from scratch. Adapt it; never ship it
+   unedited, and never keep a criterion the decision does not actually turn on.
+
+   | Decision shape | Template | Criteria it starts you with |
+   |---|---|---|
+   | Build in-house vs buy a vendor product | [`assets/templates/build-vs-buy.json`](assets/templates/build-vs-buy.json) | Time to Market · TCO · Flexibility · Vendor Lock-In · Maintenance Burden |
+   | Choose an architecture or platform | [`assets/templates/technical-architecture.json`](assets/templates/technical-architecture.json) | Performance · Scalability · Team Fit · Operational Cost · Ecosystem Maturity · Security |
+   | Prioritize a backlog (RICE) | [`assets/templates/product-prioritization.json`](assets/templates/product-prioritization.json) | Reach · Impact · Confidence · Effort |
+   | Select among candidates or vendors | [`assets/templates/hiring-candidate.json`](assets/templates/hiring-candidate.json) | Technical Skill · Communication · Culture Fit · Domain Experience · Growth Potential |
 4. **Constraints** — hard disqualifiers, captured *before* scoring. A vetoed option is eliminated
    regardless of how well it scores; that is the point of a constraint rather than a heavy weight.
 5. **Score** — 0–100 per option × criterion, per scorer. Elicit them the way `grilling` elicits
    anything: **one at a time, always with a recommended value and its reasoning, and by reading the
    codebase instead of asking whenever the answer is on disk.** See
-   [references/elicitation.md](references/elicitation.md).
+   [references/elicitation.md](references/elicitation.md). **More than one scorer** — a group
+   decision, or one person scoring in two roles — changes how the numbers combine and adds a
+   `multi_scorer_analysis` block reporting conflicts and outliers:
+   [references/multi-scorer.md](references/multi-scorer.md).
 6. **Run** — serialize to a decision spec JSON and run the engine:
    `python3 -m scripts.score --spec <spec.json> --record`.
 7. **Present** — the scored matrix, the ranked recommendation, disagreement/fragility, the HTML
@@ -57,8 +78,15 @@ of options is the failure this skill exists to prevent (`.claude/rules/common/de
 - Input: decision-spec JSON (`references/decision-spec-schema.md`).
 - Run: `python3 -m scripts.score [--spec <path>] [--record]` from this skill directory; JSON spec on
   stdin if `--spec` omitted. Result JSON to stdout; errors to stderr with exit 1.
-- `--record` writes `DEC-####-<slug>.md` under `.claude/docs/decisions/` and upserts the ledger index.
-  Without it, nothing is written — a decision worth making is worth recording, so default to recording.
+- `--record` writes `DEC-####-<slug>.md` into the ledger and upserts its index. Without it, nothing
+  is written — a decision worth making is worth recording, so default to recording.
+- **Which ledger: the one that owns the decision.** A decision about a project is recorded in that
+  project's `docs/decisions/`; only harness decisions go to `.claude/docs/decisions/`. Declare it in
+  the spec — `"decisions_dir": "projects/<name>/docs/decisions"` — or pass `--decisions-dir <path>`.
+  Precedence: flag > spec key > harness ledger. Relative paths resolve against the repository root,
+  not the working directory, because the engine is run from this skill's directory.
+  **Recording a project's decision in the harness ledger inflates the harness DEC sequence and hides
+  the decision from the project that owns it.**
 - Visual: `node scripts/visual.mjs <result.json>` → self-contained HTML to stdout.
 
 **The engine refuses an incomplete spec on purpose.** A missing score is a question nobody answered;

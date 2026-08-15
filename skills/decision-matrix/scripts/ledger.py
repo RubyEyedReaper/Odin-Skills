@@ -42,12 +42,16 @@ def slugify(title: str) -> str:
     return slug
 
 
-def _unique_dec_filename(decisions_dir: Path, dec_id: str, slug: str) -> Path:
+def _unique_dec_filename(decisions_dir: Path, dec_id: str, slug: str) -> tuple[Path, str]:
     """Resolve a free filename for dec_id-slug, incrementing the *number* on collision.
 
     dec_id is e.g. "DEC-0001". If DEC-0001-<slug>.md (or any DEC-0001-*.md) already
     exists, increment the number until a free DEC-NNNN-*.md slot is found, per spec:
     "If DEC-{n:04d}-* already exists, increment until free."
+
+    Returns ``(path, resolved_dec_id)``. The second element is the point: on collision
+    the number moves, and a caller still holding the id it asked for will label the
+    ledger row with an id that names somebody else's record.
     """
     match = re.match(r"^DEC-(\d{4})$", dec_id)
     n = int(match.group(1)) if match else next_dec_number(decisions_dir)
@@ -113,10 +117,16 @@ def _format_sensitivity_summary(result: dict) -> str:
     return "\n".join(lines)
 
 
-def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path) -> Path:
-    """Write a DEC-NNNN-<slug>.md record under decisions_dir and return its path.
+def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path) -> tuple[Path, str]:
+    """Write a DEC-NNNN-<slug>.md record under decisions_dir.
 
     dec_id: e.g. "DEC-0001" (number portion drives the filename and frontmatter).
+
+    Returns ``(path, resolved_dec_id)``. ``resolved_dec_id`` is not always ``dec_id`` —
+    a concurrent session can claim the slot between the caller's read and this write,
+    and the number is bumped. Index the row with the returned id, never the requested
+    one: ``update_readme_index`` upserts on the id prefix, so a stale id overwrites the
+    row of whoever actually holds it.
     """
     decisions_dir = Path(decisions_dir)
     decisions_dir.mkdir(parents=True, exist_ok=True)
@@ -173,7 +183,7 @@ def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path)
 """
 
     path.write_text(frontmatter + body, encoding="utf-8")
-    return path
+    return path, resolved_dec_id
 
 
 def update_readme_index(dec_id: str, title: str, path: Path, decisions_dir: Path, winner: str = None) -> None:

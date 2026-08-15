@@ -20,7 +20,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `roadmap` | Standing inventory + dependency graph; waves computed from the graph rather than stored |
 | `superplan` | Multi-agent deep planning — planner + architect + adversarial reviewer in parallel, synthesized into one approved plan |
 
-## Forks (7)
+## Forks (8)
 
 Each keeps its upstream license, shipped as `LICENSE` inside the skill directory, with the local
 delta stated in that directory's `UPSTREAM.md`. Upstream HEADs are those audited on 2026-08-15
@@ -36,6 +36,7 @@ delta stated in that directory's `UPSTREAM.md`. Upstream HEADs are those audited
 | `test-driven-development` | [obra/superpowers](https://github.com/obra/superpowers) | MIT | `b36e082` | Merge resolved 2026-08-15: upstream's `writing-good-tests.md` adopted verbatim and `testing-anti-patterns.md` retired; five Common-Rationalizations rows keep their one-line cells where upstream expanded them; Red Flags cross-references the harness's own skipped-RED recovery rule |
 | `verification-before-completion` | [obra/superpowers](https://github.com/obra/superpowers) | MIT | `b36e082` | Adds a closing section distinguishing this gate mindset from the multi-phase `verification-loop` skill |
 | `agent-browser` | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | Apache-2.0 | `548b159` | Reduced to an offline stub that delegates live content to the `agent-browser` CLI, so the skill resolves without network |
+| `decision-mapping` | [mattpocock/skills](https://github.com/mattpocock/skills) (upstream `wayfinder`) | MIT | `8b78b53` | Made invocable — upstream's `disable-model-invocation` dropped, real description and triggers added. Keeps a committed markdown map instead of upstream's issue-tracker map; ports Destination / Out-of-scope / Not-yet-specified, HITL-vs-AFK ticket typing, the `task` type, and claim-before-work (with the claim required to be committed) |
 
 ## Not included, and why
 

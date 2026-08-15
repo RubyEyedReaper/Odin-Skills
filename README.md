@@ -4,7 +4,7 @@ The skills the [Odin](https://github.com/RubyEyedReaper/Odin) harness **owns** �
 scratch, eight forked from upstream projects and modified — packaged as one installable Claude Code
 plugin.
 
-Odin vendors 98 skills in total. The other 86 are third-party work it has never touched, and they
+Odin vendors 98 skills in total. The other 85 are third-party work it has never touched, and they
 are not redistributed here. This repository is only the part Odin is actually the author or the
 maintainer of.
 
@@ -12,8 +12,8 @@ maintainer of.
 
 **Authored here (5)** — `decision-matrix` · `mistake-to-gate` · `oops` · `roadmap` · `superplan`
 
-**Forked and modified (7)** — `impeccable` · `blueprint` · `handoff` · `using-superpowers` ·
-`test-driven-development` · `verification-before-completion` · `agent-browser`
+**Forked and modified (8)** — `impeccable` · `blueprint` · `handoff` · `using-superpowers` ·
+`test-driven-development` · `verification-before-completion` · `agent-browser` · `decision-mapping`
 
 Origins, upstream licenses, and the exact local delta for every fork: [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 

@@ -52,6 +52,13 @@ Asking a user to recite their own repository is how an interview loses its autho
 Aim for **4–6**. Fewer than 3 and the matrix is theatre; more than 8 and the weights are
 noise.
 
+**Do not start from a blank set when a template covers the shape.** Four worked specs ship
+with the skill — `assets/templates/{build-vs-buy,technical-architecture,product-prioritization,hiring-candidate}.json`,
+catalogued in `SKILL.md` step 3 — each with criteria, weights, directions and constraints
+already argued. Open the nearest one, then run the four tests below on every criterion it
+gives you: an inherited criterion the decision does not turn on is worse than one you forgot,
+because it arrives looking considered.
+
 **Test each candidate criterion:**
 
 1. *Does it discriminate?* If every option scores the same, drop it — the engine will flag
@@ -97,7 +104,8 @@ run an incomplete spec is a feature.
 When several people or agent perspectives score the same spec, disagreement is the most
 valuable output in the run — more than the winner. `std_dev` per cell shows exactly where
 the room disagrees, and that cell is usually where the real decision lives. Aggregate
-after recording the spread, never by averaging it away in conversation first.
+after recording the spread, never by averaging it away in conversation first. How the engine
+combines them, and what `multi_scorer_analysis` reports back: [multi-scorer.md](multi-scorer.md).
 
 ---
 

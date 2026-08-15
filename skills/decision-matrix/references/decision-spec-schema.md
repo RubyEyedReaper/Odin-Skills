@@ -24,6 +24,7 @@ Field-by-field documentation for the input spec JSON and the result JSON produce
 | `scorers` | `Scorer[]` | yes | Min 1. Sprint 1: exactly 1 scorer |
 | `methods` | `string[]` | yes | Scoring methods to apply. Sprint 1: `["weighted-sum"]` |
 | `tie_threshold` | number | no | Percent of total score range within which two options are considered a near-tie. Default 5 |
+| `decisions_dir` | string | no | Ledger this decision is recorded into. **Set it whenever the decision belongs to a project** — `projects/<name>/docs/decisions`. Relative paths resolve against the repository root, not the process CWD (the engine runs from the skill directory, so CWD names the skill). Omitted → the harness ledger `.claude/docs/decisions`. `--decisions-dir` overrides it. |
 
 ---
 
