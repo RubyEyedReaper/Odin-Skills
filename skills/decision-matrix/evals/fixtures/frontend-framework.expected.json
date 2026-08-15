@@ -1,0 +1,275 @@
+{
+  "schema_version": "1",
+  "vetoed_options": [],
+  "active_options": [
+    "next",
+    "nuxt",
+    "sveltekit",
+    "remix"
+  ],
+  "aggregated_scores": {
+    "next": {
+      "team-familiarity": {
+        "mean": 90.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 85.5
+      },
+      "ecosystem-maturity": {
+        "mean": 95.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 90.25
+      },
+      "dx": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 68.0
+      },
+      "perf": {
+        "mean": 75.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 60.0
+      },
+      "hiring": {
+        "mean": 95.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 85.5
+      }
+    },
+    "nuxt": {
+      "team-familiarity": {
+        "mean": 50.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 42.5
+      },
+      "ecosystem-maturity": {
+        "mean": 75.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 63.75
+      },
+      "dx": {
+        "mean": 82.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 65.60000000000001
+      },
+      "perf": {
+        "mean": 72.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 54.0
+      },
+      "hiring": {
+        "mean": 65.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 52.0
+      }
+    },
+    "sveltekit": {
+      "team-familiarity": {
+        "mean": 30.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 27.0
+      },
+      "ecosystem-maturity": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 48.0
+      },
+      "dx": {
+        "mean": 88.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 70.4
+      },
+      "perf": {
+        "mean": 90.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 76.5
+      },
+      "hiring": {
+        "mean": 45.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 36.0
+      }
+    },
+    "remix": {
+      "team-familiarity": {
+        "mean": 55.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 46.75
+      },
+      "ecosystem-maturity": {
+        "mean": 65.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 52.0
+      },
+      "dx": {
+        "mean": 78.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 62.400000000000006
+      },
+      "perf": {
+        "mean": 78.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 62.400000000000006
+      },
+      "hiring": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 45.0
+      }
+    }
+  },
+  "criteria_quality": {
+    "warnings": []
+  },
+  "method_results": {
+    "weighted-sum": {
+      "ranking": [
+        {
+          "option": "next",
+          "score": 79.3625,
+          "rank": 1
+        },
+        {
+          "option": "nuxt",
+          "score": 55.10750000000001,
+          "rank": 2
+        },
+        {
+          "option": "remix",
+          "score": 53.365,
+          "rank": 3
+        },
+        {
+          "option": "sveltekit",
+          "score": 49.25500000000001,
+          "rank": 4
+        }
+      ]
+    },
+    "pugh": {
+      "ranking": [
+        {
+          "option": "next",
+          "score": 0,
+          "rank": 1
+        },
+        {
+          "option": "sveltekit",
+          "score": -1,
+          "rank": 2
+        },
+        {
+          "option": "remix",
+          "score": -3,
+          "rank": 3
+        },
+        {
+          "option": "nuxt",
+          "score": -5,
+          "rank": 4
+        }
+      ]
+    },
+    "topsis": {
+      "ranking": [
+        {
+          "option": "next",
+          "score": 0.9033492880806535,
+          "rank": 1
+        },
+        {
+          "option": "remix",
+          "score": 0.2933229117837006,
+          "rank": 2
+        },
+        {
+          "option": "nuxt",
+          "score": 0.28701214302838035,
+          "rank": 3
+        },
+        {
+          "option": "sveltekit",
+          "score": 0.13628330041352887,
+          "rank": 4
+        }
+      ]
+    }
+  },
+  "ties": {
+    "near_tie_pairs": []
+  },
+  "disagreement_report": {
+    "methods_agree": true,
+    "winner_by_method": {
+      "weighted-sum": "next",
+      "pugh": "next",
+      "topsis": "next"
+    },
+    "disagreement_pairs": []
+  },
+  "sensitivity": {
+    "winner_analyzed": "next",
+    "break_even": {
+      "team-familiarity": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "ecosystem-maturity": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "dx": {
+        "weight_shift_to_flip_pct": 75.0,
+        "favors_if_flipped": "sveltekit"
+      },
+      "perf": {
+        "weight_shift_to_flip_pct": 55.0,
+        "favors_if_flipped": "sveltekit"
+      },
+      "hiring": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      }
+    },
+    "tornado": [
+      {
+        "criterion": "ecosystem-maturity",
+        "swing_impact": 1.451667,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "perf",
+        "swing_impact": 1.366765,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "dx",
+        "swing_impact": 1.13625,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "team-familiarity",
+        "swing_impact": 1.052143,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "hiring",
+        "swing_impact": 0.272778,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      }
+    ],
+    "fragile": false,
+    "fragile_reason": ""
+  },
+  "recommendation": {
+    "winner": "next",
+    "winner_label": "Next.js (React)",
+    "rationale": "Next.js (React) ranks first by weighted-sum across 5 criteria",
+    "confidence": "high",
+    "caveats": []
+  }
+}

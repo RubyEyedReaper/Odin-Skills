@@ -1,0 +1,95 @@
+{
+  "goal": "Decide whether to build an in-house notification system or buy a vendor solution",
+  "reversibility": "one-way",
+  "constraints": [
+    {"id": "soc2-ready", "description": "Must support SOC 2 compliance requirements out of the box or via configuration"}
+  ],
+  "options": [
+    {
+      "id": "build",
+      "label": "Build In-House",
+      "description": "Engineer a custom notification service on top of existing infra",
+      "constraint_results": {"soc2-ready": true}
+    },
+    {
+      "id": "buy-vendor-a",
+      "label": "Buy: Vendor A (Courier-style platform)",
+      "description": "Full-featured notification orchestration platform, usage-based pricing",
+      "constraint_results": {"soc2-ready": true}
+    },
+    {
+      "id": "buy-vendor-b",
+      "label": "Buy: Vendor B (budget SaaS)",
+      "description": "Lighter-weight notification API, flat monthly pricing, fewer channels",
+      "constraint_results": {"soc2-ready": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "time-to-market",
+      "label": "Time to Market",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "How quickly the option can be live in production"
+    },
+    {
+      "id": "total-cost",
+      "label": "Total Cost of Ownership",
+      "weight": 25,
+      "direction": "lower-is-better",
+      "description": "Lower is better. Combined build/license cost plus 2-year maintenance projection"
+    },
+    {
+      "id": "flexibility",
+      "label": "Flexibility",
+      "weight": 20,
+      "direction": "higher-is-better",
+      "description": "Ability to customize behavior, channels, and routing logic to exact product needs"
+    },
+    {
+      "id": "vendor-lock-in",
+      "label": "Vendor Lock-In",
+      "weight": 15,
+      "direction": "lower-is-better",
+      "description": "Lower is better. Difficulty of migrating away from this option later"
+    },
+    {
+      "id": "maintenance-burden",
+      "label": "Maintenance Burden",
+      "weight": 15,
+      "direction": "lower-is-better",
+      "description": "Lower is better. Ongoing engineering time required to keep the option healthy"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "eng-lead",
+      "label": "Engineering Lead",
+      "scores": {
+        "build": {
+          "time-to-market":      {"value": 25, "confidence": 0.85},
+          "total-cost":          {"value": 60, "confidence": 0.70},
+          "flexibility":         {"value": 95, "confidence": 0.90},
+          "vendor-lock-in":      {"value": 5,  "confidence": 0.90},
+          "maintenance-burden":  {"value": 75, "confidence": 0.85}
+        },
+        "buy-vendor-a": {
+          "time-to-market":      {"value": 90, "confidence": 0.90},
+          "total-cost":          {"value": 55, "confidence": 0.80},
+          "flexibility":         {"value": 65, "confidence": 0.80},
+          "vendor-lock-in":      {"value": 60, "confidence": 0.85},
+          "maintenance-burden":  {"value": 20, "confidence": 0.85}
+        },
+        "buy-vendor-b": {
+          "time-to-market":      {"value": 85, "confidence": 0.90},
+          "total-cost":          {"value": 30, "confidence": 0.85},
+          "flexibility":         {"value": 35, "confidence": 0.80},
+          "vendor-lock-in":      {"value": 50, "confidence": 0.80},
+          "maintenance-burden":  {"value": 15, "confidence": 0.85}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "pugh", "topsis"],
+  "tie_threshold": 5
+}

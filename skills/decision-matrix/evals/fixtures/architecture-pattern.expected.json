@@ -1,0 +1,255 @@
+{
+  "schema_version": "1",
+  "vetoed_options": [
+    "microservices"
+  ],
+  "active_options": [
+    "monolith",
+    "serverless",
+    "modular-services"
+  ],
+  "aggregated_scores": {
+    "monolith": {
+      "operational-burden": {
+        "mean": 20.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 18.0
+      },
+      "scalability": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 48.0
+      },
+      "dev-velocity": {
+        "mean": 85.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 72.25
+      },
+      "observability": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 68.0
+      }
+    },
+    "microservices": {
+      "operational-burden": {
+        "mean": 85.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 76.5
+      },
+      "scalability": {
+        "mean": 95.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 85.5
+      },
+      "dev-velocity": {
+        "mean": 45.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 38.25
+      },
+      "observability": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 48.0
+      }
+    },
+    "serverless": {
+      "operational-burden": {
+        "mean": 30.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 25.5
+      },
+      "scalability": {
+        "mean": 88.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 74.8
+      },
+      "dev-velocity": {
+        "mean": 70.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 56.0
+      },
+      "observability": {
+        "mean": 55.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 41.25
+      }
+    },
+    "modular-services": {
+      "operational-burden": {
+        "mean": 40.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 34.0
+      },
+      "scalability": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 68.0
+      },
+      "dev-velocity": {
+        "mean": 78.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 66.3
+      },
+      "observability": {
+        "mean": 75.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 60.0
+      }
+    }
+  },
+  "criteria_quality": {
+    "warnings": []
+  },
+  "method_results": {
+    "weighted-sum": {
+      "ranking": [
+        {
+          "option": "monolith",
+          "score": 68.26249999999999,
+          "rank": 1
+        },
+        {
+          "option": "modular-services",
+          "score": 65.375,
+          "rank": 2
+        },
+        {
+          "option": "serverless",
+          "score": 63.3,
+          "rank": 3
+        }
+      ]
+    },
+    "pugh": {
+      "ranking": [
+        {
+          "option": "monolith",
+          "score": 0,
+          "rank": 1
+        },
+        {
+          "option": "serverless",
+          "score": -2,
+          "rank": 2
+        },
+        {
+          "option": "modular-services",
+          "score": -2,
+          "rank": 2
+        }
+      ]
+    },
+    "topsis": {
+      "ranking": [
+        {
+          "option": "modular-services",
+          "score": 0.5808757320467743,
+          "rank": 1
+        },
+        {
+          "option": "monolith",
+          "score": 0.5547252082240584,
+          "rank": 2
+        },
+        {
+          "option": "serverless",
+          "score": 0.48500718485925604,
+          "rank": 3
+        }
+      ]
+    }
+  },
+  "ties": {
+    "near_tie_pairs": []
+  },
+  "disagreement_report": {
+    "methods_agree": false,
+    "winner_by_method": {
+      "weighted-sum": "monolith",
+      "pugh": "monolith",
+      "topsis": "modular-services"
+    },
+    "disagreement_pairs": [
+      {
+        "methods": [
+          "weighted-sum",
+          "topsis"
+        ],
+        "winners": [
+          "monolith",
+          "modular-services"
+        ]
+      },
+      {
+        "methods": [
+          "pugh",
+          "topsis"
+        ],
+        "winners": [
+          "monolith",
+          "modular-services"
+        ]
+      }
+    ]
+  },
+  "sensitivity": {
+    "winner_analyzed": "monolith",
+    "break_even": {
+      "operational-burden": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "scalability": {
+        "weight_shift_to_flip_pct": 10.0,
+        "favors_if_flipped": "modular-services"
+      },
+      "dev-velocity": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "observability": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      }
+    },
+    "tornado": [
+      {
+        "criterion": "scalability",
+        "swing_impact": 2.701667,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "operational-burden",
+        "swing_impact": 2.355,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "dev-velocity",
+        "swing_impact": 0.531667,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "observability",
+        "swing_impact": 0.02625,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      }
+    ],
+    "fragile": true,
+    "fragile_reason": "winner flips if 'scalability' weight shifts by 10.0 pp (threshold: 10.0 pp)"
+  },
+  "recommendation": {
+    "winner": "monolith",
+    "winner_label": "Modular Monolith",
+    "rationale": "Modular Monolith ranks first by weighted-sum across 4 criteria",
+    "confidence": "low",
+    "caveats": [
+      "methods disagree on winner: weighted-sum\u2192monolith; pugh\u2192monolith; topsis\u2192modular-services",
+      "fragile recommendation: winner flips if 'scalability' weight shifts by 10.0 pp (threshold: 10.0 pp)"
+    ]
+  }
+}

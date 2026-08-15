@@ -1,0 +1,86 @@
+{
+  "goal": "Decide whether to build, buy, or use open-source for authentication in a new SaaS product",
+  "reversibility": "one-way",
+  "constraints": [
+    {"id": "soc2-ready", "description": "Must support SOC 2 audit requirements or be easily auditable"},
+    {"id": "mfa-support", "description": "Must support MFA (TOTP and SMS at minimum)"}
+  ],
+  "options": [
+    {
+      "id": "build",
+      "label": "Build In-House",
+      "description": "Implement auth from scratch using JWTs, bcrypt, and session management",
+      "constraint_results": {"soc2-ready": true, "mfa-support": true}
+    },
+    {
+      "id": "auth0",
+      "label": "Auth0 / Okta",
+      "description": "Managed identity platform with broad protocol support",
+      "constraint_results": {"soc2-ready": true, "mfa-support": true}
+    },
+    {
+      "id": "supabase-auth",
+      "label": "Supabase Auth",
+      "description": "Open-source auth built on GoTrue, integrated with Supabase stack",
+      "constraint_results": {"soc2-ready": true, "mfa-support": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "time-to-market",
+      "label": "Time to Market",
+      "weight": 30,
+      "direction": "lower-is-better",
+      "description": "Engineering weeks to reach production-ready auth"
+    },
+    {
+      "id": "control",
+      "label": "Control & Customisability",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Ability to customise flows, tokens, and storage"
+    },
+    {
+      "id": "ongoing-cost",
+      "label": "Ongoing Cost ($/mo at 5k MAU)",
+      "weight": 20,
+      "direction": "lower-is-better",
+      "description": "Monthly spend at moderate scale"
+    },
+    {
+      "id": "security-baseline",
+      "label": "Security Baseline",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Out-of-the-box security posture without extra effort"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "architect",
+      "label": "Lead Architect Assessment",
+      "scores": {
+        "build": {
+          "time-to-market":   {"value": 80, "confidence": 0.85},
+          "control":          {"value": 95, "confidence": 0.90},
+          "ongoing-cost":     {"value": 10, "confidence": 0.80},
+          "security-baseline":{"value": 50, "confidence": 0.75}
+        },
+        "auth0": {
+          "time-to-market":   {"value": 15, "confidence": 0.90},
+          "control":          {"value": 55, "confidence": 0.85},
+          "ongoing-cost":     {"value": 70, "confidence": 0.90},
+          "security-baseline":{"value": 90, "confidence": 0.90}
+        },
+        "supabase-auth": {
+          "time-to-market":   {"value": 25, "confidence": 0.85},
+          "control":          {"value": 75, "confidence": 0.80},
+          "ongoing-cost":     {"value": 20, "confidence": 0.85},
+          "security-baseline":{"value": 78, "confidence": 0.80}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "pugh", "topsis"],
+  "tie_threshold": 5
+}

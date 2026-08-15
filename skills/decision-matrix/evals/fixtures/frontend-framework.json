@@ -1,0 +1,109 @@
+{
+  "goal": "Select the frontend framework for a new B2B dashboard product with a team of 4 engineers",
+  "reversibility": "one-way",
+  "constraints": [
+    {"id": "ts-support", "description": "Must have first-class TypeScript support"},
+    {"id": "active-maintenance", "description": "Must be actively maintained with regular releases"}
+  ],
+  "options": [
+    {
+      "id": "next",
+      "label": "Next.js (React)",
+      "description": "React meta-framework with SSR, RSC, and strong Vercel ecosystem",
+      "constraint_results": {"ts-support": true, "active-maintenance": true}
+    },
+    {
+      "id": "nuxt",
+      "label": "Nuxt 3 (Vue)",
+      "description": "Vue meta-framework with SSR and file-based routing",
+      "constraint_results": {"ts-support": true, "active-maintenance": true}
+    },
+    {
+      "id": "sveltekit",
+      "label": "SvelteKit",
+      "description": "Svelte meta-framework, compile-time reactivity, small bundles",
+      "constraint_results": {"ts-support": true, "active-maintenance": true}
+    },
+    {
+      "id": "remix",
+      "label": "Remix",
+      "description": "React framework focused on web standards and nested routing",
+      "constraint_results": {"ts-support": true, "active-maintenance": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "team-familiarity",
+      "label": "Team Familiarity",
+      "weight": 30,
+      "direction": "higher-is-better",
+      "description": "How much existing team experience exists with the framework"
+    },
+    {
+      "id": "ecosystem-maturity",
+      "label": "Ecosystem Maturity",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Quality and breadth of libraries, tooling, and community"
+    },
+    {
+      "id": "dx",
+      "label": "Developer Experience",
+      "weight": 20,
+      "direction": "higher-is-better",
+      "description": "Ease of development, HMR quality, debugging"
+    },
+    {
+      "id": "perf",
+      "label": "Runtime Performance",
+      "weight": 15,
+      "direction": "higher-is-better",
+      "description": "Bundle size, TTI, and rendering performance at scale"
+    },
+    {
+      "id": "hiring",
+      "label": "Hiring Pool",
+      "weight": 10,
+      "direction": "higher-is-better",
+      "description": "Availability of engineers familiar with the framework"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "team-consensus",
+      "label": "Team Consensus Score",
+      "scores": {
+        "next": {
+          "team-familiarity":   {"value": 90, "confidence": 0.95},
+          "ecosystem-maturity": {"value": 95, "confidence": 0.95},
+          "dx":                 {"value": 80, "confidence": 0.85},
+          "perf":               {"value": 75, "confidence": 0.80},
+          "hiring":             {"value": 95, "confidence": 0.90}
+        },
+        "nuxt": {
+          "team-familiarity":   {"value": 50, "confidence": 0.85},
+          "ecosystem-maturity": {"value": 75, "confidence": 0.85},
+          "dx":                 {"value": 82, "confidence": 0.80},
+          "perf":               {"value": 72, "confidence": 0.75},
+          "hiring":             {"value": 65, "confidence": 0.80}
+        },
+        "sveltekit": {
+          "team-familiarity":   {"value": 30, "confidence": 0.90},
+          "ecosystem-maturity": {"value": 60, "confidence": 0.80},
+          "dx":                 {"value": 88, "confidence": 0.80},
+          "perf":               {"value": 90, "confidence": 0.85},
+          "hiring":             {"value": 45, "confidence": 0.80}
+        },
+        "remix": {
+          "team-familiarity":   {"value": 55, "confidence": 0.85},
+          "ecosystem-maturity": {"value": 65, "confidence": 0.80},
+          "dx":                 {"value": 78, "confidence": 0.80},
+          "perf":               {"value": 78, "confidence": 0.80},
+          "hiring":             {"value": 60, "confidence": 0.75}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "pugh", "topsis"],
+  "tie_threshold": 5
+}

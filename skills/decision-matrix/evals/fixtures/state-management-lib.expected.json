@@ -1,0 +1,275 @@
+{
+  "schema_version": "1",
+  "vetoed_options": [],
+  "active_options": [
+    "zustand",
+    "jotai",
+    "redux-toolkit",
+    "tanstack-query"
+  ],
+  "aggregated_scores": {
+    "zustand": {
+      "api": {
+        "mean": 92.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 82.8
+      },
+      "async-support": {
+        "mean": 55.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 46.75
+      },
+      "devtools": {
+        "mean": 65.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 52.0
+      },
+      "boilerplate": {
+        "mean": 15.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 13.5
+      },
+      "community": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 68.0
+      }
+    },
+    "jotai": {
+      "api": {
+        "mean": 85.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 72.25
+      },
+      "async-support": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 48.0
+      },
+      "devtools": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 45.0
+      },
+      "boilerplate": {
+        "mean": 20.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 17.0
+      },
+      "community": {
+        "mean": 65.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 52.0
+      }
+    },
+    "redux-toolkit": {
+      "api": {
+        "mean": 55.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 49.5
+      },
+      "async-support": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 68.0
+      },
+      "devtools": {
+        "mean": 95.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 90.25
+      },
+      "boilerplate": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 54.0
+      },
+      "community": {
+        "mean": 95.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 90.25
+      }
+    },
+    "tanstack-query": {
+      "api": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 72.0
+      },
+      "async-support": {
+        "mean": 98.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 93.1
+      },
+      "devtools": {
+        "mean": 85.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 72.25
+      },
+      "boilerplate": {
+        "mean": 30.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 25.5
+      },
+      "community": {
+        "mean": 90.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 81.0
+      }
+    }
+  },
+  "criteria_quality": {
+    "warnings": []
+  },
+  "method_results": {
+    "weighted-sum": {
+      "ranking": [
+        {
+          "option": "tanstack-query",
+          "score": 79.65499999999999,
+          "rank": 1
+        },
+        {
+          "option": "redux-toolkit",
+          "score": 66.75,
+          "rank": 2
+        },
+        {
+          "option": "zustand",
+          "score": 64.9,
+          "rank": 3
+        },
+        {
+          "option": "jotai",
+          "score": 59.1125,
+          "rank": 4
+        }
+      ]
+    },
+    "pugh": {
+      "ranking": [
+        {
+          "option": "tanstack-query",
+          "score": 0,
+          "rank": 1
+        },
+        {
+          "option": "zustand",
+          "score": -1,
+          "rank": 2
+        },
+        {
+          "option": "jotai",
+          "score": -1,
+          "rank": 2
+        },
+        {
+          "option": "redux-toolkit",
+          "score": -1,
+          "rank": 2
+        }
+      ]
+    },
+    "topsis": {
+      "ranking": [
+        {
+          "option": "tanstack-query",
+          "score": 0.7763769296195723,
+          "rank": 1
+        },
+        {
+          "option": "redux-toolkit",
+          "score": 0.4857402768963804,
+          "rank": 2
+        },
+        {
+          "option": "zustand",
+          "score": 0.38068284072396186,
+          "rank": 3
+        },
+        {
+          "option": "jotai",
+          "score": 0.3047937916249125,
+          "rank": 4
+        }
+      ]
+    }
+  },
+  "ties": {
+    "near_tie_pairs": []
+  },
+  "disagreement_report": {
+    "methods_agree": true,
+    "winner_by_method": {
+      "weighted-sum": "tanstack-query",
+      "pugh": "tanstack-query",
+      "topsis": "tanstack-query"
+    },
+    "disagreement_pairs": []
+  },
+  "sensitivity": {
+    "winner_analyzed": "tanstack-query",
+    "break_even": {
+      "api": {
+        "weight_shift_to_flip_pct": 44.0,
+        "favors_if_flipped": "zustand"
+      },
+      "async-support": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "devtools": {
+        "weight_shift_to_flip_pct": 34.0,
+        "favors_if_flipped": "redux-toolkit"
+      },
+      "boilerplate": {
+        "weight_shift_to_flip_pct": 47.0,
+        "favors_if_flipped": "zustand"
+      },
+      "community": {
+        "weight_shift_to_flip_pct": 53.0,
+        "favors_if_flipped": "redux-toolkit"
+      }
+    },
+    "tornado": [
+      {
+        "criterion": "async-support",
+        "swing_impact": 2.304857,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "api",
+        "swing_impact": 1.020667,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "devtools",
+        "swing_impact": 0.7405,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "boilerplate",
+        "swing_impact": 0.363882,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "community",
+        "swing_impact": 0.059778,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      }
+    ],
+    "fragile": false,
+    "fragile_reason": ""
+  },
+  "recommendation": {
+    "winner": "tanstack-query",
+    "winner_label": "TanStack Query",
+    "rationale": "TanStack Query ranks first by weighted-sum across 5 criteria",
+    "confidence": "high",
+    "caveats": []
+  }
+}

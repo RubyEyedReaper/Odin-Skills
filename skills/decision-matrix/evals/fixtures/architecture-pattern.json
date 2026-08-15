@@ -1,0 +1,98 @@
+{
+  "goal": "Choose the backend architecture pattern for a greenfield event-driven platform expecting 50k events/day",
+  "reversibility": "one-way",
+  "constraints": [
+    {"id": "team-size", "description": "Team of 3 engineers — must not require dedicated ops/platform team"},
+    {"id": "cloud-native", "description": "Must deploy on a major cloud provider without on-prem dependencies"}
+  ],
+  "options": [
+    {
+      "id": "monolith",
+      "label": "Modular Monolith",
+      "description": "Single deployable with internal module boundaries",
+      "constraint_results": {"team-size": true, "cloud-native": true}
+    },
+    {
+      "id": "microservices",
+      "label": "Microservices",
+      "description": "Separate services per domain, each independently deployable",
+      "constraint_results": {"team-size": false, "cloud-native": true}
+    },
+    {
+      "id": "serverless",
+      "label": "Serverless Functions",
+      "description": "Event-triggered functions on AWS Lambda / GCP Cloud Functions",
+      "constraint_results": {"team-size": true, "cloud-native": true}
+    },
+    {
+      "id": "modular-services",
+      "label": "Modular Services (2-3 services)",
+      "description": "Split only along clear seams: API, worker, scheduler",
+      "constraint_results": {"team-size": true, "cloud-native": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "operational-burden",
+      "label": "Operational Burden",
+      "weight": 30,
+      "direction": "lower-is-better",
+      "description": "Deployment, monitoring, and incident response complexity"
+    },
+    {
+      "id": "scalability",
+      "label": "Scalability Ceiling",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Maximum throughput achievable without re-architecture"
+    },
+    {
+      "id": "dev-velocity",
+      "label": "Development Velocity",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Speed of feature delivery and iteration"
+    },
+    {
+      "id": "observability",
+      "label": "Observability",
+      "weight": 20,
+      "direction": "higher-is-better",
+      "description": "Ease of tracing, logging, and debugging across the system"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "architecture-review",
+      "label": "Architecture Review Board",
+      "scores": {
+        "monolith": {
+          "operational-burden": {"value": 20, "confidence": 0.90},
+          "scalability":        {"value": 60, "confidence": 0.80},
+          "dev-velocity":       {"value": 85, "confidence": 0.85},
+          "observability":      {"value": 80, "confidence": 0.85}
+        },
+        "microservices": {
+          "operational-burden": {"value": 85, "confidence": 0.90},
+          "scalability":        {"value": 95, "confidence": 0.90},
+          "dev-velocity":       {"value": 45, "confidence": 0.85},
+          "observability":      {"value": 60, "confidence": 0.80}
+        },
+        "serverless": {
+          "operational-burden": {"value": 30, "confidence": 0.85},
+          "scalability":        {"value": 88, "confidence": 0.85},
+          "dev-velocity":       {"value": 70, "confidence": 0.80},
+          "observability":      {"value": 55, "confidence": 0.75}
+        },
+        "modular-services": {
+          "operational-burden": {"value": 40, "confidence": 0.85},
+          "scalability":        {"value": 80, "confidence": 0.85},
+          "dev-velocity":       {"value": 78, "confidence": 0.85},
+          "observability":      {"value": 75, "confidence": 0.80}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "pugh", "topsis"],
+  "tie_threshold": 5
+}

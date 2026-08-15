@@ -1,0 +1,275 @@
+{
+  "schema_version": "1",
+  "vetoed_options": [],
+  "active_options": [
+    "postgres",
+    "mysql",
+    "mongodb",
+    "cockroachdb"
+  ],
+  "aggregated_scores": {
+    "postgres": {
+      "relational-fit": {
+        "mean": 95.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 90.25
+      },
+      "ops-complexity": {
+        "mean": 35.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 29.75
+      },
+      "ecosystem": {
+        "mean": 90.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 81.0
+      },
+      "scalability": {
+        "mean": 65.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 52.0
+      },
+      "cost": {
+        "mean": 30.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 25.5
+      }
+    },
+    "mysql": {
+      "relational-fit": {
+        "mean": 85.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 76.5
+      },
+      "ops-complexity": {
+        "mean": 30.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 25.5
+      },
+      "ecosystem": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 68.0
+      },
+      "scalability": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 48.0
+      },
+      "cost": {
+        "mean": 28.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 23.8
+      }
+    },
+    "mongodb": {
+      "relational-fit": {
+        "mean": 30.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 27.0
+      },
+      "ops-complexity": {
+        "mean": 40.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 32.0
+      },
+      "ecosystem": {
+        "mean": 75.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 60.0
+      },
+      "scalability": {
+        "mean": 85.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 72.25
+      },
+      "cost": {
+        "mean": 50.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 37.5
+      }
+    },
+    "cockroachdb": {
+      "relational-fit": {
+        "mean": 88.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 70.4
+      },
+      "ops-complexity": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 45.0
+      },
+      "ecosystem": {
+        "mean": 60.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 45.0
+      },
+      "scalability": {
+        "mean": 92.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 78.2
+      },
+      "cost": {
+        "mean": 65.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 45.5
+      }
+    }
+  },
+  "criteria_quality": {
+    "warnings": []
+  },
+  "method_results": {
+    "weighted-sum": {
+      "ranking": [
+        {
+          "option": "postgres",
+          "score": 77.0875,
+          "rank": 1
+        },
+        {
+          "option": "mysql",
+          "score": 70.095,
+          "rank": 2
+        },
+        {
+          "option": "cockroachdb",
+          "score": 61.82000000000001,
+          "rank": 3
+        },
+        {
+          "option": "mongodb",
+          "score": 52.137499999999996,
+          "rank": 4
+        }
+      ]
+    },
+    "pugh": {
+      "ranking": [
+        {
+          "option": "postgres",
+          "score": 0,
+          "rank": 1
+        },
+        {
+          "option": "mysql",
+          "score": -1,
+          "rank": 2
+        },
+        {
+          "option": "mongodb",
+          "score": -3,
+          "rank": 3
+        },
+        {
+          "option": "cockroachdb",
+          "score": -3,
+          "rank": 3
+        }
+      ]
+    },
+    "topsis": {
+      "ranking": [
+        {
+          "option": "postgres",
+          "score": 0.8436856922978782,
+          "rank": 1
+        },
+        {
+          "option": "mysql",
+          "score": 0.7136519230648694,
+          "rank": 2
+        },
+        {
+          "option": "cockroachdb",
+          "score": 0.583122464870129,
+          "rank": 3
+        },
+        {
+          "option": "mongodb",
+          "score": 0.20552384135416402,
+          "rank": 4
+        }
+      ]
+    }
+  },
+  "ties": {
+    "near_tie_pairs": []
+  },
+  "disagreement_report": {
+    "methods_agree": true,
+    "winner_by_method": {
+      "weighted-sum": "postgres",
+      "pugh": "postgres",
+      "topsis": "postgres"
+    },
+    "disagreement_pairs": []
+  },
+  "sensitivity": {
+    "winner_analyzed": "postgres",
+    "break_even": {
+      "relational-fit": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "ops-complexity": {
+        "weight_shift_to_flip_pct": 50.0,
+        "favors_if_flipped": "mysql"
+      },
+      "ecosystem": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "scalability": {
+        "weight_shift_to_flip_pct": 32.0,
+        "favors_if_flipped": "cockroachdb"
+      },
+      "cost": {
+        "weight_shift_to_flip_pct": 73.0,
+        "favors_if_flipped": "mysql"
+      }
+    },
+    "tornado": [
+      {
+        "criterion": "relational-fit",
+        "swing_impact": 2.835,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "scalability",
+        "swing_impact": 1.770882,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "ops-complexity",
+        "swing_impact": 0.68375,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "ecosystem",
+        "swing_impact": 0.39125,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "cost",
+        "swing_impact": 0.115,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      }
+    ],
+    "fragile": false,
+    "fragile_reason": ""
+  },
+  "recommendation": {
+    "winner": "postgres",
+    "winner_label": "PostgreSQL",
+    "rationale": "PostgreSQL ranks first by weighted-sum across 5 criteria",
+    "confidence": "high",
+    "caveats": []
+  }
+}

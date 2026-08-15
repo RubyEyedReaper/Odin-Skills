@@ -1,0 +1,240 @@
+{
+  "schema_version": "1",
+  "vetoed_options": [
+    "candidate-c"
+  ],
+  "active_options": [
+    "candidate-a",
+    "candidate-b",
+    "candidate-d"
+  ],
+  "aggregated_scores": {
+    "candidate-a": {
+      "technical-depth": {
+        "mean": 90.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 79.58333333333333
+      },
+      "collaboration": {
+        "mean": 65.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 52.0
+      },
+      "problem-solving": {
+        "mean": 85.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 75.16666666666667
+      },
+      "ramp-time": {
+        "mean": 30.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 22.5
+      }
+    },
+    "candidate-b": {
+      "technical-depth": {
+        "mean": 70.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 60.75
+      },
+      "collaboration": {
+        "mean": 85.0,
+        "std_dev": 2.449489742783178,
+        "confidence_adjusted": 76.5
+      },
+      "problem-solving": {
+        "mean": 72.0,
+        "std_dev": 1.632993161855452,
+        "confidence_adjusted": 61.199999999999996
+      },
+      "ramp-time": {
+        "mean": 40.0,
+        "std_dev": 1.632993161855452,
+        "confidence_adjusted": 32.0
+      }
+    },
+    "candidate-c": {
+      "technical-depth": {
+        "mean": 78.0,
+        "std_dev": 2.160246899469287,
+        "confidence_adjusted": 66.3
+      },
+      "collaboration": {
+        "mean": 92.0,
+        "std_dev": 1.632993161855452,
+        "confidence_adjusted": 82.8
+      },
+      "problem-solving": {
+        "mean": 80.0,
+        "std_dev": 1.632993161855452,
+        "confidence_adjusted": 68.0
+      },
+      "ramp-time": {
+        "mean": 25.0,
+        "std_dev": 2.449489742783178,
+        "confidence_adjusted": 20.0
+      }
+    },
+    "candidate-d": {
+      "technical-depth": {
+        "mean": 65.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 52.0
+      },
+      "collaboration": {
+        "mean": 78.0,
+        "std_dev": 2.449489742783178,
+        "confidence_adjusted": 66.3
+      },
+      "problem-solving": {
+        "mean": 80.0,
+        "std_dev": 1.632993161855452,
+        "confidence_adjusted": 68.0
+      },
+      "ramp-time": {
+        "mean": 55.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 41.25
+      }
+    }
+  },
+  "criteria_quality": {
+    "warnings": []
+  },
+  "method_results": {
+    "weighted-sum": {
+      "ranking": [
+        {
+          "option": "candidate-a",
+          "score": 71.27083333333333,
+          "rank": 1
+        },
+        {
+          "option": "candidate-b",
+          "score": 65.8875,
+          "rank": 2
+        },
+        {
+          "option": "candidate-d",
+          "score": 60.5875,
+          "rank": 3
+        }
+      ]
+    },
+    "pugh": {
+      "ranking": [
+        {
+          "option": "candidate-a",
+          "score": 0,
+          "rank": 1
+        },
+        {
+          "option": "candidate-b",
+          "score": -2,
+          "rank": 2
+        },
+        {
+          "option": "candidate-d",
+          "score": -2,
+          "rank": 2
+        }
+      ]
+    },
+    "topsis": {
+      "ranking": [
+        {
+          "option": "candidate-a",
+          "score": 0.634831021615958,
+          "rank": 1
+        },
+        {
+          "option": "candidate-b",
+          "score": 0.47991785442114926,
+          "rank": 2
+        },
+        {
+          "option": "candidate-d",
+          "score": 0.27119373696728377,
+          "rank": 3
+        }
+      ]
+    }
+  },
+  "ties": {
+    "near_tie_pairs": []
+  },
+  "disagreement_report": {
+    "methods_agree": true,
+    "winner_by_method": {
+      "weighted-sum": "candidate-a",
+      "pugh": "candidate-a",
+      "topsis": "candidate-a"
+    },
+    "disagreement_pairs": []
+  },
+  "sensitivity": {
+    "winner_analyzed": "candidate-a",
+    "break_even": {
+      "technical-depth": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "collaboration": {
+        "weight_shift_to_flip_pct": 14.0,
+        "favors_if_flipped": "candidate-b"
+      },
+      "problem-solving": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "ramp-time": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      }
+    },
+    "tornado": [
+      {
+        "criterion": "collaboration",
+        "swing_impact": 2.569444,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "technical-depth",
+        "swing_impact": 1.790385,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "problem-solving",
+        "swing_impact": 0.519444,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "ramp-time",
+        "swing_impact": 0.439706,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      }
+    ],
+    "fragile": false,
+    "fragile_reason": ""
+  },
+  "multi_scorer_analysis": {
+    "conflicts": [],
+    "variance": {
+      "interviewer-1": 3.4375,
+      "interviewer-2": 3.5,
+      "interviewer-3": 0.1875,
+      "outliers": []
+    }
+  },
+  "recommendation": {
+    "winner": "candidate-a",
+    "winner_label": "Candidate A \u2014 Ada",
+    "rationale": "Candidate A \u2014 Ada ranks first by weighted-sum across 4 criteria",
+    "confidence": "high",
+    "caveats": []
+  }
+}

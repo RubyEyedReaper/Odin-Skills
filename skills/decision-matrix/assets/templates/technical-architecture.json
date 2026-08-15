@@ -1,0 +1,106 @@
+{
+  "goal": "Choose the primary architecture pattern for a new order-processing service expected to scale from 10k to 1M events/day within 18 months",
+  "reversibility": "one-way",
+  "constraints": [
+    {"id": "team-can-operate", "description": "Must be operable by a 4-person backend team without hiring specialists"},
+    {"id": "fits-budget", "description": "Must fit within the approved infra budget for year one"}
+  ],
+  "options": [
+    {
+      "id": "monolith",
+      "label": "Modular Monolith",
+      "description": "Single deployable, internally modularized by domain boundary",
+      "constraint_results": {"team-can-operate": true, "fits-budget": true}
+    },
+    {
+      "id": "microservices",
+      "label": "Microservices",
+      "description": "Independently deployable services per bounded context, async messaging between them",
+      "constraint_results": {"team-can-operate": true, "fits-budget": true}
+    },
+    {
+      "id": "event-driven",
+      "label": "Event-Driven (Event Sourcing + CQRS)",
+      "description": "Append-only event log as source of truth, read models projected separately",
+      "constraint_results": {"team-can-operate": true, "fits-budget": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "performance",
+      "label": "Performance",
+      "weight": 20,
+      "direction": "higher-is-better",
+      "description": "Expected request/event latency and throughput headroom under target load. Adapt: replace with your own p95-latency or throughput target."
+    },
+    {
+      "id": "scalability",
+      "label": "Scalability",
+      "weight": 20,
+      "direction": "higher-is-better",
+      "description": "Ability to scale individual hot paths independently as load grows 100x. Adapt: weight this higher if growth projections are aggressive or uncertain."
+    },
+    {
+      "id": "team-fit",
+      "label": "Team Fit",
+      "weight": 20,
+      "direction": "higher-is-better",
+      "description": "How well the pattern matches current team size, skill set, and on-call maturity. Adapt: score honestly against the team you have, not the team you wish you had."
+    },
+    {
+      "id": "operational-cost",
+      "label": "Operational Cost",
+      "weight": 15,
+      "direction": "lower-is-better",
+      "description": "Lower is better. Infra spend plus on-call/operational burden at target scale. Adapt: substitute your own dollar or person-hour estimate per option."
+    },
+    {
+      "id": "ecosystem-maturity",
+      "label": "Ecosystem Maturity",
+      "weight": 15,
+      "direction": "higher-is-better",
+      "description": "Availability of mature libraries, hosting options, observability tooling, and hiring pool for this pattern."
+    },
+    {
+      "id": "security",
+      "label": "Security",
+      "weight": 10,
+      "direction": "higher-is-better",
+      "description": "Ease of enforcing auth boundaries, least-privilege access, and auditability across the architecture."
+    }
+  ],
+  "scorers": [
+    {
+      "id": "architecture-team",
+      "label": "Architecture Team",
+      "scores": {
+        "monolith": {
+          "performance":          {"value": 80, "confidence": 0.90},
+          "scalability":          {"value": 45, "confidence": 0.80},
+          "team-fit":             {"value": 90, "confidence": 0.90},
+          "operational-cost":     {"value": 20, "confidence": 0.90},
+          "ecosystem-maturity":   {"value": 85, "confidence": 0.85},
+          "security":             {"value": 75, "confidence": 0.80}
+        },
+        "microservices": {
+          "performance":          {"value": 70, "confidence": 0.75},
+          "scalability":          {"value": 90, "confidence": 0.85},
+          "team-fit":             {"value": 40, "confidence": 0.80},
+          "operational-cost":     {"value": 70, "confidence": 0.85},
+          "ecosystem-maturity":   {"value": 80, "confidence": 0.80},
+          "security":             {"value": 70, "confidence": 0.75}
+        },
+        "event-driven": {
+          "performance":          {"value": 85, "confidence": 0.75},
+          "scalability":          {"value": 95, "confidence": 0.80},
+          "team-fit":             {"value": 35, "confidence": 0.75},
+          "operational-cost":     {"value": 60, "confidence": 0.75},
+          "ecosystem-maturity":   {"value": 55, "confidence": 0.70},
+          "security":             {"value": 65, "confidence": 0.70}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "pugh", "topsis"],
+  "tie_threshold": 5
+}

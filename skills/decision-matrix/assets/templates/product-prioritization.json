@@ -1,0 +1,97 @@
+{
+  "goal": "Prioritize the next feature to ship this quarter using RICE for a B2B analytics product",
+  "reversibility": "two-way",
+  "constraints": [
+    {"id": "fits-in-quarter", "description": "Must be shippable within the current quarter by the existing team"}
+  ],
+  "options": [
+    {
+      "id": "scheduled-reports",
+      "label": "Scheduled Email Reports",
+      "description": "Let users schedule recurring report exports via email",
+      "constraint_results": {"fits-in-quarter": true}
+    },
+    {
+      "id": "sso",
+      "label": "SSO / SAML Login",
+      "description": "Enterprise single sign-on for procurement-gated deals",
+      "constraint_results": {"fits-in-quarter": true}
+    },
+    {
+      "id": "custom-dashboards",
+      "label": "Custom Dashboards",
+      "description": "Drag-and-drop dashboard builder with saved layouts",
+      "constraint_results": {"fits-in-quarter": true}
+    },
+    {
+      "id": "api-rate-limit-ui",
+      "label": "Self-Serve API Rate Limit Controls",
+      "description": "Let admins view and adjust their own API rate limits",
+      "constraint_results": {"fits-in-quarter": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "reach",
+      "label": "Reach (users/quarter)",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Estimated number of users touched per quarter, scaled to 0-100"
+    },
+    {
+      "id": "impact",
+      "label": "Impact (per-user)",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Impact per user touched, scaled to 0-100 (massive=100, high=70, medium=40, low=20, minimal=10)"
+    },
+    {
+      "id": "confidence",
+      "label": "Confidence",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Confidence in the reach/impact estimates, 0-100 scale (100 = high confidence)"
+    },
+    {
+      "id": "effort",
+      "label": "Effort (person-weeks)",
+      "weight": 25,
+      "direction": "lower-is-better",
+      "description": "Engineering effort in person-weeks, lower is better"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "product-manager",
+      "label": "Product Manager",
+      "scores": {
+        "scheduled-reports": {
+          "reach":      {"value": 70, "confidence": 0.85},
+          "impact":     {"value": 40, "confidence": 0.80},
+          "confidence": {"value": 90, "confidence": 1.0},
+          "effort":     {"value": 15, "confidence": 0.90}
+        },
+        "sso": {
+          "reach":      {"value": 30, "confidence": 0.80},
+          "impact":     {"value": 90, "confidence": 0.85},
+          "confidence": {"value": 85, "confidence": 1.0},
+          "effort":     {"value": 35, "confidence": 0.85}
+        },
+        "custom-dashboards": {
+          "reach":      {"value": 80, "confidence": 0.75},
+          "impact":     {"value": 70, "confidence": 0.75},
+          "confidence": {"value": 65, "confidence": 1.0},
+          "effort":     {"value": 60, "confidence": 0.80}
+        },
+        "api-rate-limit-ui": {
+          "reach":      {"value": 20, "confidence": 0.85},
+          "impact":     {"value": 30, "confidence": 0.80},
+          "confidence": {"value": 80, "confidence": 1.0},
+          "effort":     {"value": 18, "confidence": 0.90}
+        }
+      }
+    }
+  ],
+  "methods": ["rice", "weighted-sum"],
+  "tie_threshold": 5
+}

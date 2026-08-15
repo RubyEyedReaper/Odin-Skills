@@ -1,0 +1,109 @@
+{
+  "goal": "Choose the primary database for a SaaS product handling 10k users and complex relational queries",
+  "reversibility": "one-way",
+  "constraints": [
+    {"id": "open-source", "description": "Must be open-source or have a free tier suitable for MVP"},
+    {"id": "managed-cloud", "description": "Must have a managed cloud offering (AWS/GCP/Azure)"}
+  ],
+  "options": [
+    {
+      "id": "postgres",
+      "label": "PostgreSQL",
+      "description": "Battle-tested relational DB with rich feature set",
+      "constraint_results": {"open-source": true, "managed-cloud": true}
+    },
+    {
+      "id": "mysql",
+      "label": "MySQL",
+      "description": "Widely used relational DB, strong ecosystem",
+      "constraint_results": {"open-source": true, "managed-cloud": true}
+    },
+    {
+      "id": "mongodb",
+      "label": "MongoDB",
+      "description": "Document-oriented NoSQL, flexible schema",
+      "constraint_results": {"open-source": true, "managed-cloud": true}
+    },
+    {
+      "id": "cockroachdb",
+      "label": "CockroachDB",
+      "description": "Distributed SQL, Postgres-compatible",
+      "constraint_results": {"open-source": true, "managed-cloud": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "relational-fit",
+      "label": "Relational Query Fit",
+      "weight": 35,
+      "direction": "higher-is-better",
+      "description": "How well the DB supports complex joins and relational data models"
+    },
+    {
+      "id": "ops-complexity",
+      "label": "Operational Complexity",
+      "weight": 20,
+      "direction": "lower-is-better",
+      "description": "Effort to operate, tune, and maintain in production"
+    },
+    {
+      "id": "ecosystem",
+      "label": "Ecosystem & Tooling",
+      "weight": 20,
+      "direction": "higher-is-better",
+      "description": "Quality of ORMs, migration tools, and community support"
+    },
+    {
+      "id": "scalability",
+      "label": "Horizontal Scalability",
+      "weight": 15,
+      "direction": "higher-is-better",
+      "description": "Ability to scale out as data and traffic grow"
+    },
+    {
+      "id": "cost",
+      "label": "Managed Service Cost",
+      "weight": 10,
+      "direction": "lower-is-better",
+      "description": "Monthly cost of managed cloud hosting at MVP scale"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "engineering-team",
+      "label": "Engineering Team",
+      "scores": {
+        "postgres": {
+          "relational-fit":  {"value": 95, "confidence": 0.95},
+          "ops-complexity":  {"value": 35, "confidence": 0.85},
+          "ecosystem":       {"value": 90, "confidence": 0.90},
+          "scalability":     {"value": 65, "confidence": 0.80},
+          "cost":            {"value": 30, "confidence": 0.85}
+        },
+        "mysql": {
+          "relational-fit":  {"value": 85, "confidence": 0.90},
+          "ops-complexity":  {"value": 30, "confidence": 0.85},
+          "ecosystem":       {"value": 80, "confidence": 0.85},
+          "scalability":     {"value": 60, "confidence": 0.80},
+          "cost":            {"value": 28, "confidence": 0.85}
+        },
+        "mongodb": {
+          "relational-fit":  {"value": 30, "confidence": 0.90},
+          "ops-complexity":  {"value": 40, "confidence": 0.80},
+          "ecosystem":       {"value": 75, "confidence": 0.80},
+          "scalability":     {"value": 85, "confidence": 0.85},
+          "cost":            {"value": 50, "confidence": 0.75}
+        },
+        "cockroachdb": {
+          "relational-fit":  {"value": 88, "confidence": 0.80},
+          "ops-complexity":  {"value": 60, "confidence": 0.75},
+          "ecosystem":       {"value": 60, "confidence": 0.75},
+          "scalability":     {"value": 92, "confidence": 0.85},
+          "cost":            {"value": 65, "confidence": 0.70}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "pugh", "topsis"],
+  "tie_threshold": 5
+}

@@ -1,0 +1,109 @@
+{
+  "goal": "Choose a client-side state management library for a React dashboard with complex async data flows",
+  "reversibility": "two-way",
+  "constraints": [
+    {"id": "react-compat", "description": "Must be compatible with React 18 and concurrent features"},
+    {"id": "bundle-size", "description": "Must add less than 15kb gzipped to the bundle"}
+  ],
+  "options": [
+    {
+      "id": "zustand",
+      "label": "Zustand",
+      "description": "Minimal flux-based store, ~1kb, simple API",
+      "constraint_results": {"react-compat": true, "bundle-size": true}
+    },
+    {
+      "id": "jotai",
+      "label": "Jotai",
+      "description": "Atomic state model inspired by Recoil, ~3kb",
+      "constraint_results": {"react-compat": true, "bundle-size": true}
+    },
+    {
+      "id": "redux-toolkit",
+      "label": "Redux Toolkit",
+      "description": "Official Redux with RTK Query for server state, ~14kb",
+      "constraint_results": {"react-compat": true, "bundle-size": true}
+    },
+    {
+      "id": "tanstack-query",
+      "label": "TanStack Query",
+      "description": "Server-state manager with caching, pagination, and optimistic updates",
+      "constraint_results": {"react-compat": true, "bundle-size": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "api",
+      "label": "API Simplicity",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "How ergonomic and learnable the library API is"
+    },
+    {
+      "id": "async-support",
+      "label": "Async / Server State Support",
+      "weight": 30,
+      "direction": "higher-is-better",
+      "description": "Built-in support for async data, caching, and invalidation"
+    },
+    {
+      "id": "devtools",
+      "label": "DevTools Quality",
+      "weight": 20,
+      "direction": "higher-is-better",
+      "description": "Browser devtools, time-travel, and debugging experience"
+    },
+    {
+      "id": "boilerplate",
+      "label": "Boilerplate Required",
+      "weight": 15,
+      "direction": "lower-is-better",
+      "description": "Amount of setup code required per feature"
+    },
+    {
+      "id": "community",
+      "label": "Community & Ecosystem",
+      "weight": 10,
+      "direction": "higher-is-better",
+      "description": "npm downloads, GitHub stars, plugin availability"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "frontend-guild",
+      "label": "Frontend Guild Review",
+      "scores": {
+        "zustand": {
+          "api":          {"value": 92, "confidence": 0.90},
+          "async-support":{"value": 55, "confidence": 0.85},
+          "devtools":     {"value": 65, "confidence": 0.80},
+          "boilerplate":  {"value": 15, "confidence": 0.90},
+          "community":    {"value": 80, "confidence": 0.85}
+        },
+        "jotai": {
+          "api":          {"value": 85, "confidence": 0.85},
+          "async-support":{"value": 60, "confidence": 0.80},
+          "devtools":     {"value": 60, "confidence": 0.75},
+          "boilerplate":  {"value": 20, "confidence": 0.85},
+          "community":    {"value": 65, "confidence": 0.80}
+        },
+        "redux-toolkit": {
+          "api":          {"value": 55, "confidence": 0.90},
+          "async-support":{"value": 80, "confidence": 0.85},
+          "devtools":     {"value": 95, "confidence": 0.95},
+          "boilerplate":  {"value": 60, "confidence": 0.90},
+          "community":    {"value": 95, "confidence": 0.95}
+        },
+        "tanstack-query": {
+          "api":          {"value": 80, "confidence": 0.90},
+          "async-support":{"value": 98, "confidence": 0.95},
+          "devtools":     {"value": 85, "confidence": 0.85},
+          "boilerplate":  {"value": 30, "confidence": 0.85},
+          "community":    {"value": 90, "confidence": 0.90}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "pugh", "topsis"],
+  "tie_threshold": 5
+}

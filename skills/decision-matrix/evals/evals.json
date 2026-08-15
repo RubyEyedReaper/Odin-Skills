@@ -1,0 +1,97 @@
+{
+  "skill_name": "decision-matrix",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "help me pick a database for my saas, postgres vs mysql vs mongo vs cockroachdb. tight budget but we do a LOT of relational queries and joins, need something with managed cloud hosting",
+      "expected_output": "A weighted-sum (plus pugh/topsis cross-check) scored matrix across criteria like relational-fit, ops-complexity, ecosystem, scalability, and cost, with constraints for open-source/free-tier and managed-cloud. PostgreSQL wins given the heavy relational-query emphasis (relational-fit weighted 35%) despite a lower-is-better cost penalty.",
+      "assertions": [
+        "the skill produces a scored matrix",
+        "records a DEC",
+        "names a single winner with rationale",
+        "PostgreSQL ranks first",
+        "weighted-sum, pugh, and topsis results are all surfaced for cross-check"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We need to decide on a frontend framework for a new B2B dashboard. Team of 4 engineers, mostly React background but open to alternatives. Can you set up a proper comparison between Next.js, Nuxt, SvelteKit, and Remix and tell us which one to commit to?",
+      "expected_output": "A decision-spec scoring the four frameworks against criteria capturing team familiarity, ecosystem maturity, performance, and learning curve, run through weighted-sum/pugh/topsis. Next.js wins, driven by the team's existing React familiarity and ecosystem maturity weighting.",
+      "assertions": [
+        "the skill produces a scored matrix",
+        "records a DEC",
+        "names a single winner with rationale",
+        "Next.js (React) ranks first",
+        "criteria include at least one team-fit or familiarity dimension"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "build vs buy decision for auth — do we build our own auth system, or go with Auth0/Okta, or use Supabase Auth? need this scored properly, not just vibes, security and total cost matter a lot",
+      "expected_output": "A scored comparison of build / Auth0-Okta / Supabase Auth across criteria like time-to-market, total-cost (lower-is-better), security, flexibility, and maintenance-burden, run through weighted-sum/pugh/topsis. Supabase Auth wins on the balance of cost and time-to-market without sacrificing too much on security/flexibility.",
+      "assertions": [
+        "the skill produces a scored matrix",
+        "records a DEC",
+        "names a single winner with rationale",
+        "Supabase Auth ranks first",
+        "at least one lower-is-better criterion (cost) is correctly inverted in scoring"
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "ok we have 4 feature candidates for next quarter — csv export, bulk actions, an audit log, and saved filters. only have capacity for one. use RICE to figure out what to build, PM and eng both have opinions so let's capture both",
+      "expected_output": "A RICE-scored decision-spec (criteria ids reach/impact/confidence/effort) with multiple scorers aggregated, vetoing audit-log via the fits-in-sprint/no-new-infra constraints since it needs new infra and won't fit a sprint. CSV Export wins on RICE and weighted-sum.",
+      "assertions": [
+        "the skill produces a scored matrix",
+        "records a DEC",
+        "names a single winner with rationale",
+        "CSV Export ranks first",
+        "Audit Log is vetoed by a failed constraint",
+        "RICE method result is present alongside weighted-sum"
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "I'm torn between a modular monolith, microservices, serverless functions, or a small set of modular services for our new event-driven platform. Expecting ~50k events/day at launch, could grow a lot. Need a defensible recommendation I can bring to the architecture review.",
+      "expected_output": "A multi-method (weighted-sum/pugh/topsis) comparison of the four architecture patterns against criteria like performance, scalability, team-fit, operational-cost, and ecosystem-maturity. Modular Monolith wins given the team-fit and operational-cost weighting at the stated launch scale, with caveats noting it may need re-evaluation if growth accelerates past projections.",
+      "assertions": [
+        "the skill produces a scored matrix",
+        "records a DEC",
+        "names a single winner with rationale",
+        "Modular Monolith ranks first",
+        "rationale or caveats mention re-evaluating if scale assumptions change"
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "what state management library should we use for a react dashboard with a ton of async server data flowing through it — zustand, jotai, redux toolkit, or tanstack query? give me an actual scored comparison",
+      "expected_output": "A weighted-sum/pugh/topsis comparison across criteria capturing async/server-state fit, boilerplate, learning curve, and ecosystem support. TanStack Query wins because the criteria weighting favors server-state/async fit, which is its core strength versus the more general client-state libraries.",
+      "assertions": [
+        "the skill produces a scored matrix",
+        "records a DEC",
+        "names a single winner with rationale",
+        "TanStack Query ranks first",
+        "criteria explicitly distinguish server-state handling from generic client-state handling"
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "We just finished final-round interviews for a senior engineer role. 4 candidates, 3 interviewers each scored them. Candidate A is the strongest technically but quieter, Candidate B is a great communicator but less deep, Candidate C is well-rounded, Candidate D is high-potential but junior. Need a structured recommendation for the hiring committee, not just my gut feel.",
+      "expected_output": "A multi-scorer decision-spec aggregating all 3 interviewers' scores per candidate across technical-depth, collaboration, problem-solving, and ramp-time criteria, run through weighted-sum/topsis. Candidate A wins on the technical-depth weighting; result should note the aggregation across interviewers (mean/std_dev) and flag any near-ties or high score variance between interviewers as a caveat for the committee.",
+      "assertions": [
+        "the skill produces a scored matrix",
+        "records a DEC",
+        "names a single winner with rationale",
+        "Candidate A ranks first",
+        "multiple scorers are aggregated (mean/std_dev) rather than only one interviewer's scores being used"
+      ],
+      "files": []
+    }
+  ]
+}

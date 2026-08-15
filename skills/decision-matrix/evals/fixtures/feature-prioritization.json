@@ -1,0 +1,165 @@
+{
+  "goal": "Prioritize the next feature to build for Q3: pick the single highest-impact option for a B2B SaaS",
+  "reversibility": "two-way",
+  "constraints": [
+    {"id": "fits-in-sprint", "description": "Must be completable within a 2-week sprint by one engineer"},
+    {"id": "no-new-infra", "description": "Must not require new infrastructure provisioning"}
+  ],
+  "options": [
+    {
+      "id": "csv-export",
+      "label": "CSV Export",
+      "description": "Allow users to export any data table as CSV",
+      "constraint_results": {"fits-in-sprint": true, "no-new-infra": true}
+    },
+    {
+      "id": "bulk-actions",
+      "label": "Bulk Actions",
+      "description": "Select multiple rows and apply actions (delete, tag, archive) at once",
+      "constraint_results": {"fits-in-sprint": true, "no-new-infra": true}
+    },
+    {
+      "id": "audit-log",
+      "label": "Audit Log",
+      "description": "Immutable log of all user actions for compliance",
+      "constraint_results": {"fits-in-sprint": false, "no-new-infra": false}
+    },
+    {
+      "id": "saved-filters",
+      "label": "Saved Filters",
+      "description": "Users can save and reuse search/filter combinations",
+      "constraint_results": {"fits-in-sprint": true, "no-new-infra": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "reach",
+      "label": "Reach (users/quarter)",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Number of users the feature will affect per quarter (raw count)"
+    },
+    {
+      "id": "impact",
+      "label": "Impact (1-3 scale)",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Impact per user: 0.25=minimal, 0.5=low, 1=medium, 2=high, 3=massive"
+    },
+    {
+      "id": "confidence",
+      "label": "Confidence (0-1)",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Confidence in the reach and impact estimates (0-1 scale)"
+    },
+    {
+      "id": "effort",
+      "label": "Effort (person-weeks)",
+      "weight": 25,
+      "direction": "lower-is-better",
+      "description": "Engineering effort in person-weeks"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "product-manager",
+      "label": "Product Manager",
+      "scores": {
+        "csv-export": {
+          "reach":      {"value": 90, "confidence": 0.90},
+          "impact":     {"value": 50, "confidence": 0.80},
+          "confidence": {"value": 90, "confidence": 1.0},
+          "effort":     {"value": 22, "confidence": 0.90}
+        },
+        "bulk-actions": {
+          "reach":      {"value": 65, "confidence": 0.80},
+          "impact":     {"value": 60, "confidence": 0.80},
+          "confidence": {"value": 80, "confidence": 1.0},
+          "effort":     {"value": 42, "confidence": 0.85}
+        },
+        "audit-log": {
+          "reach":      {"value": 35, "confidence": 0.85},
+          "impact":     {"value": 75, "confidence": 0.85},
+          "confidence": {"value": 70, "confidence": 1.0},
+          "effort":     {"value": 75, "confidence": 0.80}
+        },
+        "saved-filters": {
+          "reach":      {"value": 75, "confidence": 0.85},
+          "impact":     {"value": 45, "confidence": 0.75},
+          "confidence": {"value": 85, "confidence": 1.0},
+          "effort":     {"value": 18, "confidence": 0.90}
+        }
+      }
+    },
+    {
+      "id": "eng-lead",
+      "label": "Engineering Lead",
+      "scores": {
+        "csv-export": {
+          "reach":      {"value": 80, "confidence": 0.90},
+          "impact":     {"value": 60, "confidence": 0.80},
+          "confidence": {"value": 90, "confidence": 1.0},
+          "effort":     {"value": 28, "confidence": 0.90}
+        },
+        "bulk-actions": {
+          "reach":      {"value": 55, "confidence": 0.80},
+          "impact":     {"value": 70, "confidence": 0.80},
+          "confidence": {"value": 80, "confidence": 1.0},
+          "effort":     {"value": 48, "confidence": 0.85}
+        },
+        "audit-log": {
+          "reach":      {"value": 45, "confidence": 0.85},
+          "impact":     {"value": 85, "confidence": 0.85},
+          "confidence": {"value": 70, "confidence": 1.0},
+          "effort":     {"value": 85, "confidence": 0.80}
+        },
+        "saved-filters": {
+          "reach":      {"value": 65, "confidence": 0.85},
+          "impact":     {"value": 55, "confidence": 0.75},
+          "confidence": {"value": 85, "confidence": 1.0},
+          "effort":     {"value": 22, "confidence": 0.90}
+        }
+      }
+    },
+    {
+      "id": "customer-success",
+      "label": "Customer Success Lead",
+      "scores": {
+        "csv-export": {
+          "reach":      {"value": 85, "confidence": 0.90},
+          "impact":     {"value": 55, "confidence": 0.80},
+          "confidence": {"value": 90, "confidence": 1.0},
+          "effort":     {"value": 25, "confidence": 0.90}
+        },
+        "bulk-actions": {
+          "reach":      {"value": 60, "confidence": 0.80},
+          "impact":     {"value": 65, "confidence": 0.80},
+          "confidence": {"value": 80, "confidence": 1.0},
+          "effort":     {"value": 45, "confidence": 0.85}
+        },
+        "audit-log": {
+          "reach":      {"value": 40, "confidence": 0.85},
+          "impact":     {"value": 80, "confidence": 0.85},
+          "confidence": {"value": 70, "confidence": 1.0},
+          "effort":     {"value": 80, "confidence": 0.80}
+        },
+        "saved-filters": {
+          "reach":      {"value": 70, "confidence": 0.85},
+          "impact":     {"value": 50, "confidence": 0.75},
+          "confidence": {"value": 85, "confidence": 1.0},
+          "effort":     {"value": 20, "confidence": 0.90}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "rice"],
+  "tie_threshold": 5,
+  "_rice_raw_values": {
+    "note": "RICE method reads score_matrix[opt][crit_id] directly from confidence_adjusted values, which Sprint 3 now computes as the mean of (value * confidence) across all 3 scorers (product-manager, eng-lead, customer-success). reach/impact/confidence/effort ids match RICE formula.",
+    "csv-export":    {"reach": 76.5, "impact": 44,  "confidence": 90, "effort": 22.5},
+    "bulk-actions":  {"reach": 48,   "impact": 52,  "confidence": 80, "effort": 38.25},
+    "audit-log":     {"reach": 34,   "impact": 68,  "confidence": 70, "effort": 64},
+    "saved-filters": {"reach": 59.5, "impact": 37.5,"confidence": 85, "effort": 18}
+  }
+}

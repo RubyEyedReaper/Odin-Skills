@@ -1,0 +1,220 @@
+{
+  "schema_version": "1",
+  "vetoed_options": [
+    "audit-log"
+  ],
+  "active_options": [
+    "csv-export",
+    "bulk-actions",
+    "saved-filters"
+  ],
+  "aggregated_scores": {
+    "csv-export": {
+      "reach": {
+        "mean": 85.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 76.5
+      },
+      "impact": {
+        "mean": 55.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 44.0
+      },
+      "confidence": {
+        "mean": 90.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 90.0
+      },
+      "effort": {
+        "mean": 25.0,
+        "std_dev": 2.449489742783178,
+        "confidence_adjusted": 22.5
+      }
+    },
+    "bulk-actions": {
+      "reach": {
+        "mean": 60.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 48.0
+      },
+      "impact": {
+        "mean": 65.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 52.0
+      },
+      "confidence": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 80.0
+      },
+      "effort": {
+        "mean": 45.0,
+        "std_dev": 2.449489742783178,
+        "confidence_adjusted": 38.25
+      }
+    },
+    "audit-log": {
+      "reach": {
+        "mean": 40.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 34.0
+      },
+      "impact": {
+        "mean": 80.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 68.0
+      },
+      "confidence": {
+        "mean": 70.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 70.0
+      },
+      "effort": {
+        "mean": 80.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 64.0
+      }
+    },
+    "saved-filters": {
+      "reach": {
+        "mean": 70.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 59.5
+      },
+      "impact": {
+        "mean": 50.0,
+        "std_dev": 4.08248290463863,
+        "confidence_adjusted": 37.5
+      },
+      "confidence": {
+        "mean": 85.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 85.0
+      },
+      "effort": {
+        "mean": 20.0,
+        "std_dev": 1.632993161855452,
+        "confidence_adjusted": 18.0
+      }
+    }
+  },
+  "criteria_quality": {
+    "warnings": []
+  },
+  "method_results": {
+    "weighted-sum": {
+      "ranking": [
+        {
+          "option": "csv-export",
+          "score": 72.0,
+          "rank": 1
+        },
+        {
+          "option": "saved-filters",
+          "score": 66.0,
+          "rank": 2
+        },
+        {
+          "option": "bulk-actions",
+          "score": 60.4375,
+          "rank": 3
+        }
+      ]
+    },
+    "rice": {
+      "ranking": [
+        {
+          "option": "csv-export",
+          "score": 13464.0,
+          "rank": 1
+        },
+        {
+          "option": "saved-filters",
+          "score": 10536.458333333334,
+          "rank": 2
+        },
+        {
+          "option": "bulk-actions",
+          "score": 5220.392156862745,
+          "rank": 3
+        }
+      ]
+    }
+  },
+  "ties": {
+    "near_tie_pairs": []
+  },
+  "disagreement_report": {
+    "methods_agree": true,
+    "winner_by_method": {
+      "weighted-sum": "csv-export",
+      "rice": "csv-export"
+    },
+    "disagreement_pairs": []
+  },
+  "sensitivity": {
+    "winner_analyzed": "csv-export",
+    "break_even": {
+      "reach": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "impact": {
+        "weight_shift_to_flip_pct": 45.0,
+        "favors_if_flipped": "bulk-actions"
+      },
+      "confidence": {
+        "weight_shift_to_flip_pct": null,
+        "favors_if_flipped": null
+      },
+      "effort": {
+        "weight_shift_to_flip_pct": 43.0,
+        "favors_if_flipped": "saved-filters"
+      }
+    },
+    "tornado": [
+      {
+        "criterion": "impact",
+        "swing_impact": 3.733333,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "confidence",
+        "swing_impact": 2.4,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "effort",
+        "swing_impact": 0.733333,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "reach",
+        "swing_impact": 0.6,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      }
+    ],
+    "fragile": false,
+    "fragile_reason": ""
+  },
+  "multi_scorer_analysis": {
+    "conflicts": [],
+    "variance": {
+      "product-manager": 3.3125,
+      "eng-lead": 3.3125,
+      "customer-success": 0.0,
+      "outliers": []
+    }
+  },
+  "recommendation": {
+    "winner": "csv-export",
+    "winner_label": "CSV Export",
+    "rationale": "CSV Export ranks first by weighted-sum across 4 criteria",
+    "confidence": "high",
+    "caveats": []
+  }
+}

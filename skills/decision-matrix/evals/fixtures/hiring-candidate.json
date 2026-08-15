@@ -1,0 +1,158 @@
+{
+  "goal": "Select the best candidate for a senior full-stack engineer role from the final interview round",
+  "reversibility": "two-way",
+  "constraints": [
+    {"id": "right-to-work", "description": "Must have right to work in the hiring jurisdiction without sponsorship"},
+    {"id": "salary-band", "description": "Must accept an offer within the approved salary band"}
+  ],
+  "options": [
+    {
+      "id": "candidate-a",
+      "label": "Candidate A — Ada",
+      "description": "8 years experience, strong systems design, weaker React",
+      "constraint_results": {"right-to-work": true, "salary-band": true}
+    },
+    {
+      "id": "candidate-b",
+      "label": "Candidate B — Ben",
+      "description": "5 years experience, excellent frontend, limited backend exposure",
+      "constraint_results": {"right-to-work": true, "salary-band": true}
+    },
+    {
+      "id": "candidate-c",
+      "label": "Candidate C — Cora",
+      "description": "6 years experience, balanced full-stack, strong communication",
+      "constraint_results": {"right-to-work": true, "salary-band": false}
+    },
+    {
+      "id": "candidate-d",
+      "label": "Candidate D — Dev",
+      "description": "4 years experience, high coding signal, growth trajectory",
+      "constraint_results": {"right-to-work": true, "salary-band": true}
+    }
+  ],
+  "criteria": [
+    {
+      "id": "technical-depth",
+      "label": "Technical Depth",
+      "weight": 35,
+      "direction": "higher-is-better",
+      "description": "Depth of knowledge in relevant technologies"
+    },
+    {
+      "id": "collaboration",
+      "label": "Collaboration & Communication",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Ability to work effectively in a distributed team"
+    },
+    {
+      "id": "problem-solving",
+      "label": "Problem-Solving Signal",
+      "weight": 25,
+      "direction": "higher-is-better",
+      "description": "Quality of reasoning in live coding and system design"
+    },
+    {
+      "id": "ramp-time",
+      "label": "Estimated Ramp Time",
+      "weight": 15,
+      "direction": "lower-is-better",
+      "description": "Weeks to become independently productive on the codebase"
+    }
+  ],
+  "scorers": [
+    {
+      "id": "interviewer-1",
+      "label": "Interviewer 1 — Systems Design Lead",
+      "scores": {
+        "candidate-a": {
+          "technical-depth":  {"value": 95, "confidence": 0.90},
+          "collaboration":    {"value": 60, "confidence": 0.80},
+          "problem-solving":  {"value": 90, "confidence": 0.90},
+          "ramp-time":        {"value": 25, "confidence": 0.75}
+        },
+        "candidate-b": {
+          "technical-depth":  {"value": 65, "confidence": 0.85},
+          "collaboration":    {"value": 82, "confidence": 0.90},
+          "problem-solving":  {"value": 70, "confidence": 0.85},
+          "ramp-time":        {"value": 40, "confidence": 0.80}
+        },
+        "candidate-c": {
+          "technical-depth":  {"value": 75, "confidence": 0.85},
+          "collaboration":    {"value": 90, "confidence": 0.90},
+          "problem-solving":  {"value": 78, "confidence": 0.85},
+          "ramp-time":        {"value": 22, "confidence": 0.80}
+        },
+        "candidate-d": {
+          "technical-depth":  {"value": 60, "confidence": 0.80},
+          "collaboration":    {"value": 75, "confidence": 0.85},
+          "problem-solving":  {"value": 78, "confidence": 0.85},
+          "ramp-time":        {"value": 50, "confidence": 0.75}
+        }
+      }
+    },
+    {
+      "id": "interviewer-2",
+      "label": "Interviewer 2 — Frontend Lead",
+      "scores": {
+        "candidate-a": {
+          "technical-depth":  {"value": 85, "confidence": 0.85},
+          "collaboration":    {"value": 70, "confidence": 0.80},
+          "problem-solving":  {"value": 80, "confidence": 0.85},
+          "ramp-time":        {"value": 35, "confidence": 0.75}
+        },
+        "candidate-b": {
+          "technical-depth":  {"value": 75, "confidence": 0.90},
+          "collaboration":    {"value": 88, "confidence": 0.90},
+          "problem-solving":  {"value": 74, "confidence": 0.85},
+          "ramp-time":        {"value": 38, "confidence": 0.80}
+        },
+        "candidate-c": {
+          "technical-depth":  {"value": 80, "confidence": 0.85},
+          "collaboration":    {"value": 94, "confidence": 0.90},
+          "problem-solving":  {"value": 82, "confidence": 0.85},
+          "ramp-time":        {"value": 28, "confidence": 0.80}
+        },
+        "candidate-d": {
+          "technical-depth":  {"value": 70, "confidence": 0.80},
+          "collaboration":    {"value": 81, "confidence": 0.85},
+          "problem-solving":  {"value": 82, "confidence": 0.85},
+          "ramp-time":        {"value": 60, "confidence": 0.75}
+        }
+      }
+    },
+    {
+      "id": "interviewer-3",
+      "label": "Interviewer 3 — Engineering Manager",
+      "scores": {
+        "candidate-a": {
+          "technical-depth":  {"value": 90, "confidence": 0.90},
+          "collaboration":    {"value": 65, "confidence": 0.80},
+          "problem-solving":  {"value": 85, "confidence": 0.90},
+          "ramp-time":        {"value": 30, "confidence": 0.75}
+        },
+        "candidate-b": {
+          "technical-depth":  {"value": 70, "confidence": 0.85},
+          "collaboration":    {"value": 85, "confidence": 0.90},
+          "problem-solving":  {"value": 72, "confidence": 0.85},
+          "ramp-time":        {"value": 42, "confidence": 0.80}
+        },
+        "candidate-c": {
+          "technical-depth":  {"value": 79, "confidence": 0.85},
+          "collaboration":    {"value": 92, "confidence": 0.90},
+          "problem-solving":  {"value": 80, "confidence": 0.85},
+          "ramp-time":        {"value": 25, "confidence": 0.80}
+        },
+        "candidate-d": {
+          "technical-depth":  {"value": 65, "confidence": 0.80},
+          "collaboration":    {"value": 78, "confidence": 0.85},
+          "problem-solving":  {"value": 80, "confidence": 0.85},
+          "ramp-time":        {"value": 55, "confidence": 0.75}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum", "pugh", "topsis"],
+  "tie_threshold": 5
+}

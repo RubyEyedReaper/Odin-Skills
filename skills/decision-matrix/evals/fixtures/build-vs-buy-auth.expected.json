@@ -1,0 +1,230 @@
+{
+  "schema_version": "1",
+  "vetoed_options": [],
+  "active_options": [
+    "build",
+    "auth0",
+    "supabase-auth"
+  ],
+  "aggregated_scores": {
+    "build": {
+      "time-to-market": {
+        "mean": 80.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 68.0
+      },
+      "control": {
+        "mean": 95.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 85.5
+      },
+      "ongoing-cost": {
+        "mean": 10.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 8.0
+      },
+      "security-baseline": {
+        "mean": 50.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 37.5
+      }
+    },
+    "auth0": {
+      "time-to-market": {
+        "mean": 15.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 13.5
+      },
+      "control": {
+        "mean": 55.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 46.75
+      },
+      "ongoing-cost": {
+        "mean": 70.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 63.0
+      },
+      "security-baseline": {
+        "mean": 90.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 81.0
+      }
+    },
+    "supabase-auth": {
+      "time-to-market": {
+        "mean": 25.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 21.25
+      },
+      "control": {
+        "mean": 75.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 60.0
+      },
+      "ongoing-cost": {
+        "mean": 20.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 17.0
+      },
+      "security-baseline": {
+        "mean": 78.0,
+        "std_dev": 0.0,
+        "confidence_adjusted": 62.400000000000006
+      }
+    }
+  },
+  "criteria_quality": {
+    "warnings": []
+  },
+  "method_results": {
+    "weighted-sum": {
+      "ranking": [
+        {
+          "option": "supabase-auth",
+          "score": 70.825,
+          "rank": 1
+        },
+        {
+          "option": "auth0",
+          "score": 65.2875,
+          "rank": 2
+        },
+        {
+          "option": "build",
+          "score": 58.75,
+          "rank": 3
+        }
+      ]
+    },
+    "pugh": {
+      "ranking": [
+        {
+          "option": "build",
+          "score": 0,
+          "rank": 1
+        },
+        {
+          "option": "auth0",
+          "score": 0,
+          "rank": 1
+        },
+        {
+          "option": "supabase-auth",
+          "score": 0,
+          "rank": 1
+        }
+      ]
+    },
+    "topsis": {
+      "ranking": [
+        {
+          "option": "supabase-auth",
+          "score": 0.6696070953974695,
+          "rank": 1
+        },
+        {
+          "option": "auth0",
+          "score": 0.5829804836167224,
+          "rank": 2
+        },
+        {
+          "option": "build",
+          "score": 0.41701951638327767,
+          "rank": 3
+        }
+      ]
+    }
+  },
+  "ties": {
+    "near_tie_pairs": []
+  },
+  "disagreement_report": {
+    "methods_agree": false,
+    "winner_by_method": {
+      "weighted-sum": "supabase-auth",
+      "pugh": "build",
+      "topsis": "supabase-auth"
+    },
+    "disagreement_pairs": [
+      {
+        "methods": [
+          "weighted-sum",
+          "pugh"
+        ],
+        "winners": [
+          "supabase-auth",
+          "build"
+        ]
+      },
+      {
+        "methods": [
+          "pugh",
+          "topsis"
+        ],
+        "winners": [
+          "build",
+          "supabase-auth"
+        ]
+      }
+    ]
+  },
+  "sensitivity": {
+    "winner_analyzed": "supabase-auth",
+    "break_even": {
+      "time-to-market": {
+        "weight_shift_to_flip_pct": 30.0,
+        "favors_if_flipped": "auth0"
+      },
+      "control": {
+        "weight_shift_to_flip_pct": 25.0,
+        "favors_if_flipped": "build"
+      },
+      "ongoing-cost": {
+        "weight_shift_to_flip_pct": 46.0,
+        "favors_if_flipped": "build"
+      },
+      "security-baseline": {
+        "weight_shift_to_flip_pct": 18.0,
+        "favors_if_flipped": "auth0"
+      }
+    },
+    "tornado": [
+      {
+        "criterion": "control",
+        "swing_impact": 1.443333,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "time-to-market",
+        "swing_impact": 1.358571,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "ongoing-cost",
+        "swing_impact": 1.2175,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      },
+      {
+        "criterion": "security-baseline",
+        "swing_impact": 1.123333,
+        "baseline_rank_of_winner": 1,
+        "perturbed_rank_of_winner": 1
+      }
+    ],
+    "fragile": false,
+    "fragile_reason": ""
+  },
+  "recommendation": {
+    "winner": "supabase-auth",
+    "winner_label": "Supabase Auth",
+    "rationale": "Supabase Auth ranks first by weighted-sum across 4 criteria",
+    "confidence": "medium",
+    "caveats": [
+      "methods disagree on winner: weighted-sum\u2192supabase-auth; pugh\u2192build; topsis\u2192supabase-auth"
+    ]
+  }
+}
