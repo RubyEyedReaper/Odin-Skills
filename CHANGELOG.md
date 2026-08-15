@@ -10,6 +10,11 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ### Added
 
+- `grill-with-docs` joins as the eighth fork (thirteenth member). Upstream ships a 245-byte
+  delegation stub carrying `disable-model-invocation: true`; Odin's contract named it in seven
+  places while the Skill tool refused to invoke it. Grown into a real doc-verification interview —
+  dependency-load assertion, cite-or-flag pass with four verdict labels, ADR output pinned to the
+  harness's own tree. See its `UPSTREAM.md`.
 - Initial repository: the 12 skills Odin authored (5) or forked (7), packaged as a single
   Claude Code plugin with a marketplace manifest.
 - Split licensing — CC-BY-SA-4.0 for authored prose, MIT for code, upstream licenses preserved

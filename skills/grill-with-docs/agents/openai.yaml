@@ -1,0 +1,5 @@
+interface:
+  display_name: "Grill with Docs"
+  short_description: "Grill a design against its documentation, and write the decisions down"
+policy:
+  allow_implicit_invocation: true

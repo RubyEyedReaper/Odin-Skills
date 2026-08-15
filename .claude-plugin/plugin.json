@@ -1,7 +1,7 @@
 {
   "name": "odin-skills",
   "version": "0.1.0",
-  "description": "The skills the Odin harness owns — five authored from scratch, seven forked and modified. Decision scoring, roadmap planning, mistake-to-gate hardening, interface polish, and the planning and verification workflow.",
+  "description": "The skills the Odin harness owns — five authored from scratch, eight forked and modified. Decision scoring, roadmap planning, mistake-to-gate hardening, interface polish, and the planning and verification workflow.",
   "license": "(MIT AND CC-BY-SA-4.0 AND Apache-2.0)",
   "homepage": "https://github.com/RubyEyedReaper/Odin-Skills",
   "repository": "https://github.com/RubyEyedReaper/Odin-Skills",
@@ -21,6 +21,7 @@
     "./skills/agent-browser",
     "./skills/blueprint",
     "./skills/decision-matrix",
+    "./skills/grill-with-docs",
     "./skills/handoff",
     "./skills/impeccable",
     "./skills/mistake-to-gate",

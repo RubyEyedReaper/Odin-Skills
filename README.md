@@ -1,7 +1,7 @@
 # Odin-Skills
 
 The skills the [Odin](https://github.com/RubyEyedReaper/Odin) harness **owns** — five authored from
-scratch, seven forked from upstream projects and modified — packaged as one installable Claude Code
+scratch, eight forked from upstream projects and modified — packaged as one installable Claude Code
 plugin.
 
 Odin vendors 98 skills in total. The other 86 are third-party work it has never touched, and they
