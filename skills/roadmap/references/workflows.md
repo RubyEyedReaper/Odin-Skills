@@ -20,15 +20,31 @@ brainstorming (only if intent is fuzzy)
 `bootstrap` mines markdown bullets and maps headings to tiers ("out of scope" and
 "deferred" become `someday`; "phase 1" / "current" become `now`).
 
+**`--from` paths resolve against the roadmap's root**, not the working directory — so the command
+above works unchanged from inside the skill directory, which is where every documented invocation
+runs it. An absolute path is taken as given. If **every** named source is unreadable the command
+exits 1 and writes nothing: a bootstrap that read no source is a failed bootstrap, not an empty
+success, and `--surface-sweep` does not excuse a mistyped path.
+
 **`--surface-sweep` is not optional for a product.** Project docs describe what the
 author was thinking about; they systematically omit the surfaces every web product
 eventually needs — login, signup, password reset, profiles, account settings, FAQ,
 help, blog, news, about, pricing, contact, terms, privacy, cookie consent, search,
 error pages, transactional email, analytics, error monitoring, rate limiting, admin,
-audit log. The sweep adds them as `someday` / `proposed` so they are *visible and
+audit log. The flag adds them as `someday` / `proposed` so they are *visible and
 droppable* rather than silently missing.
 
-Sweep items are explicitly marked "confirm or drop" in `notes`. Walk them with the
+**It takes a profile**, because that list is wrong for a repository that ships no UI:
+
+```
+roadmap bootstrap --from INIT.md --surface-sweep            # web (the default)
+roadmap bootstrap --from README.md --surface-sweep library  # docs, release, contribution, CI
+```
+
+The profile appears in the summary line and in each item's `notes`, so a wrong one is visible at a
+glance rather than after thirty-five items land. An unknown profile is refused, listing what exists.
+
+Starter-surface items are explicitly marked "confirm or drop" in `notes`. Walk them with the
 user. Dropping one is a decision; never omitting it is the point.
 
 **Watch for collisions with existing ADRs.** If a project decided something the

@@ -29,10 +29,18 @@ from . import render as render_mod
 from . import reconcile as reconcile_mod
 from . import schema as schema_mod
 
-# The surfaces almost every web product eventually needs. A bootstrap that only
-# reads the project's own plan will miss all of these — that is exactly how a
-# roadmap ends up claiming to be "full" while omitting login and a privacy policy.
-SURFACE_SWEEP = [
+# Starter surfaces: what a project of a given kind eventually needs, whether or not its own docs
+# mention it. A bootstrap that only reads the project's plan will miss all of them — that is exactly
+# how a roadmap ends up claiming to be "full" while omitting login and a privacy policy.
+#
+# Named "starter surfaces", not "sweep": `scripts/sweep.py` is the git-driven finder of directories
+# no item claims, and one word for two mechanisms made "the sweep produced nothing" ambiguous in a
+# bug report (audit F7). The CLI flag keeps its spelling — it now takes a profile, which reads as a
+# starter list rather than a scan.
+#
+# Profiles exist because the web list is wrong for a library or plugin repository, and there was no
+# alternative and no way to decline (audit F5). Adding a profile is adding a key here.
+WEB_SURFACES = [
     ("Auth & identity", [
         ("Login page", "page"),
         ("Signup page", "page"),
@@ -86,6 +94,42 @@ SURFACE_SWEEP = [
         ("Audit log", "infra"),
     ]),
 ]
+
+# What a library, plugin or skills repository needs and its own plan rarely lists. Deliberately
+# short: a starter list that is wrong is worse than one that is thin, because every item costs a
+# reviewer a decision.
+LIBRARY_SURFACES = [
+    ("Documentation", [
+        ("README with install and first example", "docs"),
+        ("API reference", "docs"),
+        ("Usage examples", "docs"),
+        ("Migration / upgrade notes", "docs"),
+    ]),
+    ("Release", [
+        ("CHANGELOG kept per release", "docs"),
+        ("Versioning policy", "docs"),
+        ("Release process and publishing", "infra"),
+        ("Deprecation policy", "docs"),
+    ]),
+    ("Contribution", [
+        ("CONTRIBUTING guide", "docs"),
+        ("Issue and PR templates", "infra"),
+        ("License and attribution", "docs"),
+    ]),
+    ("Quality", [
+        ("CI on every pull request", "infra"),
+        ("Supported-version matrix in CI", "infra"),
+        ("Test coverage floor", "infra"),
+    ]),
+]
+
+#: profile name -> starter surfaces. `web` is the default so every existing bare `--surface-sweep`
+#: keeps its meaning.
+STARTER_SURFACES = {
+    "web": WEB_SURFACES,
+    "library": LIBRARY_SURFACES,
+}
+DEFAULT_STARTER_PROFILE = "web"
 
 _BULLET_RE = re.compile(r"^\s*[-*+]\s+(?:\[[ xX]\]\s*)?(.+?)\s*$")
 _HEADING_RE = re.compile(r"^\s*#{1,6}\s+(.*?)\s*$")
@@ -195,6 +239,17 @@ def _display_path(path):
 def _format_text(doc, items, path):
     slug = schema_mod.slug_of(doc, path)
     if not items:
+        # An empty roadmap and a fully-committed one are different states with different next
+        # actions, and the second message is false in the first case (audit F6). It is also the
+        # message a failed bootstrap produced, so the reader was told a broken inventory was a
+        # healthy one — the honest version names the way out instead.
+        if not doc.get("items"):
+            return (
+                "roadmap for %s (%s) is empty — nothing has been captured yet.\n"
+                "Seed it: python3 -m scripts.roadmap --root <project> bootstrap "
+                "--from INIT.md --surface-sweep"
+                % (slug, _display_path(path))
+            )
         return (
             "no unblocked roadmap items for %s (%s).\n"
             "Everything is either done, in-progress, or waiting on a dependency."
@@ -561,11 +616,21 @@ def cmd_bootstrap(args):
     exclude = re.compile(args.sections_exclude or DEFAULT_SECTION_EXCLUDE, re.I)
     skipped_sections = set()
 
-    for source in args.source or []:
-        if not os.path.exists(source):
-            sys.stderr.write("[roadmap] skipping missing source %s\n" % source)
+    # Sources resolve against the roadmap's own root, not the working directory. Every documented
+    # invocation starts by cd-ing into this skill directory, so a bare `--from INIT.md` used to be
+    # looked for among the engine's own files and never in the project being bootstrapped — the
+    # hook's bootstrap nudge could not read a single source on any project (audit F2). An absolute
+    # path is still taken as given.
+    requested = list(args.source or [])
+    missing = []
+    for source in requested:
+        resolved = source if os.path.isabs(source) else os.path.join(root, source)
+        if not os.path.exists(resolved):
+            sys.stderr.write("[roadmap] skipping missing source %s (looked in %s)\n"
+                             % (source, os.path.dirname(resolved) or "."))
+            missing.append(source)
             continue
-        with open(source, encoding="utf-8") as fh:
+        with open(resolved, encoding="utf-8") as fh:
             text = fh.read()
         for section, bullet in _parse_bullets(text):
             if section and exclude.search(section):
@@ -584,8 +649,12 @@ def cmd_bootstrap(args):
             )
             added.append(item)
 
-    if args.surface_sweep:
-        for group, entries in SURFACE_SWEEP:
+    profile = args.surface_sweep
+    if profile is not None:
+        if profile not in STARTER_SURFACES:
+            _die("unknown starter-surface profile %r — known profiles: %s"
+                 % (profile, ", ".join(sorted(STARTER_SURFACES))))
+        for group, entries in STARTER_SURFACES[profile]:
             for title, kind in entries:
                 if title.lower() in existing:
                     continue
@@ -593,9 +662,20 @@ def cmd_bootstrap(args):
                 item = schema_mod.add_item(
                     doc, title=title, kind=kind, today=args.today,
                     tier="someday", phase=group,
-                    notes="surface sweep — not yet in project docs; confirm or drop",
+                    notes="%s starter surface — not yet in project docs; confirm or drop"
+                          % profile,
                 )
                 added.append(item)
+
+    # Every named source unreadable is a failed bootstrap, not a 0-item success. It used to exit 0
+    # and print "bootstrapped …" on stdout with the skip lines on stderr, so a project ended up
+    # looking bootstrapped with an empty inventory — and `validate` then called that empty roadmap
+    # ok. A partial read is not fatal: one source of several missing is a sweep the caller can see.
+    if requested and len(missing) == len(requested):
+        sys.stderr.write(
+            "[roadmap] no source was readable (%s) — nothing to bootstrap from; "
+            "check the paths, which resolve against %s\n" % (", ".join(missing), root))
+        return 1
 
     errors = schema_mod.validate(doc) + graph_mod.graph_errors(doc)
     if errors:
@@ -605,8 +685,11 @@ def cmd_bootstrap(args):
 
     schema_mod.save(path, doc)
     render_mod.render_all(path)
-    print("bootstrapped %s — %d new item(s), %d total"
-          % (path, len(added), len(doc.get("items", []))))
+    # Name the profile in the summary. A wrong profile is then visible at a glance, rather than
+    # after thirty-five items for pages the project will never have have landed in the inventory.
+    print("bootstrapped %s — %d new item(s), %d total%s"
+          % (path, len(added), len(doc.get("items", [])),
+             "" if profile is None else " (starter surfaces: %s)" % profile))
     for item in added:
         print("  %-8s %-12s %-9s %s"
               % (item["id"], item["kind"], item["tier"], item["title"]))
@@ -654,6 +737,12 @@ def build_parser():
     pri = subparsers.add_parser(
         "prioritize", help="export a decision spec / ingest a decision-matrix result")
     pri.add_argument("--from", dest="source", help="decision-matrix result JSON to ingest")
+    # Export is what `prioritize` does when it is not ingesting, so this flag selects nothing. It
+    # exists because it was documented in nine places before it was ever implemented (audit F1), and
+    # a copy of that command survives in every transcript and memory that quoted it. Accepting the
+    # flag makes all of them run; editing the nine documents would not have.
+    pri.add_argument("--export", action="store_true",
+                     help="accepted for compatibility — exporting is already the default")
     pri.add_argument("--method", help="method key to read from the result (default: RICE)")
     pri.add_argument("--ids", help="comma-separated item ids to compete")
     pri.add_argument("--tier", choices=schema_mod.TIERS)
@@ -713,8 +802,13 @@ def build_parser():
     boot.add_argument("--scope")
     boot.add_argument("--from", dest="source", action="append",
                       help="markdown file to mine for bullets (repeatable)")
-    boot.add_argument("--surface-sweep", action="store_true",
-                      help="also add the standard product surfaces the docs omit")
+    # nargs="?" so the bare flag every transcript and the roadmap gate's own nudge already spell
+    # keeps working and keeps meaning `web`. bootstrap takes no positionals, so the usual hazard of
+    # an optional-value flag swallowing the next argument cannot arise here; a test pins it anyway.
+    boot.add_argument("--surface-sweep", nargs="?", const=DEFAULT_STARTER_PROFILE, default=None,
+                      metavar="PROFILE",
+                      help="also add starter surfaces the docs omit: %s (default: %s)"
+                           % (", ".join(sorted(STARTER_SURFACES)), DEFAULT_STARTER_PROFILE))
     boot.add_argument("--sections-exclude", dest="sections_exclude",
                       help="regex of headings to skip (default: run/meta sections)")
     boot.set_defaults(func=cmd_bootstrap)

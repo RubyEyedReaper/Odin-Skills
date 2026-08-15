@@ -53,7 +53,8 @@ Run from this skill's directory: `python3 -m scripts.roadmap <command>`
 | `render` | regenerate markdown + graph |
 | `reconcile` | drift report |
 | `due` | is a reconcile overdue? — silent when not, so a caller needs no comparison |
-| `bootstrap --from INIT.md --surface-sweep` | seed a new roadmap |
+| `bootstrap --from INIT.md --surface-sweep` | seed a new roadmap from project docs + starter surfaces |
+| `init --scope task:<slug>` | create an empty roadmap for a scope |
 
 **Never hand-edit `roadmap.json` or `ROADMAP.md`** — hand edits are detected and fail
 `validate`. `blocked` is not a status; it is computed from unmet deps.
@@ -176,13 +177,23 @@ claimed, `links.plan` says what to read, and `waves` says what came next. On a f
 session, run `waves`, open the linked plan, continue. Use `/relay` to hand a session off.
 Nothing else needs persisting, and a fourth state file is one more thing that can lie.
 
-## Bootstrapping must sweep surfaces
+## Bootstrapping must add starter surfaces
 
-Project docs omit what the author wasn't thinking about — login, signup, profiles,
-FAQ, help, blog, news, legal, search, error pages, analytics, admin.
-`--surface-sweep` adds them as `someday` so they are visible and droppable rather
-than silently missing. Walk them with the user; flag any that contradict an
-existing ADR rather than silently adding or skipping.
+Project docs omit what the author wasn't thinking about. `--surface-sweep [PROFILE]` adds a
+profile's starter surfaces as `someday` so they are visible and droppable rather than silently
+missing, and names the profile in the summary line.
+
+| Profile | Covers | Use for |
+|---|---|---|
+| `web` (default; bare `--surface-sweep`) | login, signup, profiles, FAQ, help, blog, news, legal, search, error pages, analytics, admin | a product with a UI |
+| `library` | README, API reference, examples, CHANGELOG, versioning and deprecation policy, release process, CONTRIBUTING, CI | a library, plugin or skills repository |
+
+Pick the profile from what the repository *is*, not from what it might grow into — the `web` list
+on a plugin repository is thirty-five items for pages it will never have, and each one costs a
+reviewer a decision. Flag any item that contradicts an existing ADR rather than silently adding or
+skipping it; where no human is watching, record the call in the plan and move on.
+
+Adding a profile is adding a key to `STARTER_SURFACES` in `scripts/roadmap.py`.
 
 ## This is a living doc, not a plan
 

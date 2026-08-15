@@ -8,6 +8,20 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ## [Unreleased]
 
+### Changed
+
+- **`roadmap` and `superplan` synced from the harness refinement pass** (2026-08-15). `superplan`'s
+  plan template now satisfies all four criteria of Odin's plan-depth standard (process skills
+  named, recorded scope decision, ≥3 decision forks, done criteria naming a runnable check), its
+  task list carries dependencies and is gated by `plancheck`, its approval step is conditional on
+  autonomous posture rather than an unconditional human stop, and its adversarial role dispatches a
+  purpose-built `plan-adversary` agent instead of overriding `code-reviewer`. `roadmap` accepts
+  `prioritize --export`, resolves `bootstrap --from` against `--root` and fails when no source is
+  readable, takes a starter-surface profile (`web` default, `library` added), documents `init`, and
+  distinguishes an empty roadmap from a fully blocked one. Engine suite 201 → 218 tests.
+  **Note for standalone users:** `superplan` references `plan-adversary`, which lives in the Odin
+  harness's `.claude/agents/` and is not part of this plugin — substitute your own critique agent.
+
 ### Added
 
 - `grill-with-docs` joins as the eighth fork (thirteenth member). Upstream ships a 245-byte
