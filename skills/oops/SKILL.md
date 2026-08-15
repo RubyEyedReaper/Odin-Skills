@@ -71,7 +71,32 @@ This is the fork that decides everything after it.
 **The last row is an escape hatch that must be spoken, never taken silently.** A guard that encodes
 taste produces false positives; a guard people disagree with gets disabled, taking its true
 positives with it. Saying "this one is judgment, here is the rule instead" is a valid OOPS outcome.
-Quietly writing no guard is not.
+Quietly writing no guard is not. With the forked `rules-distill` in place that hatch now terminates
+somewhere: the rule it produces is drafted, tiered and landed, not left as an intention.
+
+**The class you just picked is half the failure-mode key**, and the key is how this incident is
+counted against every earlier one. Write it now as `<class>/<predicate-slug>` — the slug is the
+condition from step 2, in the same words you would use to state the guard:
+`precondition/assumed-file-exists`, not `precondition/crash-on-startup`. Lowercase, one slash.
+
+**Then read the count before choosing the response** — this is the look-back, and it is a step, not
+a habit:
+
+```sh
+python3 .claude/skills/mistake-to-gate/scripts/mistakes.py report . --key precondition/assumed-file-exists
+```
+
+It prints the count, the band, the prior rows, and any sibling key in the same class that is a
+near-duplicate spelling of yours — take the existing spelling when one is offered, because a second
+spelling of one failure mode is two keys that each stay under the threshold forever.
+
+| Count so far | Band | What this OOPS must do |
+|---:|---|---|
+| 0 | logged | Run normally. One incident, one condition, one guard. |
+| 1–2 | attention | Run normally, **and** read the prior rows first. The commit says why the earlier guard did not cover this occurrence — if you cannot answer that, the earlier guard was keyed on a correlate and *that* is the incident. |
+| ≥3 | promotion | This occurrence takes the key to the threshold. It is no longer a mistake, it is a missing rule: hand the whole thing to `mistake-to-gate`, which lands the check, the rule text, and the closure. |
+
+Say the band out loud. It changes what the rest of this procedure is allowed to end with.
 
 ### 4. Specify the guard: where, what, how it fails
 
@@ -152,6 +177,36 @@ A **new** obligation earns an ADR. Something already agreed needs only the commi
 message opens with **the incident**, concretely, because months later it is the only surviving
 explanation of why the guard exists, and a guard whose reason is lost is a guard somebody deletes.
 
+### 9. Append the row — one line, in the same change as the guard
+
+An ADR and a commit message are organised by **when something was committed**. Nothing in either can
+answer *has this happened before*, so two sessions hitting the same failure mode six weeks apart
+leave two unrelated messages and no fourth-time judgement is ever possible. One row fixes that, and
+it is a row, not a report:
+
+```sh
+python3 .claude/skills/mistake-to-gate/scripts/mistakes.py append . \
+  --key precondition/assumed-file-exists \
+  --context "mailer dereferenced a deleted user" \
+  --artifact '`src/mail.ts:42` @ a1b2c3d' \
+  --fix "precondition at the boundary, NotFoundError with the id"
+```
+
+The fields are the closing checklist you were going to emit anyway. Hand-writing the row is equally
+valid — the grammar gate is the only thing that must be satisfied.
+
+- **Which log.** The one beside the owner's `CHANGELOG.md`: the repository root for harness
+  incidents, `projects/<slug>/MISTAKES.md` for an incident in a project. A project's rows never
+  enter the harness log, and a project that is its own repository keeps its own log and its own gate.
+- **Status.** `guarded` once the guard from step 4 exists and step 7 proved it fires; `logged` only
+  while it does not yet; `wontfix` needs its reason in the `fix` column and is excluded from counts.
+- **Timing.** Now, in this change — not in a later pass. A log written retrospectively is a log
+  whose counts are a function of who remembered.
+- **One row per occurrence.** Not per fix, not per pull request. The count is occurrences.
+
+`append` prints the new count and band, and warns when the key you typed is a near-duplicate of one
+already in the log — the moment to fix a re-spelling is while you are writing it.
+
 ## Red flags — the OOPS is not done
 
 | Thought | Reality |
@@ -164,10 +219,15 @@ explanation of why the guard exists, and a guard whose reason is lost is a guard
 | "It only happens in that one edge case" | That edge case just happened. |
 | "Wrote the test after the fix, it passes" | A test never seen red asserts nothing. |
 | "This is really a process problem" | Then the guard is a lint rule, a hook, or a CI gate — still mechanical. |
+| "I'll append the row at the end of the session" | Then it is written from memory, or not at all. The row costs one line and is the only thing that makes the next occurrence countable. |
+| "Same as last time — one row covers both" | Two occurrences, two rows. Batching keeps a key under the threshold forever, which is exactly the outcome the ladder exists to prevent. |
+| "I logged it, that is the record" | A row with no guard is a postmortem. The deliverable did not change. |
 
 ## What this is not
 
-- **Not a postmortem document.** The output is a diff, not a report.
+- **Not a postmortem document.** The output is a diff, not a report. The log is **one row appended
+  beside the guard** — evidence that this failure mode happened again, not a narrative of it, and
+  never a substitute for the diff. An OOPS that produced a row and no guard has produced nothing.
 - **Not a substitute for diagnosis.** Cause first (`systematic-debugging`), guard second.
 - **Not a linter.** One incident, one condition, one guard.
 - **Not `mistake-to-gate`'s replacement.** When the condition is a predicate over repository state,
@@ -181,9 +241,14 @@ Emit this at the end of every OOPS, filled in:
 - [ ] **Root cause** — the condition that allowed it, stated as a predicate
 - [ ] **Guard class** — input / precondition / postcondition / error-path / CI gate / (judgment →
       `rules-distill`, stated explicitly)
+- [ ] **Key** — `<class>/<predicate-slug>`, checked against the existing keys for a re-spelling
+- [ ] **Count read and band announced** *before* the response was chosen; at the threshold, handed
+      to `mistake-to-gate` instead of finishing here
 - [ ] **Where** it lives, **what** it checks, **how** it fails safely
 - [ ] **Test written first and seen red**, plus near-miss cases that still pass
 - [ ] **Same class swept** elsewhere; issue filed per distinct out-of-scope concern
 - [ ] **Guard proven to fire** — behaviour asserted, never source
 - [ ] **Wired to run unattended** — test suite, hook, or the repo's single gate list
+- [ ] **Logged** — one row appended to the owner's `MISTAKES.md`, in this change, with a resolvable
+      artifact and an honest status
 - [ ] **Recorded** — ADR if it is a new obligation; commit message opens with the incident

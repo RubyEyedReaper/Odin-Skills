@@ -16,6 +16,11 @@ The output is three things, and the work is not finished until all three exist:
    misses,
 3. a line in the repository's single gate list.
 
+This skill also owns the **mistake log engine** — `scripts/mistakes.py`, which counts recurrence by
+failure-mode key and tells this repository when a mistake has happened often enough to stop being a
+mistake (ADR-0057). `oops` appends to the log; §11 below is what happens when a key reaches the
+threshold.
+
 ## When this fires
 
 Any of these, whether or not a check was requested:
@@ -25,6 +30,9 @@ Any of these, whether or not a check was requested:
   enforcement behind it
 - a review, audit or postmortem produced a "we should always…" statement
 - a guard was found to pass when it should have failed
+- **a failure-mode key reached the promotion threshold** — `mistakes-check.sh` fails with
+  "promotion due", or `oops` announced the promotion band. At that point the incident is not a
+  mistake any more, it is a missing rule, and §11 below is the procedure
 
 ## The procedure
 
@@ -94,8 +102,11 @@ disables itself when a dependency is missing is indistinguishable from a guard t
 
 The matrix is the deliverable, not a formality.
 
-- **One BLOCK case per mistake that actually happened** — the real one, reconstructed in a fixture,
-  not a plausible variant.
+- **One BLOCK case per recorded occurrence** — each one reconstructed in a fixture from the artifact
+  in its `MISTAKES.md` row, not a plausible variant. Where a single incident is being gated, that is
+  one case; where a key reached the promotion threshold, it is four, and they are strictly better
+  evidence than any variant you could invent — four independent reconstructions of the same
+  condition are what tell you whether the predicate you wrote is the predicate that keeps failing.
 - **ALLOW cases for the near misses**: the legitimate forms that resemble the mistake. A guard that
   blocks everything gets disabled, and then it protects nothing.
 - **Assert behaviour, never source.** Run the checker and read its exit code and output; never grep
@@ -105,11 +116,24 @@ The matrix is the deliverable, not a formality.
 Then prove the matrix can fail: break the checker deliberately, watch a case go red, restore it. A
 matrix never seen red has never been tested.
 
-### 8. Wire it into the one gate list
+### 8. Wire it into the one gate list — the owner's, never the parent's
 
 Add it where the other gates live, so it runs by the command contributors already run. Where one list
 is wrapped by several runners, add it to the **list**, never to a runner — a gate added to one wrapper
 runs in one place while creating the impression of coverage everywhere.
+
+**Which list is decided by who owns the code the gate checks**, and getting this wrong is the
+boundary error §4 warns about, made at the last step:
+
+| The mistake happened in… | The list | Named from |
+|---|---|---|
+| the harness itself — `.claude/`, root docs, harness scripts | `.claude/scripts/ci-local.sh`, beside the other `step "…"` lines | this repository's `CLAUDE.md` item 7 |
+| a project under `projects/<slug>/` | **that project's own** gate list | that project's `README`/`CONTRIBUTING`/`docs` — read them; never assume it is `ci-local.sh` |
+| a `projects/<slug>/` that is its own git repository | that repository's list, committed there | its own docs; the harness cannot commit into it |
+
+A harness gate that checks project code fails on code the harness does not own, and its owners
+cannot clear it — which is how a gate gets commented out. When the project has no gate list yet,
+creating one *is* the work; adding the check upward is not a shortcut, it is a different check.
 
 Then run the whole suite, not just the new gate. A new check often fails older fixtures that predate
 its requirement. That is the gate working; those fixtures are updated in the same change.
@@ -124,6 +148,46 @@ incident.
 
 If the gate enforces a **new** obligation, that is a decision and it earns an ADR. If it enforces
 something already agreed, the commit message carrying the incident is enough.
+
+### 11. Promotion — when the same key reaches the threshold
+
+Four recorded occurrences of one failure-mode key is not four mistakes; it is one missing rule that
+has been paid for four times. Promotion is what closes it, and it has three parts — **all three, or
+the key keeps re-triggering the gate until somebody deletes the gate**.
+
+1. **Read every row for the key first.**
+
+   ```sh
+   python3 .claude/skills/mistake-to-gate/scripts/mistakes.py report . --key ci-gate/stale-reference
+   ```
+
+   Each row carries an artifact. Those artifacts are the BLOCK cases (§7): reconstruct all of them,
+   and let the predicate be the one that catches every one. A predicate that catches three of four
+   is the wrong predicate — the fourth row is telling you where the real condition is.
+
+2. **Land both halves.** A rule with no check is wrong by the second change; a check with no rule is
+   a failure whose reason nobody can read.
+   - the **check**, built by §1–§9 above, in the owner's gate list per §8;
+   - the **rule text**, in the owning `CLAUDE.md` — the harness's for a harness key, that project's
+     for a project key — or in a `.claude/rules/` file when it is a rule the harness carries. Route
+     the rule-text half through the forked `rules-distill`, which drafts it, decides its tier
+     (`paths:`-scoped by default; always-on costs context on every turn of every session) and
+     records the reasoning.
+
+3. **Close the loop on the rows.** The originating occurrences are what the gate reads, so a
+   promotion that does not mark them leaves the gate failing forever:
+
+   ```sh
+   python3 .claude/skills/mistake-to-gate/scripts/mistakes.py promote . \
+     --key ci-gate/stale-reference --fix 'gate: .claude/scripts/doc-reference-check.sh; rule: CLAUDE.md item 8'
+   ```
+
+   Then run `bash .claude/scripts/mistakes-check.sh` and watch it go green. That transition **is**
+   the proof the promotion is complete — the same "assert behaviour, never source" rule applied to
+   your own closing step.
+
+Later occurrences of a promoted key are still logged. A row arriving after promotion means the rule
+exists and the check missed it, which is a new incident about the check — the most valuable kind.
 
 ## Commit shape
 
@@ -154,3 +218,6 @@ deletes.
 - [ ] Added to the single gate list; full suite re-run; older fixtures fixed
 - [ ] Counts and enumerations the repository asserts have been moved
 - [ ] Commit message opens with the incident
+- [ ] **On a promotion:** every row for the key marked `promoted` with the gate path in `fix`, rule
+      text landed in the owning `CLAUDE.md` (or a tiered `.claude/rules/` file), and
+      `mistakes-check.sh` watched going from red to green
