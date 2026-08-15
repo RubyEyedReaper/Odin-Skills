@@ -1,0 +1,39 @@
+name: validate
+
+# Fail CI when a skill's frontmatter is wrong, the plugin manifest has drifted from
+# what is on disk, a fork is missing its upstream licence or modification notice, or
+# a reference file is unreachable. All logic lives in scripts/, so the same commands
+# run locally — a green local run means the same thing as a green CI run.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Prove the validator's checks still fire
+        run: bash scripts/tests/validate.test.sh
+
+      - name: Validate skills, manifests, licensing and provenance
+        run: bash scripts/validate-skills.sh
+
+      # Drift against the Odin harness is only checkable from inside a harness
+      # checkout. In a standalone clone there is nothing to compare to, so this
+      # step reports that it skipped rather than passing silently — a check that
+      # quietly no-ops reads exactly like a check that passed.
+      - name: Check mirror drift against the Odin harness
+        run: |
+          if [ -d ../../.claude/skills ]; then
+            bash scripts/sync-from-odin.sh --check
+          else
+            echo "SKIPPED: no Odin harness checkout at ../../ — drift not checkable here."
+          fi

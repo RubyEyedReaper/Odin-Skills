@@ -69,19 +69,22 @@ filling it with a plausible number launders a guess as arithmetic.
 The engine runs every applicable method and compares them; **method disagreement is a headline
 signal**, not an error. Default winner = weighted-sum rank 1, cross-checked against the others.
 
-| Decision shape | Methods emphasized |
-|---|---|
-| Few options, clear weighted criteria | weighted-sum, TOPSIS |
-| Compare against an incumbent/baseline | Pugh matrix |
-| Prioritize a backlog | RICE / WSJF / ICE |
-| Feature satisfaction tiers | Kano |
+| Decision shape | Methods emphasized | Reference |
+|---|---|---|
+| Few options, clear weighted criteria | weighted-sum, TOPSIS | [references/topsis.md](references/topsis.md) |
+| Compare against an incumbent/baseline | Pugh matrix | [references/pugh-matrix.md](references/pugh-matrix.md) |
+| Prioritize a backlog | RICE / WSJF / ICE | [references/product-frameworks.md](references/product-frameworks.md) |
+| Feature satisfaction tiers | Kano | [references/product-frameworks.md](references/product-frameworks.md) |
+
+Read the method's reference before overriding the default winner — each one states what its numbers
+mean and where it misleads.
 
 ## Reading the result
 
 | Signal | What it means | What to do |
 |---|---|---|
 | Methods disagree on rank 1 | The winner depends on the aggregation, not the evidence | Report both; pick the reversible option |
-| `near_tie_pairs` includes the winner | The lead is inside the noise | Say so; decide on a tiebreaker criterion and name it |
+| `near_tie_pairs` includes the winner | The lead is inside the noise | Say so; decide on a tiebreaker criterion and name it — [references/sensitivity-analysis.md](references/sensitivity-analysis.md) |
 | `criteria_quality.warnings` → `overweight` | One criterion is the decision | Either accept that explicitly, or rebalance and re-run |
 | `non-discriminating` criterion | It scores every option alike | Drop it — it adds arithmetic, not information |
 | All options vetoed | The constraints are the real decision | Report the binding constraint; do not relax one silently |
