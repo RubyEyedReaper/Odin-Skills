@@ -80,7 +80,7 @@ The prompt is short because the critique discipline lives in
 the disposability rule, the output format, and what the role is *not*. This role used to dispatch
 `code-reviewer` (13,618 B of post-implementation review checklists) and then spend the prompt
 telling it not to review, which meant the largest definition in the fan-out was being overridden by
-its own prompt and the behaviour could not be told apart from a review run (DEC-0003).
+its own prompt and the behaviour could not be told apart from a review run (DEC-0004).
 
 ## Phase 2 — Synthesis
 
