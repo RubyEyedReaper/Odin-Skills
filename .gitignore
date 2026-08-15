@@ -1,0 +1,10 @@
+# Python build residue from running a skill's own tests. Three skills ship
+# stdlib-only Python (decision-matrix, blueprint, roadmap); running their suites
+# leaves this behind in the working tree.
+__pycache__/
+*.py[cod]
+
+# Node residue — impeccable ships hook scripts.
+node_modules/
+
+.DS_Store

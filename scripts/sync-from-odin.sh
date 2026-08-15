@@ -59,6 +59,12 @@ fi
 DRIFTED=0
 COPIED=0
 
+# UPSTREAM.md and LICENSE are this repository's own packaging, not skill content.
+# __pycache__/*.pyc are build residue that appears in the harness the moment a
+# skill's tests are run — comparing it reports drift nobody caused, which is how
+# a drift check gets ignored.
+EXCLUDE=(-x UPSTREAM.md -x LICENSE -x __pycache__ -x '*.pyc' -x .DS_Store)
+
 for name in "${MEMBERS[@]}"; do
   src="$SRC/$name"
   dst="$ROOT/skills/$name"
@@ -70,13 +76,13 @@ for name in "${MEMBERS[@]}"; do
   fi
 
   # Packaging files are ours; everything else must match the harness exactly.
-  if diff -r -q -x UPSTREAM.md -x LICENSE -- "$src" "$dst" >/dev/null 2>&1; then
+  if diff -r -q "${EXCLUDE[@]}" -- "$src" "$dst" >/dev/null 2>&1; then
     continue
   fi
 
   if [[ $CHECK -eq 1 ]]; then
     echo "DRIFT: $name differs from the harness copy"
-    diff -r -q -x UPSTREAM.md -x LICENSE -- "$src" "$dst" 2>&1 | sed 's/^/       /'
+    diff -r -q "${EXCLUDE[@]}" -- "$src" "$dst" 2>&1 | sed 's/^/       /'
     DRIFTED=$((DRIFTED + 1))
     continue
   fi
@@ -90,6 +96,10 @@ for name in "${MEMBERS[@]}"; do
   [[ -f "$tmp/UPSTREAM.md" ]] && cp "$tmp/UPSTREAM.md" "$dst/"
   [[ -f "$tmp/LICENSE" ]] && cp "$tmp/LICENSE" "$dst/"
   rm -rf "$tmp"
+  # cp -R carries whatever residue the harness had; drop it so the mirror never
+  # publishes build artefacts of someone else's test run.
+  find "$dst" -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null
+  find "$dst" \( -name '*.pyc' -o -name .DS_Store \) -delete 2>/dev/null
   echo "synced: $name"
   COPIED=$((COPIED + 1))
 done
