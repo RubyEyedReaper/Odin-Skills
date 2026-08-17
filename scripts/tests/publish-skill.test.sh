@@ -134,6 +134,29 @@ expect_call() {
   grep -qF -- "$want" "$CALLS" && ok "$name" || bad "$name — never ran '$want'" "$(cat "$CALLS")"
 }
 
+# expect_reachable_links <case> <skill> — every GitHub repository the landing
+# page links to is one a visitor can actually open. The harness repository is
+# private, so a link to it renders as a 404 and an issue tracker nobody outside
+# the account can file on; only the published mirror and the skill's own
+# repository are reachable from a public page.
+expect_reachable_links() {
+  local name="$1" skill="$2" page slug unreachable=""
+  page="$(readme_body "$skill" 2>/dev/null)"
+  while IFS= read -r slug; do
+    [[ -z "$slug" ]] && continue
+    case "$slug" in
+      "$OWNER/Odin-Skills"|"$OWNER/skill-$skill") ;;
+      *) unreachable+="$slug " ;;
+    esac
+  done < <(grep -oE 'github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+' <<<"$page" |
+             sed -e 's#^github\.com/##' -e 's#\.git$##' | sort -u)
+  if [[ -z "$unreachable" ]]; then
+    ok "$name"
+  else
+    bad "$name — links a visitor cannot open: $unreachable" "$page"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Fixtures
 #
@@ -220,8 +243,9 @@ expect_out "repo name is prefixed"   "skill-roadmap"                        repo
 expect_out "prefix is repo-relative" "projects/Odin-Skills/skills/roadmap"  subtree_prefix_for roadmap
 
 # --- landing page -----------------------------------------------------------
-expect_contains "banner names the coordinating repo" "RubyEyedReaper/Odin" readme_body roadmap
+expect_contains "banner names the coordinating repo" "RubyEyedReaper/Odin-Skills" readme_body roadmap
 expect_contains "banner refuses PRs"                 "not merged"          readme_body roadmap
+expect_reachable_links "page links only where a visitor can go" roadmap
 expect_contains "page carries the skill description" "$(desc_of roadmap)"  readme_body roadmap
 expect_contains "page shows how to install it"       "~/.claude/skills"    readme_body roadmap
 expect_contains "page names the licence artefacts"   "LICENSE-MIT"         readme_body roadmap

@@ -28,10 +28,14 @@ DRY_RUN=0
 VERIFY=0
 
 # The banner every published landing page opens with. These repositories take no
-# pull requests, and a visitor has no other way to learn that.
+# pull requests, and a visitor has no other way to learn that. It names the
+# published mirror rather than the harness that develops the skill: the harness
+# repository is private, so a link to it is a 404 for every visitor and an issue
+# tracker nobody outside the account can reach.
 BANNER='> **Read-only publish target.** Development is coordinated in
-> [RubyEyedReaper/Odin](https://github.com/RubyEyedReaper/Odin) under `projects/Odin-Skills/`.
-> Pull requests opened here are not merged — please file issues on Odin instead.'
+> [RubyEyedReaper/Odin-Skills](https://github.com/RubyEyedReaper/Odin-Skills), where this skill
+> lives under `skills/`. Pull requests opened here are not merged — please file issues there
+> instead.'
 
 usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "${BASH_SOURCE[0]}"; }
 note()  { printf '%s\n' "$*" >&2; }
