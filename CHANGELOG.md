@@ -8,6 +8,27 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ## [Unreleased]
 
+### Added — `scripts/publish-skill.sh`
+
+- **`scripts/publish-skill.sh`** — publishes one skill as its own repository,
+  `<owner>/skill-<name>`, so a user can take a single skill without the bundle. A `git subtree
+  split` rather than a fresh `git init`, so the published repository carries the real history the
+  fork `UPSTREAM.md` files depend on. Three things it refuses to guess: the subtree prefix is
+  computed **repository-root-relative** (`git subtree` runs `cd_to_toplevel` before reading `-P`, so
+  a `$ROOT`-relative prefix splits nothing and pushes an empty repository); the licence artefacts
+  are selected by skill class and a fork with neither an upstream `LICENSE` nor a declared-absence
+  `NOTICE` is **refused before any network call**; and a rerun clones the existing repository and
+  pushes only a real change, because a second `subtree split` cannot fast-forward the first push and
+  force-pushing is forbidden. `--dry-run` prints every git and gh command and touches no network;
+  `--verify` diffs the published tree against the local skill directory, ignoring only the files the
+  script itself writes.
+- **`scripts/tests/publish-skill.test.sh`** — 31 cases over every decision made before the network:
+  name validation, the repo-root-relative prefix, the landing page, licence selection for all four
+  classes, create-versus-update mode, and the dry run's inertness. `git` and `gh` are stubbed earlier
+  on `PATH` for the whole suite — the `gh` stub only logs, the `git` stub passes read-only
+  subcommands through and refuses clone/push/subtree — so a case that reached GitHub would fail
+  rather than create a public repository.
+
 ### Fixed
 
 - **The publishing gate rejected the one fork whose upstream published no license**
