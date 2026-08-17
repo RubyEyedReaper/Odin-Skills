@@ -25,6 +25,33 @@ arrive here by sync; entries below record what changed in this distribution.
   documentation describing this project as unpublished, and tagging now would make that text the
   content of the release. The tag belongs to the change that corrects those docs.
 
+### Added — the per-skill repositories are published
+
+- **Seventeen skills now exist as their own public repositories** (`harness:RM-0074`), split from
+  this mirror by `scripts/publish-skill.sh` with their real history. The seven flagship
+  Odin-authored ones — `skill-oops`, `skill-mistake-to-gate`, `skill-decision-matrix`,
+  `skill-roadmap`, `skill-superplan`, `skill-successor`, `skill-endless` — each carry
+  `LICENSE-MIT` and `LICENSE-CC-BY-SA-4.0`. The ten forks — `skill-agent-browser`,
+  `skill-blueprint`, `skill-decision-mapping`, `skill-grill-with-docs`, `skill-handoff`,
+  `skill-impeccable`, `skill-rules-distill`, `skill-test-driven-development`,
+  `skill-using-superpowers`, `skill-verification-before-completion` — each carry their upstream
+  `LICENSE` plus the root `NOTICE`, except `rules-distill`, whose declared-absence `NOTICE` is
+  concatenated with the root one under a single filename. No skill was refused; the gate's
+  fail-closed path was not exercised by any skill in the tree.
+- **Idempotence was proven rather than assumed.** Every one of the seventeen was published a second
+  time: each run exited 0, reported `already matches skills/<name> — nothing to push`, and left
+  `refs/heads/main` on the same sha the first publish recorded. Each also passes `--verify` against
+  the local skill directory.
+- **The landing-page banner linked to a repository no visitor can open.** It named
+  `RubyEyedReaper/Odin`, the harness — which is private, so every published page would have carried
+  a 404 and directed issues to a tracker outside the account nobody can reach. Caught on the first
+  repository, before the other sixteen went out; the banner now names the public mirror
+  `RubyEyedReaper/Odin-Skills`, and `skill-oops` was corrected by re-running the script rather than
+  by editing the published repository. Two cases cover it: the coordinating-repo assertion is no
+  longer satisfied by the private repository's name as a prefix, and a new case walks every GitHub
+  link the generated page contains and fails on any repository that is not itself a publish target.
+  Suite 31 → 32 cases.
+
 ### Added — `scripts/publish-skill.sh`
 
 - **`scripts/publish-skill.sh`** — publishes one skill as its own repository,
