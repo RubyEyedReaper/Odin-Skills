@@ -1,0 +1,17 @@
+rules-distill
+
+Forked from https://github.com/affaan-m/ECC.
+
+No LICENSE file accompanied the vendored copy of this skill, so none is shipped
+here: this distribution states the origin rather than asserting a grant nobody
+made. The upstream terms are those published by that repository, and they apply
+to the upstream portions of this directory unchanged.
+
+The blanket ECC row in the Odin harness repository's FORKS.md carries the
+vendoring provenance. Odin's local modifications are enumerated in UPSTREAM.md
+in this directory; the decision to record the absence this way, rather than to
+exempt the skill in prose, is recorded in docs/PROVENANCE.md.
+
+Odin's own contributions to this directory are licensed as the rest of this
+repository: prose CC-BY-SA-4.0, code MIT. See LICENSE-CC-BY-SA-4.0 and
+LICENSE-MIT at the repository root.

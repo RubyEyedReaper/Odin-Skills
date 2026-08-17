@@ -8,7 +8,9 @@ This repository bundles two kinds of skill:
 
   2. Skills forked from upstream projects and modified. These remain under
      their upstream license. Each such skill directory ships that upstream
-     LICENSE verbatim and an UPSTREAM.md stating what was changed.
+     LICENSE verbatim and an UPSTREAM.md stating what was changed. Where an
+     upstream published no LICENSE file at all, the fork says so in its
+     UPSTREAM.md and ships a NOTICE instead of a license it was never granted.
 
 Per-skill origin and license: docs/PROVENANCE.md
 
@@ -39,11 +41,19 @@ blueprint
   Copyright: (c) 2026 Affaan Mustafa
   Modified:  Yes — see skills/blueprint/UPSTREAM.md
 
-handoff
+handoff, grill-with-docs, decision-mapping
   Upstream:  https://github.com/mattpocock/skills
   License:   MIT
   Copyright: (c) 2026 Matt Pocock
-  Modified:  Yes — see skills/handoff/UPSTREAM.md
+  Modified:  Yes — see the UPSTREAM.md in each skill directory
+             (decision-mapping originates with that repository's `wayfinder`)
+
+rules-distill
+  Upstream:  https://github.com/affaan-m/ECC
+  License:   As published by that repository. No LICENSE file accompanied the
+             vendored copy, so none is reproduced here and no grant is implied;
+             see skills/rules-distill/NOTICE and docs/PROVENANCE.md.
+  Modified:  Yes — see skills/rules-distill/UPSTREAM.md
 
 agent-browser
   Upstream:  https://github.com/vercel-labs/agent-browser

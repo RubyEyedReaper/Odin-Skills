@@ -80,13 +80,33 @@ for dir in "$SKILLS_DIR"/*/; do
   # the other is the actual hazard: an UPSTREAM.md with no LICENSE ships someone
   # else's work with no license text, and a LICENSE with no UPSTREAM.md fails
   # Apache-2.0's requirement to state modifications.
+  #
+  # One case is neither: an upstream that published no LICENSE file at all. That
+  # absence cannot be fixed by shipping a license nobody granted, so the fork
+  # declares it — the literal string 'no LICENSE file accompanied' in UPSTREAM.md
+  # — and substantiates it with a sibling NOTICE carrying the provenance. Both
+  # artefacts are required, and neither alone passes: a declaration without a
+  # NOTICE states a fact it never records, and a NOTICE without the declaration
+  # would let any ordinary fork skip the license it does have.
   has_license=0; [[ -f "$dir/LICENSE" ]] && has_license=1
   has_upstream=0; [[ -f "$dir/UPSTREAM.md" ]] && has_upstream=1
+  has_notice=0;  [[ -f "$dir/NOTICE"  ]] && has_notice=1
+  declares_none=0
+  if [[ $has_upstream -eq 1 ]] && grep -qF 'no LICENSE file accompanied' "$dir/UPSTREAM.md"; then
+    declares_none=1
+  fi
+
   if [[ $has_license -eq 1 && $has_upstream -eq 0 ]]; then
     fail "$name: has upstream LICENSE but no UPSTREAM.md stating the local changes"
   fi
   if [[ $has_upstream -eq 1 && $has_license -eq 0 ]]; then
-    fail "$name: has UPSTREAM.md but no upstream LICENSE file"
+    if [[ $declares_none -eq 1 && $has_notice -eq 1 ]]; then
+      : # declared absence, substantiated by a NOTICE — see docs/PROVENANCE.md
+    elif [[ $declares_none -eq 1 ]]; then
+      fail "$name: UPSTREAM.md declares no upstream license but ships no NOTICE"
+    else
+      fail "$name: has UPSTREAM.md but no upstream LICENSE file"
+    fi
   fi
 done
 

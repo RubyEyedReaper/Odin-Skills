@@ -140,6 +140,22 @@ expect_fail "fork with LICENSE but no UPSTREAM.md" "UPSTREAM.md" "$r"
 r="$(fixture fork-no-license)"; rm "$r/skills/beta/LICENSE"
 expect_fail "fork with UPSTREAM.md but no LICENSE" "LICENSE" "$r"
 
+# A fork that declares upstream shipped no license, and carries a NOTICE, passes.
+r="$(fixture fork-declared-no-license)"; rm "$r/skills/beta/LICENSE"
+printf 'no LICENSE file accompanied the vendored copy\n' >> "$r/skills/beta/UPSTREAM.md"
+printf 'Upstream shipped no LICENSE; provenance is recorded in PROVENANCE.md\n' > "$r/skills/beta/NOTICE"
+expect_pass "fork declaring no upstream license, with NOTICE" "$r"
+
+# The declaration alone is not enough — the NOTICE has to exist.
+r="$(fixture fork-declared-no-notice)"; rm "$r/skills/beta/LICENSE"
+printf 'no LICENSE file accompanied the vendored copy\n' >> "$r/skills/beta/UPSTREAM.md"
+expect_fail "fork declaring no upstream license without NOTICE" "ships no NOTICE" "$r"
+
+# A NOTICE without the declaration must NOT substitute for a real upstream license.
+r="$(fixture fork-notice-no-declaration)"; rm "$r/skills/beta/LICENSE"
+printf 'Some notice text\n' > "$r/skills/beta/NOTICE"
+expect_fail "fork with NOTICE but no declaration" "no upstream LICENSE file" "$r"
+
 # --- check 7: provenance coverage -------------------------------------------
 r="$(fixture no-provenance-row)"
 printf '# Provenance\n\n| `alpha` | odin-authored |\n' > "$r/docs/PROVENANCE.md"

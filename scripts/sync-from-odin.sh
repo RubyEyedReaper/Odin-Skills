@@ -6,9 +6,10 @@
 # that direction, because Odin commits its skills to survive container resets and
 # so cannot take delivery from here.
 #
-# Files this repository adds per skill — UPSTREAM.md and the upstream LICENSE —
-# are preserved: they are packaging, not skill content, and the harness has no
-# copy of them to sync back.
+# Files this repository adds per skill — UPSTREAM.md, the upstream LICENSE, and
+# the NOTICE a fork ships when no upstream LICENSE exists — are preserved: they
+# are packaging, not skill content, and the harness has no copy of them to sync
+# back. All three are gate inputs, so losing one here re-reddens validate-skills.sh.
 #
 # Usage:
 #   scripts/sync-from-odin.sh [--odin DIR]           copy harness -> skills/
@@ -59,11 +60,15 @@ fi
 DRIFTED=0
 COPIED=0
 
-# UPSTREAM.md and LICENSE are this repository's own packaging, not skill content.
+# UPSTREAM.md, LICENSE and NOTICE are this repository's own packaging, not skill
+# content — three files, not two: a fork whose upstream published no LICENSE
+# declares that in UPSTREAM.md and substantiates it with NOTICE, and check 6 of
+# validate-skills.sh reads both. Omitting NOTICE here reports permanent drift and
+# then deletes the file on the next real sync.
 # __pycache__/*.pyc are build residue that appears in the harness the moment a
 # skill's tests are run — comparing it reports drift nobody caused, which is how
 # a drift check gets ignored.
-EXCLUDE=(-x UPSTREAM.md -x LICENSE -x __pycache__ -x '*.pyc' -x .DS_Store)
+EXCLUDE=(-x UPSTREAM.md -x LICENSE -x NOTICE -x __pycache__ -x '*.pyc' -x .DS_Store)
 
 for name in "${MEMBERS[@]}"; do
   src="$SRC/$name"
@@ -91,10 +96,12 @@ for name in "${MEMBERS[@]}"; do
   tmp="$(mktemp -d)"
   [[ -f "$dst/UPSTREAM.md" ]] && cp "$dst/UPSTREAM.md" "$tmp/"
   [[ -f "$dst/LICENSE" ]] && cp "$dst/LICENSE" "$tmp/"
+  [[ -f "$dst/NOTICE" ]] && cp "$dst/NOTICE" "$tmp/"
   rm -rf "$dst"
   cp -R "$src" "$dst"
   [[ -f "$tmp/UPSTREAM.md" ]] && cp "$tmp/UPSTREAM.md" "$dst/"
   [[ -f "$tmp/LICENSE" ]] && cp "$tmp/LICENSE" "$dst/"
+  [[ -f "$tmp/NOTICE" ]] && cp "$tmp/NOTICE" "$dst/"
   rm -rf "$tmp"
   # cp -R carries whatever residue the harness had; drop it so the mirror never
   # publishes build artefacts of someone else's test run.

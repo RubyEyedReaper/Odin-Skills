@@ -10,6 +10,18 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ### Fixed
 
+- **The publishing gate rejected the one fork whose upstream published no license**
+  (`harness:RM-0070`). `scripts/validate-skills.sh` check 6 required every skill carrying an
+  `UPSTREAM.md` to also ship an upstream `LICENSE`, which `rules-distill` cannot — no LICENSE
+  accompanied the vendored ECC copy, as `docs/PROVENANCE.md` already recorded. The check and the
+  ledger disagreed, and the check gates publication. A fork may now declare the absence in its
+  `UPSTREAM.md` (the literal string `no LICENSE file accompanied`) and substantiate it with a sibling
+  `NOTICE`; an ordinary fork still must ship its license, and a `NOTICE` without the declaration is
+  still a failure. `scripts/sync-from-odin.sh` learns `NOTICE` as this repository's packaging
+  alongside `UPSTREAM.md` and `LICENSE` — without that the next sync deletes the file and silently
+  re-reddens the gate. Adds `skills/rules-distill/NOTICE`, the three upstream rows the root `NOTICE`
+  lacked (`grill-with-docs`, `decision-mapping`, `rules-distill`), and replaces the inherited "86
+  unmodified vendored skills" figure with the measured 82. Suite 16 → 19 cases.
 - **`blueprint`'s `plancheck` accepts a fenced shell block as verification** (synced from the
   harness, `harness:RM-0037`). The hint pattern for an opening `bash` fence was matched against the
   fence-stripped task body, so it could never fire: a plan whose every task carried a runnable shell
