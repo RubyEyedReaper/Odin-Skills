@@ -8,6 +8,23 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ## [Unreleased]
 
+### Changed — first publish of the monorepo
+
+- **This repository is published at <https://github.com/RubyEyedReaper/Odin-Skills>**
+  (`harness:RM-0073`), public, first-push sha `aa75b29e9c05b7e0be83c9e6155396644d4c3fb8`, 21 commits
+  on `main`. The history was carried by `git subtree split -P projects/Odin-Skills` taken from the
+  harness's `origin/main`, not by a fresh `git init` and a squash: the fork `UPSTREAM.md` files cite
+  commits that only exist in that history, and splitting from `origin/main` guarantees the published
+  tree contains only merged work.
+- **The subtree stays in the Odin harness.** `docs/PUBLISHING.md` lists removing
+  `projects/Odin-Skills/` after the first push as an optional step; it was deliberately not taken,
+  because the harness's `.claude/scripts/vendor-skills.sh` derives its refresh-protection list from
+  `projects/Odin-Skills/skills/`, and deleting the mirror would re-expose every fork to `--refresh`.
+  Sync direction remains one-way, Odin → Odin-Skills.
+- **No tag was pushed.** `v0.1.0` is deferred on purpose: the published tree still contains
+  documentation describing this project as unpublished, and tagging now would make that text the
+  content of the release. The tag belongs to the change that corrects those docs.
+
 ### Added — `scripts/publish-skill.sh`
 
 - **`scripts/publish-skill.sh`** — publishes one skill as its own repository,
