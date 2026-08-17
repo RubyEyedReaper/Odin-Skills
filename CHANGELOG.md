@@ -10,6 +10,9 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ### Fixed
 
+- **`docs/PROVENANCE.md`'s fork count was one low** — the heading said `Forks (9)` over ten rows,
+  since `decision-mapping` was forked. `plugin.json` and the skill count were already right, so
+  nothing was missing; only the heading disagreed with the table beneath it.
 - **Unresolved merge-conflict markers in `.claude-plugin/plugin.json` and this file**, landed by
   `59893194` (the `decision-mapping` fork) and present on `main` since. The manifest was therefore
   not valid JSON, which is why `scripts/validate-skills.sh` reported *every* skill as "on disk but
@@ -32,6 +35,20 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`endless` joins as the seventh authored skill (seventeenth member).** The continuous work loop:
+  three defined checkpoints — item landed, hard external blocker recorded, or context past ~half the
+  ceiling — and exactly three continuations, chosen by predicates in a fixed order rather than by
+  judgment at turn thirty: relay on context, fan out when the dependency graph puts two or more items
+  in one layer *and* their surfaces do not collide, otherwise continue inline. What it rules out
+  matters as much: in-scope work left by choice, a plan written but unexecuted, and a branch green but
+  unpushed are not checkpoints. Replaces the vendored ECC `autonomous-loops` skill, which described
+  external-process loop shapes (`claude -p` pipelines, RFC-driven DAG orchestration) rather than the
+  single-session loop this one governs.
+  **Note for standalone users:** the skill cites harness-internal surfaces —
+  `.claude/docs/autonomous-loop-standard.md` for phase → skill, the `/autoloop` command,
+  `scripts/odin-autonomous.sh` for unattended posture, and the `roadmap`, `successor` and `oops`
+  skills. The checkpoint and continuation semantics stand alone; the phase pointers assume Odin's
+  layout.
 - **`successor` joins as the sixth authored skill (sixteenth member).** Fleet-scale delegation to
   other Claude sessions: a six-element handoff bar (skill set, task and desired outcome, current
   context, open questions and dependencies, an explicit `edit only:` authorization scope, and the

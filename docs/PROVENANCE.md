@@ -8,20 +8,21 @@ repository's job.
 `scripts/validate-skills.sh` cross-checks this table against `skills/` and
 `.claude-plugin/plugin.json`, so a skill added without a row here fails CI.
 
-## Odin-authored (6)
+## Odin-authored (7)
 
 Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 
 | Skill | What it does |
 |---|---|
 | `decision-matrix` | Quantitative weighted-decision engine — weighted-sum / Pugh / TOPSIS / RICE, sensitivity analysis, recorded DEC decisions |
+| `endless` | The continuous work loop — three defined checkpoints, and three continuations chosen by predicate: continue inline, fan out, or relay |
 | `mistake-to-gate` | Turns a mistake into an always-on mechanical gate, with a matrix proving the gate fires |
 | `oops` | Root-causes something that should not have happened, then hands off to `mistake-to-gate` for the guard |
 | `roadmap` | Standing inventory + dependency graph; waves computed from the graph rather than stored |
 | `successor` | Fleet-scale delegation to other Claude sessions — a six-element handoff bar, five ordered phases, and coordinator-owned integration |
 | `superplan` | Multi-agent deep planning — planner + architect + adversarial reviewer in parallel, synthesized into one approved plan |
 
-## Forks (9)
+## Forks (10)
 
 Each keeps its upstream license, shipped as `LICENSE` inside the skill directory, with the local
 delta stated in that directory's `UPSTREAM.md`. Upstream HEADs are those audited on 2026-08-15
