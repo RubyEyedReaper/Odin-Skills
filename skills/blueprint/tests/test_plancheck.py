@@ -77,6 +77,26 @@ class TestStructuralFindings(unittest.TestCase):
         text = GOOD.replace("Run: `pytest tests/test_api.py -q`\nExpected: PASS\n", "")
         self.assertIn("no-verification", codes(check_text(text)))
 
+    def test_fenced_shell_block_counts_as_verification(self):
+        """A runnable shell block is the strong form; the prose Verify: line is the weak one.
+
+        RM-0037: the hint pattern for an opening bash fence was matched against the
+        fence-stripped body, so it could never fire and this plan was reported as
+        unverified.
+        """
+        text = GOOD.replace(
+            "Run: `pytest tests/test_api.py -q`\nExpected: PASS\n",
+            "```bash\npytest tests/test_api.py -q\n```\n",
+        )
+        self.assertEqual(codes(check_text(text)), [])
+
+    def test_removing_the_shell_block_restores_the_finding(self):
+        """The accepting case only means something if its absence still fails."""
+        text = GOOD.replace(
+            "Run: `pytest tests/test_api.py -q`\nExpected: PASS\n", ""
+        )
+        self.assertIn("no-verification", codes(check_text(text)))
+
     def test_task_without_exit_criteria_fails(self):
         text = GOOD.replace(
             "**Exit criteria:** `GET /widget` returns 200 with the model from Task 1.\n", ""

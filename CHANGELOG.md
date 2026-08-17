@@ -10,6 +10,13 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ### Fixed
 
+- **`blueprint`'s `plancheck` accepts a fenced shell block as verification** (synced from the
+  harness, `harness:RM-0037`). The hint pattern for an opening `bash` fence was matched against the
+  fence-stripped task body, so it could never fire: a plan whose every task carried a runnable shell
+  block was reported as having no verification, and the workaround was a prose `Verify:` line — the
+  weak form the gate exists to discourage. Now its own `SHELL_FENCE_RE`, matched against the task's
+  raw lines; the other three checks keep reading the stripped body, so a placeholder inside an
+  illustrative code block is still not a finding. Suite 20 → 22 tests.
 - **`docs/PROVENANCE.md`'s fork count was one low** — the heading said `Forks (9)` over ten rows,
   since `decision-mapping` was forked. `plugin.json` and the skill count were already right, so
   nothing was missing; only the heading disagreed with the table beneath it.

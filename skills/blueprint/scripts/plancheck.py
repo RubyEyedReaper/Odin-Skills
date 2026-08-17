@@ -46,8 +46,15 @@ VERIFICATION_HINTS = (
     re.compile(r"^\s*Run:\s*\S", re.I),
     re.compile(r"^\s*Expected:\s*\S", re.I),
     re.compile(r"^\s*Verify:\s*\S", re.I),
-    re.compile(r"^\s*```(bash|sh|shell|console)\b", re.I),
 )
+
+# Matched against the task's *raw* lines, not the fence-stripped body: a fence-opening
+# line is exactly what _unfenced() drops, so a hint of this shape in VERIFICATION_HINTS
+# could never fire (RM-0037). A runnable shell block is the strong form of verification;
+# leaving it unrecognised pushed authors toward a prose `Verify:` line, which is the weak
+# form this gate exists to discourage. Shells only — a fenced `python` or `node` snippet
+# is usually illustration, and counting it would make every example a verification.
+SHELL_FENCE_RE = re.compile(r"^\s*```(bash|sh|shell|console)\b", re.I)
 
 FILES_RE = re.compile(r"^\s*\*\*Files:?\*\*", re.I)
 EXIT_RE = re.compile(r"^\s*\*\*(Exit criteria|Done when|Acceptance):?\*\*", re.I)
@@ -123,7 +130,10 @@ def check_text(text):
                 "no-files", "no **Files:** block — the executor cannot know what to touch",
                 heading, start + 1))
 
-        if not any(hint.match(line) for _, line in body for hint in VERIFICATION_HINTS):
+        verified = any(
+            hint.match(line) for _, line in body for hint in VERIFICATION_HINTS
+        ) or any(SHELL_FENCE_RE.match(line) for line in lines[start + 1:end])
+        if not verified:
             findings.append(_finding(
                 "no-verification",
                 "no verification command (Run:/Expected:/Verify: or a shell block) — "
