@@ -8,6 +8,27 @@ arrive here by sync; entries below record what changed in this distribution.
 
 ## [Unreleased]
 
+### Changed — the documentation describes the published state
+
+- **`docs/PUBLISHING.md` is now executed state plus an operating runbook.** It opened by describing
+  this repository as having no remote and publishing as not yet carried out, and its body was a
+  six-step first-publish procedure ending in an optional-removal table. All three are deleted. In
+  their place: what was published where and at which sha; `scripts/publish-skill.sh`
+  with its flags, its create-versus-update rerun path, its licence classes and its `--verify` check;
+  how to publish an eighteenth skill; how to push a subsequent monorepo update and tag a release; and
+  why `.github/workflows/validate.yml` stays `workflow_dispatch`-only. The *why* of the subtree split
+  over a fresh `git init`, and of the harness keeping this subtree, is kept.
+- **Removing the subtree is closed, not optional.** `INIT.md` and `docs/adr/0001` cited "PUBLISHING's
+  optional removal step", which no longer exists; both now point at harness ADR-0061, where removal
+  is a rejected alternative — `vendor-skills.sh` derives fork protection from `skills/`, so deleting
+  the mirror re-exposes every fork to a vendor refresh.
+- **Harness ADR-0061 is accepted**, recording the two-shape distribution model this repository
+  implements: a monorepo plus per-skill read-only publish targets, one source of truth in the
+  harness, publishing only by script over a green validator, and licence artefacts by skill class.
+  `docs/adr/0001` here is the project-side record of the same decision.
+- **No version is tagged yet.** `v0.1.0` belongs to the push that carries these corrected docs, and
+  is pushed from a clone of the published repository once this change is on the harness's `main`.
+
 ### Changed — first publish of the monorepo
 
 - **This repository is published at <https://github.com/RubyEyedReaper/Odin-Skills>**
@@ -16,7 +37,7 @@ arrive here by sync; entries below record what changed in this distribution.
   harness's `origin/main`, not by a fresh `git init` and a squash: the fork `UPSTREAM.md` files cite
   commits that only exist in that history, and splitting from `origin/main` guarantees the published
   tree contains only merged work.
-- **The subtree stays in the Odin harness.** `docs/PUBLISHING.md` lists removing
+- **The subtree stays in the Odin harness.** `docs/PUBLISHING.md` listed removing
   `projects/Odin-Skills/` after the first push as an optional step; it was deliberately not taken,
   because the harness's `.claude/scripts/vendor-skills.sh` derives its refresh-protection list from
   `projects/Odin-Skills/skills/`, and deleting the mirror would re-expose every fork to `--refresh`.

@@ -85,8 +85,8 @@ Concretely:
 - Each per-skill repository is produced by `git subtree split` from this directory. It accepts no
   contributions; its README points back to the harness.
 - **The harness keeps this subtree** rather than removing it after extraction, because
-  `vendor-skills.sh` derives fork protection from it. `docs/PUBLISHING.md`'s optional removal step is
-  deliberately not executed. The ~3.4 MB of duplication is the price of that guarantee.
+  `vendor-skills.sh` derives fork protection from it. Removal is a rejected alternative in harness
+  ADR-0061, not a deferred step. The ~3.4 MB of duplication is the price of that guarantee.
 - `scripts/validate-skills.sh` gates every publish and must exit 0 first.
 
 ## Consequences

@@ -51,7 +51,8 @@ produces.
 3. **The subtree stays in the harness.** It is not removed after extraction, because
    `.claude/scripts/vendor-skills.sh` derives its refresh-protection list from
    `projects/Odin-Skills/skills/` — deleting the subtree would let a vendor refresh overwrite every
-   fork. `docs/PUBLISHING.md`'s optional removal step is deliberately not executed.
+   fork. Retention is recorded in `docs/PUBLISHING.md` and in harness ADR-0061, where removal is a
+   rejected alternative rather than an open option.
 4. **Ids here are this project's own sequence.** `docs/adr/` starts at 0001 and `docs/roadmap/`
    counts from RM-0001, both independent of the harness sequences. Cite them from outside as
    `odin-skills:ADR-0001` / `odin-skills:RM-0001` (harness ADR-0050, `projects/README.md` rule 7).
