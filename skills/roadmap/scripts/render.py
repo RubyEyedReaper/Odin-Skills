@@ -129,13 +129,14 @@ def _score_cell(item):
     return "%s %.2f" % (method, score)
 
 
-def _links_cell(item):
+def _links_cell(item, plan_rebase=None):
     links = item.get("links") or {}
     parts = []
     if links.get("prd"):
         parts.append("PRD %s" % links["prd"])
     if links.get("plan"):
-        parts.append("[plan](%s)" % links["plan"])
+        plan = links["plan"]
+        parts.append("[plan](%s)" % (plan_rebase(plan) if plan_rebase else plan))
     if links.get("adr"):
         parts.append("ADR %s" % links["adr"])
     for issue in links.get("issues") or []:
@@ -147,7 +148,7 @@ def _row(cells):
     return "| " + " | ".join(cells) + " |"
 
 
-def render_md(doc, rel_svg, rel_json="docs/roadmap/roadmap.json"):
+def render_md(doc, rel_svg, rel_json="docs/roadmap/roadmap.json", plan_rebase=None):
     items = doc.get("items", [])
     digest = content_hash(doc)
     lines = [
@@ -187,7 +188,7 @@ def render_md(doc, rel_svg, rel_json="docs/roadmap/roadmap.json"):
                 item.get("title", ""),
                 item.get("tier", ""),
                 _score_cell(item),
-                _links_cell(item),
+                _links_cell(item, plan_rebase),
             ]))
     else:
         lines.append("_Nothing unblocked. Finish an in-progress item or resolve a blocker._")
@@ -260,10 +261,32 @@ def _rel(target, start_dir):
     return os.path.relpath(target, start_dir).replace(os.sep, "/")
 
 
+def _plan_rebaser(root, md_dir):
+    """Rebase a root-relative `links.plan` onto the directory ROADMAP.md is written in.
+
+    Stored paths are root-relative because every other consumer resolves them that way
+    (the plan gate's search paths, reconcile's globs, a human running `cat`). A markdown
+    link is resolved relative to the file holding it, so in the harness layout — where
+    ROADMAP.md sits three directories below the repository root — the stored path points
+    at nothing. Rebasing here keeps one storage convention and still emits a link that
+    resolves, which is what doc-reference-check.sh checks.
+    """
+    def rebase(plan):
+        if not plan or "://" in plan or plan.startswith("#") or os.path.isabs(plan):
+            return plan
+        return _rel(os.path.join(root, plan), md_dir)
+    return rebase
+
+
 def expected_md(doc, json_path):
     paths = paths_for(json_path)
     md_dir = os.path.dirname(paths["md"])
-    return render_md(doc, _rel(paths["svg"], md_dir), _rel(paths["json"], md_dir))
+    return render_md(
+        doc,
+        _rel(paths["svg"], md_dir),
+        _rel(paths["json"], md_dir),
+        plan_rebase=_plan_rebaser(paths["root"], md_dir),
+    )
 
 
 def md_is_stale(json_path):
