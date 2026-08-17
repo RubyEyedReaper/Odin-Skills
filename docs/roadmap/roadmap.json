@@ -1,0 +1,95 @@
+{
+  "items": [
+    {
+      "acceptance": [
+        "scripts/validate-skills.sh exits 0 and scripts/sync-from-odin.sh --check reports no drift immediately before the tag is cut",
+        "a v0.1.0 tag exists on the published repo and /plugin marketplace add RubyEyedReaper/Odin-Skills followed by /plugin install odin-skills succeeds from a clean ~/.claude",
+        "the installed bundle contains all 17 owned skills, each with its SKILL.md readable"
+      ],
+      "completed": null,
+      "created": "2026-08-17",
+      "deps": [],
+      "evidence": null,
+      "id": "RM-0001",
+      "kind": "ops",
+      "links": {
+        "adr": "docs/adr/0001-distribution-monorepo-and-per-skill-repos.md",
+        "files": [],
+        "issues": [],
+        "plan": null,
+        "prd": null
+      },
+      "notes": "",
+      "owner_skill": null,
+      "parent": null,
+      "phase": null,
+      "priority": null,
+      "status": "proposed",
+      "tier": "next",
+      "title": "Publish the v0.1.0 tag and verify the marketplace path resolves",
+      "updated": "2026-08-17"
+    },
+    {
+      "acceptance": [
+        "the published repo runs validate-skills.sh on push and pull_request, with a green run recorded on its default branch",
+        "git add, git commit and git push all still succeed in the Odin monorepo afterwards — Layer 1D of odin-safety-guard.sh does not fire",
+        "the mechanism is written down: either the subtree's workflow stays dispatch-only and the published repo's is added post-split, or the guard's scope is amended with its own regression case"
+      ],
+      "completed": null,
+      "created": "2026-08-17",
+      "deps": [],
+      "evidence": null,
+      "id": "RM-0002",
+      "kind": "ops",
+      "links": {
+        "adr": null,
+        "files": [],
+        "issues": [],
+        "plan": null,
+        "prd": null
+      },
+      "notes": "Blocked on nothing technical; the constraint is that projects/*/.github/workflows/ with an automatic trigger blocks every git write in the monorepo. See INIT.md invariant 5 and the comment in .github/workflows/validate.yml.",
+      "owner_skill": null,
+      "parent": null,
+      "phase": null,
+      "priority": null,
+      "status": "proposed",
+      "tier": "next",
+      "title": "Give the published repo automatic CI without tripping Layer 1D in the monorepo",
+      "updated": "2026-08-17"
+    },
+    {
+      "acceptance": [
+        "a recorded decision (this project's DEC or ADR sequence) states whether a per-skill repo ships .claude-plugin/ or the bare skill directory, with the reason",
+        "scripts/publish-skill.sh implements exactly that shape and its test asserts the published tree's top-level entries",
+        "a user can install a single skill by the documented path for the chosen shape, and README/PUBLISHING.md describe that path and no other"
+      ],
+      "completed": null,
+      "created": "2026-08-17",
+      "deps": [],
+      "evidence": null,
+      "id": "RM-0003",
+      "kind": "ops",
+      "links": {
+        "adr": null,
+        "files": [],
+        "issues": [],
+        "plan": null,
+        "prd": null
+      },
+      "notes": "",
+      "owner_skill": null,
+      "parent": null,
+      "phase": null,
+      "priority": null,
+      "status": "proposed",
+      "tier": "next",
+      "title": "Decide whether per-skill repos carry the plugin manifest or the skill directory only",
+      "updated": "2026-08-17"
+    }
+  ],
+  "last_reconcile": null,
+  "schema": 1,
+  "scope": "task:odin-skills",
+  "updated": "2026-08-17"
+}

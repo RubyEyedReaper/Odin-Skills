@@ -1,0 +1,11 @@
+digraph roadmap {
+  rankdir=LR;
+  graph [fontname="Helvetica", fontsize=11];
+  node [shape=box, style="filled,rounded", fontname="Helvetica", fontsize=10];
+  edge [color="#666666"];
+
+  "RM-0001" [label="RM-0001 · Publish the v0.1.0 tag and verify the marketplace path resolves\nops · proposed", fillcolor="#e8e8e8"];
+  "RM-0002" [label="RM-0002 · Give the published repo automatic CI without tripping Layer 1D in the monorepo\nops · proposed", fillcolor="#e8e8e8"];
+  "RM-0003" [label="RM-0003 · Decide whether per-skill repos carry the plugin manifest or the skill directory only\nops · proposed", fillcolor="#e8e8e8"];
+
+}
