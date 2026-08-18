@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # validate-skills.sh — the gate for this repository.
 #
-# Nine checks, each one a mistake that is otherwise silent until an installer
+# Ten checks, each one a mistake that is otherwise silent until an installer
 # hits it: a skill whose frontmatter name does not match its directory is simply
-# never invocable, a manifest that has drifted from disk installs nothing, and a
-# fork missing its upstream LICENSE is a license violation rather than a typo.
+# never invocable, a manifest that has drifted from disk installs nothing, a
+# fork missing its upstream LICENSE is a license violation rather than a typo,
+# and a doc linking a repository that is not public 404s for every visitor.
 #
 # Usage: scripts/validate-skills.sh [--root DIR]
 # Exit:  0 clean, 1 with one 'FAIL: <reason>' line per violation.
@@ -201,6 +202,24 @@ for name in sorted(os.listdir(skills_dir)):
         print(f"{name}: references/{orphan} is unreachable from SKILL.md")
 PY
 )
+
+# ---------------------------------------------------------------------------
+# Check 10: published docs link only where a visitor can go
+#
+# Delegated to scripts/check-doc-links.sh, which keeps its own exit codes and
+# its own matrix. Wiring it HERE rather than into .github/workflows/validate.yml
+# is deliberate: that workflow already runs this script, and it must stay
+# workflow_dispatch-only while this directory lives inside the Odin monorepo.
+# ---------------------------------------------------------------------------
+DOC_LINKS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/check-doc-links.sh"
+if [[ ! -f "$DOC_LINKS" ]]; then
+  fail "missing scripts/check-doc-links.sh"
+else
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    fail "${line#FAIL: }"
+  done < <(bash "$DOC_LINKS" --root "$ROOT" | grep '^FAIL: ')
+fi
 
 # ---------------------------------------------------------------------------
 if [[ $FAILURES -gt 0 ]]; then
