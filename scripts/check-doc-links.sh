@@ -6,11 +6,15 @@
 # 404 for every visitor and two of them instructions ("report it at…",
 # "git clone…") sending the reader somewhere they cannot go.
 #
-# Every github.com/<owner>/<repo> reference in the tracked Markdown of this tree
-# must appear in scripts/public-repos.txt, which is a committed, reviewed claim
-# that the repository is public. The gate never touches the network: a check
-# that asks GitHub fails offline, on a rate limit, and for a contributor with no
-# token, and all three are indistinguishable from "the docs are broken".
+# Every https://github.com/<owner>/<repo> URL in the tracked Markdown of this
+# tree must appear in scripts/public-repos.txt, which is a committed, reviewed
+# claim that the repository is public. The scheme is the test of whether a
+# reference is a destination: a schemeless `owner/repo` is a name, and naming a
+# private repository in prose was never the defect.
+#
+# The gate never touches the network: a check that asks GitHub fails offline, on
+# a rate limit, and for a contributor with no token, and all three are
+# indistinguishable from "the docs are broken".
 #
 # Boundary: this tree only. The Odin harness is private on purpose, so the same
 # predicate applied to it would refuse correct links. Whether an allowlisted
@@ -28,7 +32,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --root) ROOT="${2:-}"; shift 2 ;;
     --allowlist) ALLOWLIST="${2:-}"; shift 2 ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -67,7 +71,7 @@ for rel in "${docs[@]}"; do
     [[ -n "$hit" ]] || continue
     line="${hit%%:*}"
     slug="${hit#*:}"
-    slug="${slug#github.com/}"
+    slug="${slug#https://github.com/}"
     slug="${slug%.git}"
     slug="${slug%%[).,>]}"
     slug="${slug%%[).,>]}"
@@ -75,7 +79,13 @@ for rel in "${docs[@]}"; do
     # an angle bracket, so this cannot mask a real slug.
     [[ "$slug" == *'<'* || "$slug" == *'>'* ]] && continue
     findings+=("$rel:$line:$slug")
-  done < <(grep -noE 'github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._<>-]+' "$ROOT/$rel" 2>/dev/null)
+    # The https:// scheme is what makes a reference a DESTINATION. A bare
+    # `owner/repo` or `github.com/owner/repo` is a name — Markdown does not
+    # autolink it and no reader can click it — so CHANGELOG.md and the ADRs stay
+    # free to say what they fixed. A fenced code block gets no such exemption:
+    # `git clone https://…` of a private repository fails for a visitor exactly
+    # as a link 404s.
+  done < <(grep -noE 'https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._<>-]+' "$ROOT/$rel" 2>/dev/null)
 done
 
 if [[ ${#findings[@]} -eq 0 ]]; then

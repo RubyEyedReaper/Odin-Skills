@@ -95,6 +95,14 @@ printf 'One repository per skill, `https://github.com/RubyEyedReaper/skill-<name
   > "$r/docs/PUBLISHING.md"
 expect_exit "a <placeholder> slug is not treated as a link" 0 - --root "$r"
 
+# Writing ABOUT the offending repository must stay possible. A slug with no
+# scheme is a name — Markdown does not autolink it and no reader can click it —
+# so CHANGELOG.md and the ADRs can name what they fixed. It is the https://
+# scheme that makes a reference a destination.
+r="$(fixture schemeless-name)"
+printf 'Five links to `github.com/RubyEyedReaper/Odin` are gone.\n' > "$r/CHANGELOG.md"
+expect_exit "a schemeless slug is a name, not a link" 0 - --root "$r"
+
 # An autolink's closing angle bracket is punctuation, not part of the name.
 r="$(fixture autolink)"
 printf 'Published at <https://github.com/RubyEyedReaper/Odin-Skills>.\n' > "$r/README.md"
