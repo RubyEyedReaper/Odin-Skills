@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 
 from . import graph as graph_mod
@@ -383,6 +384,60 @@ def _resolve_ref(doc, path, text):
         _die(str(exc))
 
 
+#: Where a claim becomes visible to every other worktree. A claim is only "taken" once it is here.
+UPSTREAM_REF = "origin/main"
+#: Upstream statuses that mean somebody already owns this item.
+CLAIMED_STATUSES = ("in-progress", "done")
+
+
+def _upstream_item(path, item_id):
+    """The item as `origin/main` records it, or None when upstream cannot be read.
+
+    Advisory by construction. No remote, offline, a fresh clone, a roadmap that does not exist
+    upstream, and a roadmap outside any repository all mean "cannot tell" — and cannot-tell must
+    never block a claim, or the engine stops working the moment the network does.
+    """
+    directory = os.path.dirname(os.path.abspath(path))
+    try:
+        top = subprocess.run(
+            ["git", "-C", directory, "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        rel = os.path.relpath(os.path.abspath(path), top)
+        blob = subprocess.run(
+            ["git", "-C", top, "show", "%s:%s" % (UPSTREAM_REF, rel)],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        return schema_mod.find(json.loads(blob), item_id)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+def _refuse_lost_claim(path, item_id, slug):
+    """Refuse a claim upstream already shows taken (ADR-0062, DF-1 option A).
+
+    There is no `owner` field — only `owner_skill`, null on every item — so the predicate cannot be
+    "claimed by somebody else". It is "upstream already shows this claimed", which also catches an
+    agent re-running its own claim. That is why `--force` exists.
+
+    This cannot see a claim nobody has pushed yet; two agents claiming before either pushes are both
+    accepted and caught later by `.claude/scripts/roadmap-regression-check.sh`.
+    """
+    upstream = _upstream_item(path, item_id)
+    if upstream is None:
+        sys.stderr.write(
+            "[roadmap] %s unreadable — claim not checked against upstream\n" % UPSTREAM_REF
+        )
+        return
+    status = upstream.get("status")
+    if status in CLAIMED_STATUSES:
+        _die(
+            "%s is already %s on %s — another worktree claimed it.\n"
+            "  Pick a different item, or re-run with --force if you are certain you own this one."
+            % (schema_mod.qualify(slug, item_id), status, UPSTREAM_REF)
+        )
+
+
 def _apply_common(values, args, doc=None, path=None):
     mapping = {
         "title": args.title,
@@ -456,6 +511,9 @@ def cmd_set(args):
     item = schema_mod.find(doc, args.id)
     if item is None:
         _die("no such item: %s" % args.id)
+    # Claiming is the write that is lost across a rebase, so it is the write that gets checked.
+    if args.status == "in-progress" and not getattr(args, "force", False):
+        _refuse_lost_claim(path, args.id, schema_mod.slug_of(doc, path))
     values = _apply_common({}, args, doc, path)
     values["links"] = _apply_links(item, args)
     previous = item.get("status")
@@ -779,6 +837,11 @@ def build_parser():
     set_cmd = subparsers.add_parser("set", help="mutate an item")
     set_cmd.add_argument("id")
     add_item_flags(set_cmd, require_title=False)
+    set_cmd.add_argument(
+        "--force", action="store_true",
+        help="claim an item %s already shows in-progress or done. Bypasses the concurrency "
+             "check only — never validation." % UPSTREAM_REF,
+    )
     set_cmd.set_defaults(func=cmd_set)
 
     render = subparsers.add_parser("render", help="regenerate ROADMAP.md and the graph")

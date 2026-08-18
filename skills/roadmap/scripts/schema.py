@@ -88,6 +88,41 @@ def new_item(item_id, title, kind, today=None, **kw):
     return item
 
 
+# Status is a ratchet: an item moves forward, or it is a lost update. Ordered so a comparison is a
+# subtraction rather than a table of pairs. `dropped` sits beside `done` because both are terminal
+# and neither is a regression from the other — which does mean a done->dropped flip is invisible
+# here; ADR-0062 records that as an accepted limit, not an oversight.
+STATUS_ORDER = {"proposed": 0, "ready": 1, "in-progress": 2, "done": 3, "dropped": 3}
+
+
+def status_regressions(base_doc, head_doc):
+    """Items that moved backwards between two roadmap docs.
+
+    Two predicates, both observed in the 2026-08-12 incident's failure mode: a status that moved
+    down the ratchet, and evidence that went from recorded to absent. Keyed on the item id, not on
+    position — the engine writes `sort_keys=True`, so a positional comparison would report every
+    reordering as a change and nothing as a regression.
+
+    This is NOT "every regression". `acceptance`, `links` and `owner_skill` can still be reverted
+    invisibly; ADR-0062 names that limit and the escalation if it starts to bite.
+    """
+    head = {i["id"]: i for i in head_doc.get("items", [])}
+    out = []
+    for item in base_doc.get("items", []):
+        after = head.get(item["id"])
+        if after is None:
+            out.append({"id": item["id"], "field": "item", "from": item.get("status"), "to": None})
+            continue
+        was, now = STATUS_ORDER.get(item.get("status"), 0), STATUS_ORDER.get(after.get("status"), 0)
+        if now < was:
+            out.append({"id": item["id"], "field": "status",
+                        "from": item.get("status"), "to": after.get("status")})
+        if item.get("evidence") and not after.get("evidence"):
+            out.append({"id": item["id"], "field": "evidence",
+                        "from": item.get("evidence"), "to": None})
+    return out
+
+
 # --------------------------------------------------------------------------- io
 
 def canonical_json(doc):
