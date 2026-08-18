@@ -1,0 +1,44 @@
+# public-repos.txt — the GitHub repositories this published tree may link to.
+#
+# This repository is public. A link from it to a repository that is not public
+# renders as a 404 for every visitor, and where the link is an instruction
+# ("report it at…", "git clone…") the reader is sent somewhere they cannot go.
+# v0.1.0 shipped five such links to RubyEyedReaper/Odin. scripts/check-doc-links.sh
+# refuses any repository absent from this file.
+#
+# Membership is a REVIEWED CLAIM that the repository is public. The gate never
+# calls the network: a check that asks GitHub fails offline, fails on a rate
+# limit and fails for a contributor with no token, and all three look exactly
+# like "the docs are broken". The cost of that choice is that a repository going
+# private after it is listed here is not detected — see the harness ADR-0063.
+#
+# Adding a line is how a new link is authorised. Removing one is how a link is
+# withdrawn. Neither is a code change.
+#
+# NOT A DUPLICATE OF scripts/tests/publish-skill.test.sh. That test enforces a
+# deliberately STRICTER rule on the generated per-skill landing pages — only the
+# monorepo and the skill's own repository, never an upstream. Collapsing the two
+# onto this list would silently widen what a generated page may link to.
+#
+# RubyEyedReaper/Odin is deliberately absent. It is the private harness, and
+# naming it in prose is fine; linking it is what this file exists to stop.
+#
+# The 17 RubyEyedReaper/skill-<name> publish targets are public but unlisted: no
+# tracked document links one, and the only occurrence is the `skill-<name>`
+# template in docs/PUBLISHING.md, which the checker skips as a placeholder.
+# Deriving them from skills/ instead would allow a link to the eighteenth skill's
+# repository before it is published — the same 404 this file exists to refuse.
+# Add the exact slug here when a document first links one.
+
+# This distribution
+RubyEyedReaper/Odin-Skills
+
+# Upstreams the forks are licence-required to cite (docs/PROVENANCE.md, skills/*/UPSTREAM.md)
+obra/superpowers
+mattpocock/skills
+affaan-m/ECC
+pbakaus/impeccable
+vercel-labs/agent-browser
+
+# Cited inside a skill's reference material
+unjs/fontaine
