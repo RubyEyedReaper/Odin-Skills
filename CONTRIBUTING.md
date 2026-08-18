@@ -2,8 +2,8 @@
 
 ## Where a change belongs
 
-This repository is a **mirror**, not the source. `.claude/skills/` in the
-[Odin](https://github.com/RubyEyedReaper/Odin) harness is authoritative.
+This repository is a **mirror**, not the source. `.claude/skills/` in the Odin harness is
+authoritative. That harness is a private repository, so it is named here rather than linked.
 
 | Change | Where |
 |---|---|
@@ -42,10 +42,18 @@ that drifts from its description is a licensing defect, not a documentation nit.
 ```sh
 scripts/validate-skills.sh
 scripts/tests/validate.test.sh
+scripts/tests/doc-links.test.sh
 scripts/sync-from-odin.sh --check   # only meaningful from inside an Odin checkout
 ```
 
-All three must pass. CI runs the same commands — there is no separate CI-only logic to satisfy.
+All four must pass. `scripts/check-doc-links.sh` runs as check 10 of `validate-skills.sh`, so a
+link added to a repository that is not on `scripts/public-repos.txt` is a red gate. This repository
+is public; a link to one that is not is a 404 for every visitor. Adding a repository to that
+allowlist is a reviewed claim that it is public — see the file's own header.
+
+CI runs `validate-skills.sh` and `validate.test.sh`, so there is no CI-only logic to satisfy. The
+doc-link matrix is local-only, for the reason `docs/PUBLISHING.md` gives for this workflow being
+`workflow_dispatch`-only.
 
 ## Commits
 
@@ -58,4 +66,5 @@ Conventional type prefix (`feat|fix|docs|chore|refactor|test|ci`), one logical c
 - [ ] Forked skills touched in this PR have an updated `UPSTREAM.md`
 - [ ] `scripts/validate-skills.sh` passes
 - [ ] `scripts/tests/validate.test.sh` passes
+- [ ] `scripts/tests/doc-links.test.sh` passes, and no new link points at a non-public repository
 - [ ] No skill directory contains a dangling symlink

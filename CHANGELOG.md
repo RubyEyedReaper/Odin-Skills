@@ -3,10 +3,42 @@
 All notable changes to this repository. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Skill *content* changes originate in the [Odin](https://github.com/RubyEyedReaper/Odin) harness and
-arrive here by sync; entries below record what changed in this distribution.
+Skill *content* changes originate in the Odin harness — a private repository — and arrive here by
+sync; entries below record what changed in this distribution.
 
 ## [Unreleased]
+
+### Fixed — the published tree stops linking to a private repository
+
+- **Five links to `github.com/RubyEyedReaper/Odin` are gone.** This repository is public; that one
+  is not, so every one of them was a 404 for every visitor, and `v0.1.0` was tagged that way. They
+  sat in `README.md` (the opening sentence, and a one-entry "Related" list), `SECURITY.md` (where to
+  send a harness finding), `CONTRIBUTING.md` (which tree is authoritative) and `CHANGELOG.md` (where
+  skill content originates). Each was resolved on its own merits rather than by a blanket sweep:
+  naming the harness in prose is fine, and four of the five sentences only ever needed the name.
+  The `## Related` section is deleted outright — a one-entry list whose only entry is unreachable
+  relates to nothing.
+- **`SECURITY.md` now sends a reporter somewhere they can reach.** The removed link routed a live
+  security finding about the harness to a repository the reporter cannot open. Dropping the link
+  alone would have left them holding it with no destination, so that bullet now points at the
+  private advisory form this file already names in its first section, to be relayed.
+- **`scripts/check-doc-links.sh` refuses the next one.** It scans the tracked Markdown of this tree
+  and fails on any `https://github.com/<owner>/<repo>` URL absent from `scripts/public-repos.txt`.
+  The scheme is the test of whether a reference is a destination: a fenced code block is not an
+  exemption, because `git clone https://…` of a private repository fails for a visitor exactly as a
+  link 404s, while a schemeless slug is a name — which is what keeps this very entry writable. A
+  `<placeholder>` such as the `skill-<name>` template in `docs/PUBLISHING.md` is skipped. The oracle is a committed allowlist, never a network call: a gate that asks GitHub
+  fails offline, on a rate limit, and for a contributor with no token, and all three are
+  indistinguishable from "the docs are broken". A missing or empty allowlist refuses rather than
+  passing, so the check cannot disable itself by losing its data.
+- **The gate runs as check 10 of `scripts/validate-skills.sh`**, which is what CI already invokes —
+  `.github/workflows/validate.yml` is untouched and stays `workflow_dispatch`-only.
+  `scripts/tests/doc-links.test.sh` proves it fires: 18 cases, the first BLOCK case being the
+  literal string from `README.md:3`, with ALLOW cases for the near misses that would otherwise get
+  the gate disabled — the third-party upstreams `docs/PROVENANCE.md` and the fork `UPSTREAM.md`
+  files are licence-required to cite, and a bare repository name in prose is not a link.
+- **`v0.1.0` is not moving.** A published ref may already be pinned, so the correction is
+  append-only and ships in the next release.
 
 ### Changed — the documentation describes the published state
 

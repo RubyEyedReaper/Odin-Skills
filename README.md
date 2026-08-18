@@ -1,8 +1,8 @@
 # Odin-Skills
 
-The skills the [Odin](https://github.com/RubyEyedReaper/Odin) harness **owns** — seven authored from
-scratch, ten forked from upstream projects and modified — packaged as one installable Claude Code
-plugin.
+The skills the Odin harness **owns** — seven authored from scratch, ten forked from upstream
+projects and modified — packaged as one installable Claude Code plugin. The harness itself is a
+private repository, so it is named here rather than linked.
 
 Odin vendors 99 skills in total. The other 82 are third-party work it has never touched, and they
 are not redistributed here. This repository is only the part Odin is actually the author or the
@@ -105,7 +105,3 @@ See [`SECURITY.md`](SECURITY.md).
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). Changes to a forked skill need a matching `UPSTREAM.md`
 update; changes to a skill's content should land in the Odin harness first, then sync here.
-
-## Related
-
-- [Odin](https://github.com/RubyEyedReaper/Odin) — the harness these skills were built for

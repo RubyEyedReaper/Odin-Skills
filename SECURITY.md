@@ -34,8 +34,8 @@ only); `impeccable` ships Node hook scripts. They inherit whatever the invoking 
 - An agent choosing to do something unsafe that no skill here instructed
 - Vulnerabilities in the upstream projects the forks derive from — report those upstream
   (see `NOTICE`), though telling us too is welcome so the fork can be patched
-- Missing hardening in the Odin harness itself — report at
-  [RubyEyedReaper/Odin](https://github.com/RubyEyedReaper/Odin)
+- Missing hardening in the Odin harness itself. The harness is a private repository with no tracker
+  you can reach, so send it through the advisory form above and it will be relayed — do not sit on it
 
 ## Verifying what you install
 
