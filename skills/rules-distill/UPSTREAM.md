@@ -59,3 +59,26 @@ stayed open for 49 days: the skill's first documented command could not succeed 
 
 8. **Provenance (F16).** This file, a dedicated `FORKS.md` row, and the mirror at
    `projects/Odin-Skills/skills/rules-distill/`.
+
+9. **A pass leaves committed evidence (ADR-0067, DEC-0008).** Upstream stored `results.json` in the
+   skill directory and recorded a pass nowhere else. The fork moved that file to
+   `.claude/.runtime/`, which fixed the clobber risk and left a second problem: that directory is
+   gitignored, so a pass could run and still leave nothing a later session could find — exactly the
+   state `AUDIT-2026-06-27.md:99` recorded for 49 days. §Save Results now appends one row per pass
+   to `DISTILLATIONS.md` at the repository root, **including a pass that found nothing**, and adds
+   `handed-off` to the verdict vocabulary for a candidate whose target file this run cannot write.
+
+10. **Argument outranks environment in both scanners.** `${RULES_DISTILL_DIR:-${1:-…}}` read the
+    environment first, so an exported variable silently retargeted a scan that named its target
+    explicitly — the inverse of `.claude/rules/cli/patterns.md`, and the shape of the
+    `ci-gate/fixture-reads-ambient-state` key already logged twice in `MISTAKES.md`.
+
+11. **The Phase 2 corpus claim is measured, not inherited.** Upstream said "~800 lines total" and
+    told the analyst to carry the full rules text into every batch. This corpus measures 4,905
+    lines across 63 files, so the instruction now passes the scanner's rules index and lets each
+    analyst read what it needs.
+
+12. **A regression matrix (`.claude/tests/rules-distill-scan.test.sh`).** The fork landed with none,
+    so every behaviour above was one edit from reverting silently. Layered per ADR-0068: the cited
+    Phase-1 commands are executed rather than grepped for, scan assertions read emitted values and
+    distinguish exit 1 from exit 2, and the ledger's shape is asserted.

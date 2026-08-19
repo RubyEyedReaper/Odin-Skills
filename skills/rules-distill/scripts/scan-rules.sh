@@ -20,7 +20,10 @@ command -v jq >/dev/null 2>&1 || {
   echo "scan-rules.sh: jq not found — refusing to report an empty scan" >&2; exit 2; }
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-RULES_DIR="${RULES_DISTILL_DIR:-${1:-$REPO_ROOT/.claude/rules}}"
+# Argument, then environment, then default (.claude/rules/cli/patterns.md). The reverse order
+# lets an exported RULES_DISTILL_DIR silently retarget a scan that named its target explicitly —
+# and `ci-gate/fixture-reads-ambient-state` is already the highest-count key in MISTAKES.md.
+RULES_DIR="${1:-${RULES_DISTILL_DIR:-$REPO_ROOT/.claude/rules}}"
 
 if [[ ! -d "$RULES_DIR" ]]; then
   echo "scan-rules.sh: rules directory not found: $RULES_DIR" >&2

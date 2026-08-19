@@ -23,7 +23,8 @@ command -v jq >/dev/null 2>&1 || {
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 GLOBAL_DIR="${RULES_DISTILL_GLOBAL_DIR:-}"
-SKILLS_DIR="${RULES_DISTILL_PROJECT_DIR:-${1:-$REPO_ROOT/.claude/skills}}"
+# Argument, then environment, then default — see the note in scan-rules.sh.
+SKILLS_DIR="${1:-${RULES_DISTILL_PROJECT_DIR:-$REPO_ROOT/.claude/skills}}"
 
 if [[ ! -d "$SKILLS_DIR" ]]; then
   echo "scan-skills.sh: skills directory not found: $SKILLS_DIR" >&2

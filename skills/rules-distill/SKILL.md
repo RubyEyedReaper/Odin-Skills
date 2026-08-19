@@ -76,7 +76,20 @@ Proceeding to cross-read analysis...
 
 ### Phase 2: Cross-read, Match & Verdict (LLM Judgment)
 
-Extraction and matching are unified in a single pass. Rules files are small enough (~800 lines total) that the full text can be provided to the LLM — no grep pre-filtering needed.
+Extraction and matching are unified in a single pass.
+
+**Do not paste the whole rules corpus into every batch.** Upstream justified that with "~800 lines
+total"; measure before believing it — this corpus is far larger, and a stale count assertion is
+itself a logged failure key (`ci-gate/stale-count-assertion`):
+
+```bash
+bash .claude/skills/rules-distill/scripts/scan-rules.sh | jq '[.rules[].lines] | add'
+```
+
+Give each batch the **rules index** the scanner already emits — path, tier, headings — and let the
+analyst read the files it needs; it has `Read` and `Grep`. Duplicating the full corpus once per
+batch multiplies the pass's whole token cost by the batch count, for a corpus most batches never
+reach.
 
 #### Batching
 
@@ -258,12 +271,32 @@ Then:
 Reversible by construction: every applied rule is one commit, every rejection is recorded with its
 reason, and the tier can be re-decided by re-running with different weights.
 
-#### Save Results
+#### Save Results — two artifacts, two lifetimes
 
-Store results **outside the skill directory** — `.claude/.runtime/rules-distill/results.json`. The
+**1. Append one row to `DISTILLATIONS.md` at the repository root.** This is the pass's *evidence*,
+and it is committed. One row per pass:
+
+```
+| pass | date | commit | skills | rules | always-on KB | keys@band | candidates | applied | handed-off | rejected |
+```
+
+**A pass that found nothing still writes a row.** The occurrence predicate is empty far more often
+than not, and a pass resolving every candidate to `Already Covered` is a successful pass. Leaving no
+row makes "ran and found nothing" indistinguishable from "never ran" — ADR-0069's invariant, and the
+reason `AUDIT-2026-06-27.md:99` sat open for 49 days. Record the threshold and the observed maximum
+so the emptiness reads as data. Below the table, add a `## Pass NN — YYYY-MM-DD` section carrying the
+per-candidate verdicts and their reasoning (ADR-0067, DEC-0008).
+
+Where a verdict's target file is not writable by this run — another worker holds it, or it is
+outside the branch's authorization — resolve it anyway and record it with status `handed-off`,
+naming the owner, with the full draft text and its tier. A recorded verdict with drafted text and a
+named owner is a resolution; silence is not.
+
+**2. Store machine output outside the skill directory** — `.claude/.runtime/rules-distill/results.json`. The
 skill directory is a `--refresh` target, so state written there can be clobbered by a vendor refresh,
 and untracked state inside `.claude/skills/` makes the "no local edits" provenance claim
-unfalsifiable. `.claude/.runtime/` is where per-run state lives (ADR-0045):
+unfalsifiable. `.claude/.runtime/` is where per-run state lives (ADR-0045) — and because that
+directory is gitignored, this file is a working artifact and never the record:
 
 - **Timestamp format**: `date -u +%Y-%m-%dT%H:%M:%SZ` (UTC, second precision)
 - **Candidate ID format**: kebab-case derived from the principle (e.g., `llm-output-trust-boundary`)
