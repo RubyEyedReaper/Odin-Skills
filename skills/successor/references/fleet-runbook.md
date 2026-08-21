@@ -118,6 +118,28 @@ Shared registries — inventory counts, category lists, generated roadmap render
 after the last branch lands, never textually merged. Two workers each bumping the same `# expect N`
 produce a conflict whose "resolution" is a number that was never counted.
 
+### The conflict set is always the same four files
+
+Measured across seven stranded branches on 2026-08-21: **every one conflicted only in registries**,
+never in the work itself. The resolution is mechanical and identical each time, so treat a rebase
+conflict here as bookkeeping rather than as a merge problem.
+
+| File | Conflict | Resolution |
+|---|---|---|
+| `.claude/docs/decisions/README.md`, `.claude/docs/adr/README.md` | both sides appended a row | keep **both**, in id order — never pick a side |
+| `.claude/docs/roadmap/{roadmap.json,ROADMAP.md,graph.dot,graph.svg}` | two renders of the same file | `git checkout --ours` (during a rebase that is `main`'s side), then re-add the branch's items **through the engine**; `--skip` any commit that only renumbered |
+| `.claude/docs/odin-runbook.md` | the gated `# expect N` block | **count on disk** in the merged tree (`ls .claude/scripts \| wc -l`), never take either side |
+| `CHANGELOG.md`, `FORKS.md`, `MISTAKES.md` | append-only ledgers | keep both entries; order by date |
+
+Ids are the trap inside this. Two workers cut from the same `main` both receive the same next
+roadmap/DEC/ADR number, so the second to land must **re-mint through the engine**, not renumber by
+hand — and any commit whose whole content was a renumber is skipped, because it describes a
+collision that no longer exists.
+
+A branch with **no common ancestor** is not this case and cannot be rebased at all —
+`git merge-tree` refuses outright. That is a separate history to import or retire, not a conflict
+to resolve.
+
 ## 5. Teardown
 
 ```sh
