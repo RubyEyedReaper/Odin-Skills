@@ -214,6 +214,15 @@ user.
 | The effort produced a durable constraint | `architecture-decision-records` |
 | A ticket surfaced new vocabulary | `domain-modeling` — land it in `CONTEXT.md` as you go |
 
+REQUIRED SUB-SKILL: `domain-modeling` — the ADR and glossary formats a resolved ticket writes into.
+
+**The ADR path is `.claude/docs/adr/`, not `docs/adr/`.** `domain-modeling` names the latter, which
+is correct inside a `projects/<slug>/` subtree — ADR-0026 fixes each project to its own ADR
+sequence — and wrong at the harness root, where it would start a second ADR tree with its own
+numbering, colliding with the ranges `.claude/docs/adr/README.md` indexes. The path is resolved at
+the delegation site because that is where the context is known (DEC-0017). When the two disagree,
+this line wins.
+
 ## Failure modes
 
 - **Charting a map that has no fog.** If the grilling surfaces nothing undecided, the map is

@@ -344,7 +344,7 @@ $ /rules-distill
 Rules Distillation — Phase 1: Inventory
 ────────────────────────────────────────
 Skills:   99 files scanned
-Rules:    63 files (211 headings, 12 always-on / 34.8 KB per session)
+Rules:    NN files (NNN headings, NN always-on / NN.N KB per session)
 Mistakes: 1 key at promotion band across 4 owners
 
 Proceeding to cross-read analysis...

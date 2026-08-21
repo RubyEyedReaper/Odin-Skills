@@ -23,9 +23,16 @@ causes the lapse.
 Dispatch all three agents **simultaneously** using the Agent tool.
 
 **Fill `<CONTEXT>` with ≤10 paths, one line each, path + role — never file contents.** Each agent
-starts its own session, so `<CONTEXT>` is paid three times, on top of the ~52 KB of `CLAUDE.md` and
-always-on rules each session loads before it reads a word of the task. Every agent has its own Read
-and Grep; what it needs from you is where to start looking, not the material itself.
+starts its own session, so `<CONTEXT>` is paid three times — on top of `CLAUDE.md` and the always-on
+rules, which every one of those sessions loads in full before it reads a word of the task. Two of
+the three copies are pure duplication: the first is the cost of doing the work at all.
+
+Run `bash .claude/scripts/context-budget.sh report` for today's figures. They are deliberately not
+written here — this line said `~52 KB` while the rules index said `38.8 KB` and a skill sample said
+`34.8 KB`, none of them agreeing and none of them produced by anything (harness:RM-0164).
+
+Every agent has its own Read and Grep; what it needs from you is where to start looking, not the
+material itself.
 
 ```
 src/auth/session.ts — where tokens are minted today
