@@ -16,6 +16,7 @@ import os
 import re
 
 from . import graph as graph_mod
+from . import schema as schema_mod
 
 _DEC_RE = re.compile(r"^(DEC-\d{4})")
 
@@ -56,8 +57,42 @@ def candidates(doc, ids=None, tier=None, unblocked_only=False):
     return out
 
 
-def export_spec(doc, ids=None, tier=None, unblocked_only=False, goal=None):
-    """A decision-spec JSON (scores left null) for `decision-matrix` to score."""
+def ledger_for(json_path, relative_to=None):
+    """The DEC ledger that owns the roadmap at `json_path`.
+
+    Harness layout   ``<repo>/.claude/docs/roadmap/roadmap.json`` -> ``<repo>/.claude/docs/decisions``
+    Project layout   ``<root>/docs/roadmap/roadmap.json``         -> ``<root>/docs/decisions``
+
+    Derived from `schema.paths_for`, which already owns the distinction between the two layouts
+    — including the `.claude` special case that cost a bug the last time it was re-derived by
+    hand. Two copies of that rule would drift, and the drift would be silent.
+
+    With `relative_to`, a ledger underneath that directory is returned relative to it.
+    `decision-matrix` resolves a relative `decisions_dir` against the repository root by design,
+    and a spec is a portable artefact — people paste one into an issue and re-run it, which an
+    absolute path from somebody's home directory quietly breaks.
+
+    harness:RM-0170, issue #380.
+    """
+    paths = schema_mod.paths_for(json_path)
+    graph_dir = paths["graph_dir"]                     # <…>/docs/roadmap
+    docs_dir = os.path.dirname(graph_dir)              # <…>/docs
+    ledger = os.path.join(docs_dir, "decisions")
+    if relative_to:
+        anchor = os.path.abspath(relative_to)
+        if os.path.commonpath([anchor, ledger]) == anchor:
+            return os.path.relpath(ledger, anchor)
+    return ledger
+
+
+def export_spec(doc, ids=None, tier=None, unblocked_only=False, goal=None,
+                decisions_dir=None):
+    """A decision-spec JSON (scores left null) for `decision-matrix` to score.
+
+    `decisions_dir` is the ledger this prioritisation records into. Taken as an argument rather
+    than derived here: a roadmap *document* does not know where it lives, and the caller that
+    resolved the path is the one that does.
+    """
     items = candidates(doc, ids=ids, tier=tier, unblocked_only=unblocked_only)
     if len(items) < 2:
         raise ValueError(
@@ -81,7 +116,7 @@ def export_spec(doc, ids=None, tier=None, unblocked_only=False, goal=None):
         item["id"]: {cid: {"value": None} for cid, _, _, _ in RICE_CRITERIA}
         for item in items
     }
-    return {
+    spec = {
         "goal": goal or "Prioritise the competing roadmap items for %s"
         % doc.get("scope", "this project"),
         "reversibility": "two-way",
@@ -92,6 +127,12 @@ def export_spec(doc, ids=None, tier=None, unblocked_only=False, goal=None):
         "methods": ["weighted-sum"],
         "tie_threshold": 5,
     }
+    # Omitted rather than written as null when there is no ledger to name: `resolve_decisions_dir`
+    # treats a falsy declaration as undeclared, so a null key would read as declared to a human
+    # and as absent to the engine — the worst of both.
+    if decisions_dir:
+        spec["decisions_dir"] = decisions_dir
+    return spec
 
 
 def _ranking(result, method=None):

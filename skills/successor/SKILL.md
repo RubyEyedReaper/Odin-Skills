@@ -87,11 +87,16 @@ see a relative path — pass an absolute one.
 
 ### 3. Monitor
 
-Two signals, because either alone lies: session `state` from `claude agents --json`, and branch
-movement from `git ls-remote`. A wedged session reports `running`; a finished worker may idle with
-its branch already pushed.
+Three signals, because each alone lies. Session `state` from `claude agents --json`, branch
+movement from `git ls-remote`, and — first, because the other two cannot report their own absence —
+`bash .claude/scripts/fleet-health.sh`. A wedged session reports `running`; a finished worker may
+idle with its branch already pushed; and a **dead** session reports whatever the registry last knew,
+because the registry outlives the daemon that served it. Read liveness from the daemon's control
+socket, never from the subject (M-0014).
 
 ```
+fleet-health.sh exits 2     →  the daemon is gone; every session is dead, relaunch all
+fleet-health.sh exits 3     →  the registry is unreadable; conclude nothing, fix the tooling
 idle, no branch movement    →  claude logs <id>
 wedged / looping            →  claude stop <id>, amend the handoff, relaunch
 all workers silent at once  →  a shared dependency died, not twelve dead agents — check it first
@@ -123,6 +128,7 @@ registered keeps Layer 1F's concurrency guard armed against the main checkout (A
 | "I'll arm autonomous mode for them" | Impossible. Posture is claimed by the session's own hook (ADR-0051). |
 | "Same handoff, just relaunch it" | The handoff caused the stall. Amend first. |
 | "All the agents died" | One shared dependency died. Check it before relaunching anything. |
+| "They all read `blocked`, so they are waiting" | A dead session reads `blocked` too — the registry outlives the daemon. Run `fleet-health.sh` before believing any state. |
 | "I'll let workers mint their own ADR numbers" | Both pick the same one. Reserve up front. |
 | "Just this once, a subagent will do" | A subagent cannot push a branch or outlive the turn. |
 | "The branch was green before the rebase" | It said nothing about what lands. Gate the merged result. |

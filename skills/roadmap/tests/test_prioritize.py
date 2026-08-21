@@ -4,13 +4,18 @@ The roadmap owns its own file in both directions (DEC-0001 fork 5): it exports a
 decision spec for `decision-matrix` to score, and ingests the result back into
 `priority`. The decision engine never learns the roadmap format.
 """
+import json
 import os
+import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.prioritize import dec_id_from_path, export_spec, ingest  # noqa: E402
+from scripts.prioritize import (  # noqa: E402
+    dec_id_from_path, export_spec, ingest, ledger_for,
+)
 from scripts.schema import default_doc  # noqa: E402
 
 TODAY = "2026-08-08"
@@ -187,3 +192,91 @@ class TestDecId(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheExportedSpecDeclaresItsLedger(unittest.TestCase):
+    """harness:RM-0170 / #380 — the spec must name the ledger that owns the roadmap.
+
+    `decision-matrix` resolves a spec with no `decisions_dir` against its own fallback, which is
+    the *harness* ledger. For a harness roadmap that is right by luck; for a project roadmap the
+    project's RICE decision lands in the harness DEC sequence, invisible to the project that owns
+    it. The exporter is where the destination is known, so it is where it gets stated.
+    """
+
+    def test_the_harness_layout_resolves_to_the_harness_ledger(self):
+        json_path = "/repo/.claude/docs/roadmap/roadmap.json"
+        self.assertEqual(ledger_for(json_path), "/repo/.claude/docs/decisions")
+
+    def test_a_project_layout_resolves_to_the_project_ledger(self):
+        json_path = "/repo/projects/Thing/docs/roadmap/roadmap.json"
+        self.assertEqual(ledger_for(json_path), "/repo/projects/Thing/docs/decisions")
+
+    def test_the_exported_spec_carries_the_key(self):
+        doc = default_doc("operational", today=TODAY)
+        doc["items"] = [_item("RM-0001"), _item("RM-0002")]
+        spec = export_spec(doc, decisions_dir="projects/Thing/docs/decisions")
+        self.assertEqual(spec["decisions_dir"], "projects/Thing/docs/decisions")
+
+    def test_an_export_with_no_ledger_omits_the_key_rather_than_writing_a_null(self):
+        """A null `decisions_dir` is worse than no key: `resolve_decisions_dir` treats a falsy
+        declaration as undeclared, so it would read as declared to a human and as absent to the
+        engine."""
+        doc = default_doc("operational", today=TODAY)
+        doc["items"] = [_item("RM-0001"), _item("RM-0002")]
+        self.assertNotIn("decisions_dir", export_spec(doc))
+
+
+class TestTheRoundTripResolvesToTheDeclaredLedger(unittest.TestCase):
+    """The point is not a key in a file — it is where `decision-matrix` actually writes.
+
+    Asserted through **the real `resolve_decisions_dir`**, in a subprocess. Two reasons it is not
+    an in-process import: `decision-matrix` and `roadmap` both ship a package called `scripts`,
+    so importing one while the other is loaded resolves the wrong module; and a test that
+    re-implements the consumer's precedence rules proves the assumption rather than the
+    behaviour.
+    """
+
+    REPO_ROOT = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
+    MATRIX = os.path.join(REPO_ROOT, ".claude", "skills", "decision-matrix")
+
+    def resolve_through_the_real_engine(self, spec):
+        if not os.path.isdir(self.MATRIX):
+            self.skipTest("decision-matrix skill not present in this checkout")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+            json.dump(spec, fh)
+            spec_path = fh.name
+        self.addCleanup(os.unlink, spec_path)
+        probe = (
+            "import json, sys\n"
+            "from scripts.score import resolve_decisions_dir\n"
+            "spec = json.load(open(sys.argv[1]))\n"
+            "print(resolve_decisions_dir(spec, None))\n"
+        )
+        done = subprocess.run([sys.executable, "-c", probe, spec_path],
+                              cwd=self.MATRIX, capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return done.stdout.strip()
+
+    def spec_for(self, json_path):
+        doc = default_doc("operational", today=TODAY)
+        doc["items"] = [_item("RM-0001"), _item("RM-0002")]
+        return export_spec(doc, decisions_dir=ledger_for(json_path, relative_to=self.REPO_ROOT))
+
+    def test_a_project_roadmap_records_into_the_project_ledger(self):
+        spec = self.spec_for(os.path.join(
+            self.REPO_ROOT, "projects", "Thing", "docs", "roadmap", "roadmap.json"))
+        self.assertEqual(spec["decisions_dir"], os.path.join("projects", "Thing", "docs", "decisions"))
+        self.assertEqual(
+            self.resolve_through_the_real_engine(spec),
+            os.path.join(self.REPO_ROOT, "projects", "Thing", "docs", "decisions"),
+            "a project's prioritisation must not land in the harness DEC sequence",
+        )
+
+    def test_a_harness_roadmap_still_records_into_the_harness_ledger(self):
+        spec = self.spec_for(os.path.join(
+            self.REPO_ROOT, ".claude", "docs", "roadmap", "roadmap.json"))
+        self.assertEqual(
+            self.resolve_through_the_real_engine(spec),
+            os.path.join(self.REPO_ROOT, ".claude", "docs", "decisions"),
+        )

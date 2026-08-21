@@ -91,6 +91,53 @@ def resolve_decisions_dir(spec: dict, decisions_dir: Path = None) -> Path:
     return DEFAULT_DECISIONS_DIR
 
 
+def warn_if_ledger_ambiguous(spec: dict, workspace_root: Path = None,
+                            declared_destination: bool = False) -> list:
+    """Warn on stderr when a recording run's ledger was defaulted rather than declared.
+
+    Guard 2 of issue #244, in the form DEC-0023 chose. A decision about a project belongs
+    in that project's ledger; the destination is declared in the spec because the process
+    CWD cannot serve (the engine is mandated to run from the skill directory, so CWD always
+    names the skill). When the spec declares nothing and the workspace holds project
+    ledgers, the run is about to write into the harness ledger on the strength of a default
+    — which is how project decisions kept landing in the harness sequence.
+
+    Conditionally armed, the same shape as safety-guard Layer 1C: a checkout with no
+    project ledger has no ambiguity, and says nothing.
+
+    This warns rather than refusing, and DEC-0023 records why: `roadmap`'s documented
+    `prioritize --record` chain passes no destination, and its files are outside this
+    change's authorization, so a refusal would break a caller that could not be repaired
+    in the same commit. `refuse` is the recorded end state; it becomes available once that
+    exporter declares its ledger.
+
+    Returns the candidate ledgers it named, for testing. Emits nothing on stdout — stdout
+    is the result document a caller pipes into jq.
+    """
+    if declared_destination or spec.get("decisions_dir"):
+        return []
+
+    root = Path(workspace_root) if workspace_root is not None else _REPO_ROOT
+    candidates = sorted(
+        p for p in root.glob("projects/*/docs/decisions") if p.is_dir()
+    )
+    if not candidates:
+        return []
+
+    listed = "\n".join(f"    {p.relative_to(root)}" for p in candidates)
+    print(
+        "warning: ambiguous decision ledger — this spec declares no destination, so the "
+        "record is going to the harness ledger by default.\n"
+        "  Candidate project ledgers in this workspace:\n"
+        f"{listed}\n"
+        '  If this decision belongs to a project, declare it: "decisions_dir": '
+        '"projects/<name>/docs/decisions" in the spec, or pass --decisions-dir <path>.\n'
+        "  Moving a record afterwards is a renumber, an id rewrite and two index edits.",
+        file=sys.stderr,
+    )
+    return candidates
+
+
 def _render_visual(result: dict, dec_path: Path) -> tuple:
     """Render the HTML artifact next to the DEC record via the bundled visual.mjs.
 
@@ -363,7 +410,8 @@ def _revisit_reminder(spec: dict) -> dict:
     }
 
 
-def run(spec: dict, *, decisions_dir: Path = None, record: bool = False) -> tuple:
+def run(spec: dict, *, decisions_dir: Path = None, record: bool = False,
+        workspace_root: Path = None, declared_destination: bool = False) -> tuple:
     """Core orchestration. Returns (result_dict, exit_code).
 
     decisions_dir/record control DEC-ledger recording (Sprint 4):
@@ -379,6 +427,12 @@ def run(spec: dict, *, decisions_dir: Path = None, record: bool = False) -> tupl
     errors = validate_spec(spec)
     if errors:
         return _build_error_response("invalid decision spec", errors), 1
+
+    # Guard 2 (#244): a recording run whose destination was defaulted rather than
+    # declared says so, before anything touches disk. Non-recording runs have no
+    # destination and are never warned about.
+    if record:
+        warn_if_ledger_ambiguous(spec, workspace_root, declared_destination)
 
     # Prior-decision recall (only when recording; never touches disk otherwise)
     prior_decisions = []
@@ -586,7 +640,14 @@ def main() -> None:
     decisions_dir = Path(args.decisions_dir) if args.decisions_dir else None
 
     try:
-        result, exit_code = run(spec, decisions_dir=decisions_dir, record=args.record)
+        # An explicit --decisions-dir is a declaration: the caller said where this goes,
+        # so guard 2 has nothing to disambiguate.
+        result, exit_code = run(
+            spec,
+            decisions_dir=decisions_dir,
+            record=args.record,
+            declared_destination=decisions_dir is not None,
+        )
     except Exception as exc:  # noqa: BLE001 — top-level safety net
         payload = _build_error_response(f"unexpected error: {exc}")
         print(json.dumps(payload, indent=2), file=sys.stderr)

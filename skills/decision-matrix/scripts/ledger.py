@@ -186,6 +186,34 @@ def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path)
     return path, resolved_dec_id
 
 
+def _table_end(lines: list) -> int:
+    """Index just past the last row of the index table the header separator opens.
+
+    Not "after the last line starting with `|`". A blank line inside a GFM table ends
+    it: every pipe-prefixed line after the gap renders as a paragraph, not a row. The
+    naive rule inserts new rows into that orphan, so one stray blank line quietly
+    converts the ledger index into a wreck that grows with every subsequent record —
+    which is exactly what happened to the harness ledger between DEC-0015 and DEC-0019.
+
+    Falls back to end-of-file only when there is no table at all.
+    """
+    sep = next(
+        (i for i, line in enumerate(lines) if line.lstrip().startswith("|--")),
+        None,
+    )
+    if sep is None:
+        last = max(
+            (i for i, line in enumerate(lines) if line.lstrip().startswith("|")),
+            default=None,
+        )
+        return len(lines) if last is None else last + 1
+
+    end = sep + 1
+    while end < len(lines) and lines[end].lstrip().startswith("|"):
+        end += 1
+    return end
+
+
 def update_readme_index(dec_id: str, title: str, path: Path, decisions_dir: Path, winner: str = None) -> None:
     """Upsert a row for dec_id in decisions_dir/README.md (create with header if missing).
 
@@ -226,16 +254,7 @@ def update_readme_index(dec_id: str, title: str, path: Path, decisions_dir: Path
     if existing_index is not None:
         lines[existing_index] = new_row
     else:
-        # Insert after the last table row rather than at EOF: the README ends with an
-        # explanatory comment, and appending past it drops the row outside the table.
-        last_row = max(
-            (i for i, line in enumerate(lines) if line.lstrip().startswith("|")),
-            default=None,
-        )
-        if last_row is None:
-            lines.append(new_row)
-        else:
-            lines.insert(last_row + 1, new_row)
+        lines.insert(_table_end(lines), new_row)
 
     readme_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 

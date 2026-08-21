@@ -52,10 +52,19 @@ spending a session. Launch from a harness root — the repository root or one of
 ## 3. Monitor
 
 ```sh
+bash .claude/scripts/fleet-health.sh        # is the daemon there at all — check this FIRST
 claude agents --json                       # id, sessionId, state, cwd
 claude logs <id>                           # recent output from one worker
 git ls-remote --heads origin '<class>/*'   # branch movement, the second signal
 ```
+
+**`fleet-health.sh` comes first because the other three cannot report their own absence.**
+`claude agents --json` is served from a registry the daemon owns: when the daemon exits it keeps
+returning the last-known list, so five dead sessions render as five `blocked` ones — a state
+indistinguishable from working. Branch movement is equally silent, because a dead worker and a
+thinking worker both push nothing. The script reads the daemon's control socket from disk instead,
+which is the one signal the subject cannot fake once it is gone. Exit 2 means every background
+session is dead; exit 3 means the registry could not be read and nothing may be concluded.
 
 Watch loop — poll both signals, emit only on a transition:
 
@@ -77,7 +86,8 @@ Escalation:
 | `running`, no branch push, quiet in logs | working, or wedged — undecided | `claude logs <id>` and read the last turn |
 | logs repeating the same tool call | wedged | `claude stop <id>`, amend the handoff, relaunch |
 | branch pushed, session idle | finished | move to integration |
-| **every** worker silent at once | a shared dependency died | check it before touching any session |
+| **every** worker silent at once | a shared dependency died | `fleet-health.sh` names it; check it before touching any session |
+| every worker `blocked` within minutes of launch | the **daemon** died, not the work | `fleet-health.sh` exits 2; relaunch all from amended handoffs (M-0014) |
 | session gone from `agents --json` | exited or evicted | read its branch; the work may be pushed |
 
 A relaunch always uses an **amended** handoff. The same document reproduces the same stall.
@@ -139,5 +149,6 @@ Each cost something. The citation is where the reasoning lives.
 | A `DIRTY` merge state means real conflicts. Rebase in the worktree and resolve there — never in the web editor. | campaign experience |
 | Force-push is blocked. Amending an already-pushed commit means a **new ref** (`<branch>-v2`) plus a fresh PR, and closing the old one. | memory: force-push-blocked-land-via-new-branch |
 | A branch green **before** its rebase says nothing about what lands. Gate the merged result. | memory: verify-the-merged-result-not-the-branch |
-| A whole fleet going silent at once is one dead shared dependency, not N dead agents. | memory: successors-die-when-spp-pg-exits |
+| A whole fleet going silent at once is one dead shared dependency, not N dead agents. |
+| The session **daemon** is that shared dependency for background sessions. Its death shows up as every session reading `blocked`, because the registry outlives it. Never read liveness from the subject — `fleet-health.sh` reads the control socket instead. | memory: successors-die-when-spp-pg-exits |
 | CI runs locally (`ci-local.sh`). Dispatching a workflow is blocked always-on and would test the pushed tree, not the one being edited. | `.claude/rules/common/security.md` § Run CI Locally |

@@ -166,6 +166,12 @@ roadmap prioritize --export --tier now --out /tmp/spec.json
   -> roadmap next                      (ordering now carries its DEC reference)
 ```
 
+The spec names its own ledger. `prioritize --export` writes a `decisions_dir` key derived
+from where the roadmap lives — `.claude/docs/decisions` for the harness roadmap,
+`<project>/docs/decisions` for a project's — so the `--record` above needs no destination
+argument and lands in the sequence that owns the decision (harness:RM-0170). Passing
+`--decisions-dir` still overrides it.
+
 Scores are elicited the way `grilling` elicits anything: one criterion at a time, with a
 recommended value, and by reading the codebase rather than asking when the answer is on
 disk. Never fill the nulls with numbers that "look about right" — an invented score is

@@ -135,6 +135,59 @@ PR number — the answer to "how do we know this shipped?"
 Freshness is checked by re-rendering and comparing the whole file, so a hand-edited
 `ROADMAP.md` is detected even when the banner hash still matches.
 
+## Reconcile evidence and findings
+
+`reconcile` gathers evidence, then `analyze` turns it into findings. The two halves are separate so
+`analyze` runs with no git, no `gh` and no network — which is what makes every finding kind testable.
+
+### `channel_status`
+
+`evidence["channel_status"]` records what each channel did (ADR-0069). Three values, and the
+distinction between the last two is the whole point:
+
+| Value | Meaning |
+|---|---|
+| `ran` | The channel was consulted. Its findings are complete. |
+| `skipped` | The caller passed `--no-git` / `--no-gh`. A deliberate omission, not a blind spot. |
+| `unavailable` | The channel could not run — no binary, no token, unparseable output. Its findings are **unknown, not absent**. |
+
+Channels: `git`, `gh`, `disk`. `disk` is always `ran` — it is a filesystem read that either succeeds
+or raises — and is recorded anyway so a consumer asking about it gets an answer rather than a
+`KeyError`.
+
+### Finding kinds
+
+| Kind | Auto | Fires when |
+|---|---|---|
+| `md-stale` | yes | `ROADMAP.md` does not match `roadmap.json` |
+| `stale-item` | no | An `in-progress` item has had no matching commits for `STALE_AFTER_DAYS` |
+| `issue-closed` | no | An unfinished item's linked issue is closed |
+| `untracked-issue` | yes | An open issue labelled `ready-for-agent` has no roadmap item |
+| `unlinked-issue` | no | An open issue has no roadmap item, whatever its labels (DEC-0014) |
+| `unlinked-issue-truncated` | no | The per-run cap dropped further unlinked issues; the count is named |
+| `false-done` | no | A `done` item's files do not exist |
+| `untracked-surface` | yes | A swept path no item claims |
+| `untracked-surface-truncated` | no | The sweep's cap dropped further paths |
+| `unrecorded-change` | no | A dated `CHANGELOG.md` entry references no `RM-####` |
+| `unrecorded-change-truncated` | no | The CHANGELOG cap dropped further entries |
+| `evidence-unavailable` | no | A channel could not run (ADR-0069). Emitted **first**. |
+
+`unlinked-issue` is advisory by construction: it has no entry in `APPLIERS`, so it cannot reach
+`apply_auto` even if a caller marks it `auto`. `untracked-issue` remains the actionable superset for
+a labelled issue, and an issue never produces both.
+
+`FINDING_KINDS` in `scripts/reconcile.py` is the registry `--fail-on` validates against, pinned in
+both directions by a test that reads the kinds out of `analyze` itself.
+
+### `--fail-on`
+
+`reconcile --fail-on <kind[,kind...]>` exits 1 when a finding of one of those kinds is produced, and
+0 otherwise; the report prints either way. The default is empty — findings alone never fail. An
+unknown kind exits 2 rather than matching nothing (DEC-0015).
+
+`.claude/scripts/roadmap-drift-check.sh` is the gate built on it, and passes
+`--fail-on evidence-unavailable`.
+
 ## Validation
 
 `validate` reports, and exits 1 on: unsupported schema version, malformed or

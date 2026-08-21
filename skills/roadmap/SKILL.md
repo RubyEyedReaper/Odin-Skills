@@ -51,7 +51,7 @@ Run from this skill's directory: `python3 -m scripts.roadmap <command>`
 | `prioritize --from result.json` | write DEC scores back onto items |
 | `validate` | schema, cycles, freshness (exit 1 on error) |
 | `render` | regenerate markdown + graph |
-| `reconcile` | drift report |
+| `reconcile` | drift report; `--fail-on <kind>` exits 1 on that finding kind, for a CI gate |
 | `due` | is a reconcile overdue? — silent when not, so a caller needs no comparison |
 | `bootstrap --from INIT.md --surface-sweep` | seed a new roadmap from project docs + starter surfaces |
 | `init --scope task:<slug>` | create an empty roadmap for a scope |
@@ -107,8 +107,22 @@ cd ../decision-matrix && python3 -m scripts.score --spec /tmp/spec.json --record
 cd ../roadmap && python3 -m scripts.roadmap prioritize --from /tmp/result.json
 ```
 
+The exported spec carries a `decisions_dir` naming the ledger that owns this roadmap —
+`.claude/docs/decisions` for the harness, `<project>/docs/decisions` for a project — so
+`--record` needs no destination argument and a project's prioritisation never lands in the
+harness DEC sequence (harness:RM-0170).
+
 Scores land in `priority.score` with the `DEC-####` that produced them, so the ordering
 in `next` carries its own audit trail. Re-run with different weights to revisit it.
+
+### Two refusals the engine will hand you
+
+Both are refusals, not failures: nothing was written, and each names its own remedy.
+
+| Message | What happened | What to do |
+|---|---|---|
+| `ambiguous target: this repository has N worktrees holding a roadmap` | A **mutating** subcommand (`add`, `set`, `bootstrap`, `reconcile --apply-auto`, `prioritize --from`) was run with neither `--root` nor `--path`, from a checkout whose repository has more than one worktree with a roadmap. `cwd` is the only thing left to resolve the target with, and `cwd` is what an earlier command may have changed invisibly. | Re-run naming the target: `--root <dir>` or `--path <roadmap.json>`. Read-only commands and single-worktree repositories are unaffected. |
+| `roadmap.json changed on disk since this process read it` | Another agent or process wrote the file between this command's read and its write. Applying this document would silently revert their write. | Re-run the command. It re-reads the file and applies your change on top of theirs. |
 
 ### Gate 3 — Decompose: blueprint when one item is not one PR
 
@@ -206,6 +220,13 @@ permanent — when work completes, update status; never delete.
 render hash. Auto-apply only re-rendering and adding untracked items as `proposed`.
 **Promoting to `done` or demoting from it always needs user confirmation** —
 silent status rewrites destroy trust in the roadmap.
+
+**A channel that could not run is a finding, not a silence** (ADR-0069). Evidence carries a
+per-channel status, and `analyze` leads its report with `evidence-unavailable` for each blind one —
+`no drift` from an instrument that could not look is the failure that let 76 of 77 open issues go
+uncaptured. `--no-git`/`--no-gh` record `skipped`, which is a choice and never fails a gate.
+`.claude/scripts/roadmap-drift-check.sh` runs in CI on that predicate; run it locally with
+`bash .claude/scripts/roadmap-drift-check.sh`.
 
 ## Common mistakes
 

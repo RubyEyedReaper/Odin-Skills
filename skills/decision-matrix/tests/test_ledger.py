@@ -177,6 +177,44 @@ class TestWriteDecRecord(unittest.TestCase):
             self.assertTrue(path.name.startswith("DEC-0001-"))
             self.assertTrue(path.name.endswith(".md"))
 
+    def test_new_row_lands_in_the_real_table_when_a_blank_line_split_it(self):
+        """A blank line inside the table ends it, under GFM: every row after the gap
+        renders as a paragraph of pipes. Inserting after the LAST pipe-prefixed line
+        anywhere puts new rows into that orphan, so the ledger index silently stops
+        being a table and every later row joins the wreckage.
+
+        This is the shipped harness ledger's own state as of 2026-08-19 — a gap after
+        the DEC-0015 row left DEC-0017..0019 outside the table.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            decisions_dir.mkdir()
+            (decisions_dir / "README.md").write_text(
+                "# Decision Ledger\n"
+                "\n"
+                "| DEC | Title | Winner | Record |\n"
+                "|---|---|---|---|\n"
+                "| DEC-0001 | First | a | [DEC-0001-a.md](DEC-0001-a.md) |\n"
+                "\n"
+                "| DEC-0002 | Orphaned | b | [DEC-0002-b.md](DEC-0002-b.md) |\n"
+                "\n"
+                "<!-- New DEC rows are appended above by ledger.py -->\n"
+            )
+            dec_path = decisions_dir / "DEC-0003-third.md"
+            dec_path.write_text("# stub")
+            update_readme_index("DEC-0003", "Third", dec_path, decisions_dir, winner="c")
+
+            lines = (decisions_dir / "README.md").read_text().splitlines()
+            sep = next(i for i, l in enumerate(lines) if l.startswith("|---"))
+            row = next(i for i, l in enumerate(lines) if l.startswith("| DEC-0003 |"))
+
+            # Contiguous with the header separator: no blank line between them.
+            self.assertTrue(
+                all(lines[i].startswith("|") for i in range(sep, row + 1)),
+                "the new row must be inside the table the header separator opens, "
+                "not appended to a detached fragment",
+            )
+
     def test_creates_decisions_dir_if_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "nested" / "decisions"

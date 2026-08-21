@@ -26,6 +26,47 @@ STALE_AFTER_DAYS = 14
 RECONCILE_AFTER_DAYS = 7
 READY_LABEL = "ready-for-agent"
 
+# Per run, per channel. Same reasoning as `sweep.MAX_FINDINGS`: a bounded slice is readable and an
+# unbounded one is a wall nobody scrolls. What is new is that the overflow is *counted* rather than
+# dropped — `out[:20]` silently discarded 23 of this repository's own 43 unlinked CHANGELOG entries,
+# which is the "instrument that will not admit it is blind" defect this change exists to remove.
+MAX_CHANGELOG_UNLINKED = 20
+MAX_UNLINKED_ISSUES = 20
+
+# What a channel did, recorded per channel in `evidence["channel_status"]` (ADR-0069).
+#
+# `_run` used to return a bare `None` for both "the command produced nothing" and "the command could
+# not run", and every caller collapsed the two into an empty result. A reconcile on a runner with no
+# `gh` therefore printed exactly what a reconcile of a perfectly linked tracker prints, and a CI gate
+# reading that output is green precisely when it is blind.
+#
+# `skipped` is deliberately not `unavailable`: `--no-git` / `--no-gh` are a caller's choice, and a
+# gate that failed on them could never be run offline on purpose.
+CHANNEL_RAN = "ran"
+CHANNEL_SKIPPED = "skipped"
+CHANNEL_UNAVAILABLE = "unavailable"
+
+# Every kind `analyze` can emit. Its one consumer is `--fail-on`, which refuses a kind that is not
+# in here rather than silently matching nothing — a typo'd gate that passes for the wrong reason is
+# the same failure shape as the label that was never created (ADR-0069).
+#
+# Pinned by a test that reads the kinds out of `analyze` itself, so adding a kind without listing it
+# here fails the suite rather than quietly becoming unselectable.
+FINDING_KINDS = frozenset({
+    "md-stale",
+    "stale-item",
+    "issue-closed",
+    "untracked-issue",
+    "unlinked-issue",
+    "unlinked-issue-truncated",
+    "false-done",
+    "untracked-surface",
+    "untracked-surface-truncated",
+    "unrecorded-change",
+    "unrecorded-change-truncated",
+    "evidence-unavailable",
+})
+
 _ITEM_REF_RE = re.compile(r"\bRM-\d{4}\b")
 
 
@@ -38,6 +79,10 @@ def empty_evidence():
         "untracked_paths": [],
         "untracked_truncated": 0,
         "changelog_unlinked": [],
+        "changelog_truncated": 0,
+        "unlinked_issues": [],
+        "unlinked_truncated": 0,
+        "channel_status": {},
     }
 
 
@@ -141,6 +186,20 @@ def analyze(doc, evidence=None, today=None):
     stamp = today_str(today)
     findings = []
 
+    # First, because everything below it is conditional on having been able to look. A report that
+    # opens with "no drift" and buries "gh could not run" is the report that produced this campaign.
+    for channel in sorted(ev.get("channel_status") or {}):
+        if (ev["channel_status"] or {}).get(channel) != CHANNEL_UNAVAILABLE:
+            continue
+        findings.append(_finding(
+            "evidence-unavailable",
+            "the `%s` evidence channel could not run — its findings are unknown, not absent"
+            % channel,
+            "make `%s` available, or pass the flag that skips it deliberately" % channel,
+            False,
+            payload={"channel": channel},
+        ))
+
     if ev.get("md_stale"):
         findings.append(_finding(
             "md-stale",
@@ -206,6 +265,42 @@ def analyze(doc, evidence=None, today=None):
             payload={"issue": str(issue.get("number")), "title": issue.get("title") or ""},
         ))
 
+    # DEC-0014. `untracked-issue` above keys on READY_LABEL; this reports the rest. A separate
+    # kind rather than a relaxed filter, because `APPLIERS` is a closed dict keyed by kind — a new
+    # kind cannot reach `apply_auto` by construction, so the 77-item flood is impossible rather
+    # than merely avoided. Relaxing the filter would also make `_apply_untracked_issue`'s own
+    # "ready-for-agent" message text false for every finding it produced.
+    unlinked_issues = []
+    for issue in sorted(ev.get("issues", []), key=lambda i: str(i.get("number"))):
+        if str(issue.get("state", "")).upper() != "OPEN":
+            continue
+        if READY_LABEL in [str(label) for label in (issue.get("labels") or [])]:
+            continue  # already reported, actionably, as `untracked-issue`
+        if str(issue.get("number")) in linked:
+            continue
+        unlinked_issues.append(issue)
+
+    for issue in unlinked_issues[:MAX_UNLINKED_ISSUES]:
+        findings.append(_finding(
+            "unlinked-issue",
+            "issue #%s (%s) is open but no roadmap item links it"
+            % (issue.get("number"), issue.get("title")),
+            "link it from an item, or capture it with `/roadmap add`",
+            False,
+            payload={"issue": str(issue.get("number")), "title": issue.get("title") or ""},
+        ))
+
+    dropped_issues = (ev.get("unlinked_truncated") or 0) + max(
+        0, len(unlinked_issues) - MAX_UNLINKED_ISSUES)
+    if dropped_issues:
+        findings.append(_finding(
+            "unlinked-issue-truncated",
+            "%d further open issue(s) with no roadmap item were not reported (per-run cap)"
+            % dropped_issues,
+            "link or capture the reported ones, then reconcile again",
+            False,
+        ))
+
     for item in items:
         if item.get("status") != "done":
             continue
@@ -248,6 +343,16 @@ def analyze(doc, evidence=None, today=None):
             "unrecorded-change",
             "CHANGELOG entry references no roadmap item: %s" % entry.strip()[:120],
             "link it to an item, or capture the work as a `done` item",
+            False,
+        ))
+
+    dropped_changes = ev.get("changelog_truncated") or 0
+    if dropped_changes:
+        findings.append(_finding(
+            "unrecorded-change-truncated",
+            "%d further unlinked CHANGELOG entr(ies) were not reported (per-run cap)"
+            % dropped_changes,
+            "link the reported ones, then reconcile again",
             False,
         ))
 
@@ -322,22 +427,28 @@ def apply_auto(doc, findings, today=None):
 # ------------------------------------------------------------ evidence gathering
 
 def _run(args, cwd=None):
+    """`(stdout, status)` — the output, and whether the command could run at all.
+
+    The status is the whole point. Returning a bare `None` for both failure and emptiness is what
+    made "could not look" and "looked, saw nothing" indistinguishable at every call site.
+    """
     try:
         result = subprocess.run(
             args, cwd=cwd, check=True, capture_output=True, text=True,
         )
     except (OSError, subprocess.CalledProcessError):
-        return None
-    return result.stdout
+        return None, CHANNEL_UNAVAILABLE
+    return result.stdout, CHANNEL_RAN
 
 
 def _git_touched(root, items, since_days=STALE_AFTER_DAYS):
-    out = _run(
+    """`(touched, status)` — commits per item, and whether git could be consulted."""
+    out, status = _run(
         ["git", "log", "--since=%d.days" % since_days, "--name-only", "--pretty=format:"],
         cwd=root,
     )
     if not out:
-        return {}
+        return {}, status
     changed = [line.strip() for line in out.splitlines() if line.strip()]
     touched = {}
     for item in items:
@@ -345,21 +456,26 @@ def _git_touched(root, items, since_days=STALE_AFTER_DAYS):
         hits = [path for path in changed if claims(path, patterns)]
         if hits:
             touched[item.get("id")] = sorted(set(hits))[:10]
-    return touched
+    return touched, status
 
 
 def _gh_issues(root):
-    out = _run(
+    """`(issues, status)` — the tracker's issues, and whether the tracker could be reached.
+
+    Unparseable output is `unavailable`, not `ran`: `gh` answered with something this code cannot
+    read, so the channel saw nothing and knows it.
+    """
+    out, status = _run(
         ["gh", "issue", "list", "--state", "all", "--limit", "200",
          "--json", "number,title,state,labels"],
         cwd=root,
     )
     if not out:
-        return []
+        return [], status
     try:
         raw = json.loads(out)
     except ValueError:
-        return []
+        return [], CHANNEL_UNAVAILABLE
     issues = []
     for entry in raw:
         issues.append({
@@ -368,7 +484,7 @@ def _gh_issues(root):
             "state": entry.get("state"),
             "labels": [lbl.get("name") for lbl in entry.get("labels") or []],
         })
-    return issues
+    return issues, status
 
 
 def escapes_root(pattern):
@@ -401,12 +517,21 @@ def _missing_files(root, items):
 
 
 def _changelog_unlinked(root, doc):
+    """`(entries, dropped)` — dated CHANGELOG entries naming no roadmap item, bounded and counted.
+
+    A null `last_reconcile` means **examine everything**, not "examine nothing" (#188). The early
+    return this replaced made the channel unable to fire on a roadmap that had never been
+    reconciled — which is every roadmap, until a reconcile that by construction had nothing to
+    report has stamped it. Under that shape the source could only ever describe history it had
+    already seen, so a backlog accumulated beneath a standing `no drift`.
+
+    A reconciled roadmap keeps the incremental filter: re-reporting entries a human already
+    dispositioned is how a drift report becomes noise nobody reads.
+    """
     path = os.path.join(root, "CHANGELOG.md")
     if not os.path.exists(path):
-        return []
+        return [], 0
     last = doc.get("last_reconcile")
-    if not last:
-        return []
     with open(path, encoding="utf-8") as fh:
         lines = fh.readlines()
     out = []
@@ -414,11 +539,15 @@ def _changelog_unlinked(root, doc):
         if not line.startswith("- **"):
             continue
         dates = re.findall(r"\d{4}-\d{2}-\d{2}", line)
-        if not dates or max(dates) <= last:
+        if not dates:
+            continue
+        if last and max(dates) <= last:
             continue
         if not _ITEM_REF_RE.search(line):
             out.append(line)
-    return out[:20]
+    if len(out) <= MAX_CHANGELOG_UNLINKED:
+        return out, 0
+    return out[:MAX_CHANGELOG_UNLINKED], len(out) - MAX_CHANGELOG_UNLINKED
 
 
 def gather_evidence(json_path, doc, run_git=True, run_gh=True, surface_roots=None):
@@ -429,8 +558,10 @@ def gather_evidence(json_path, doc, run_git=True, run_gh=True, surface_roots=Non
     items = doc.get("items", [])
     ev = empty_evidence()
     ev["md_stale"] = md_is_stale(json_path)
+    ev["channel_status"]["git"] = CHANNEL_SKIPPED
+    ev["channel_status"]["gh"] = CHANNEL_SKIPPED
     if run_git:
-        ev["git_touched"] = _git_touched(root, items)
+        ev["git_touched"], ev["channel_status"]["git"] = _git_touched(root, items)
         # The sweep enumerates from git, so `--no-git` disables it. That is the honest reading of
         # the flag: there is deliberately no filesystem fallback, because a hand-written ignore
         # list would report a different set of paths than git does — and under `--apply-auto` the
@@ -440,9 +571,14 @@ def gather_evidence(json_path, doc, run_git=True, run_gh=True, surface_roots=Non
             root, doc, override=surface_roots,
         )
     if run_gh:
-        ev["issues"] = _gh_issues(root)
+        ev["issues"], ev["channel_status"]["gh"] = _gh_issues(root)
+    # Disk is the one channel with no external dependency: `_missing_files` and `_changelog_unlinked`
+    # are filesystem reads that either succeed or raise. It is recorded anyway so the status map
+    # enumerates every channel rather than only the fragile ones — a consumer asking "did disk run?"
+    # should get an answer, not a `KeyError`.
+    ev["channel_status"]["disk"] = CHANNEL_RAN
     ev["missing_files"] = _missing_files(root, items)
-    ev["changelog_unlinked"] = _changelog_unlinked(root, doc)
+    ev["changelog_unlinked"], ev["changelog_truncated"] = _changelog_unlinked(root, doc)
     return ev
 
 

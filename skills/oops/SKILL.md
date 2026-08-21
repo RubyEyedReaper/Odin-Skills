@@ -68,6 +68,12 @@ This is the fork that decides everything after it.
 | A failure path nobody exercised | **Error-path guard** | the call site — bounded retry, fallback, explicit surfaced error | `error-handling-patterns` |
 | Judgment: a naming, a design, a "this is confusing" | **Not mechanically checkable** | say so out loud, then `rules-distill` | `rules-distill` |
 
+**The last row now terminates somewhere.** `rules-distill` produces a drafted rule with an explicit
+`paths:`-vs-always-on tier, and appends a row to `DISTILLATIONS.md` at the repository root — so a
+condition routed here leaves an artifact rather than an intention. That was not true before
+ADR-0067: the hatch pointed at a skill whose first documented command could not run, which is how an
+escape hatch gets taken silently.
+
 **The last row is an escape hatch that must be spoken, never taken silently.** A guard that encodes
 taste produces false positives; a guard people disagree with gets disabled, taking its true
 positives with it. Saying "this one is judgment, here is the rule instead" is a valid OOPS outcome.

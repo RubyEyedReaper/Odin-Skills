@@ -231,3 +231,144 @@ class TestRunSignatureIsKeywordOnly(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAmbiguousLedgerWarning(unittest.TestCase):
+    """Guard 2 of issue #244, in the form DEC-0023 chose.
+
+    When the workspace holds project ledgers and the spec names none, the destination is
+    ambiguous: the run is about to write into the harness ledger on the strength of a
+    default rather than a declaration. That warns on stderr and proceeds — it does not
+    refuse, because a refusal would break `roadmap`'s documented `prioritize --record`
+    chain, whose files this change is not authorized to fix. DEC-0023 records the veto,
+    the scoring, and the condition under which `refuse` becomes available.
+
+    stderr, never stdout: stdout is the result document a caller pipes into jq.
+    """
+
+    def _spec(self, decisions_dir=None):
+        spec = {
+            "goal": "Ambiguity fixture",
+            "reversibility": "two-way",
+            "options": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
+            "criteria": [
+                {"id": "c1", "label": "C1", "weight": 100, "direction": "higher-is-better"}
+            ],
+            "scorers": [
+                {
+                    "id": "s1",
+                    "label": "S1",
+                    "scores": {
+                        "a": {"c1": {"value": 80, "confidence": 1}},
+                        "b": {"c1": {"value": 20, "confidence": 1}},
+                    },
+                }
+            ],
+            "methods": ["weighted-sum"],
+        }
+        if decisions_dir is not None:
+            spec["decisions_dir"] = decisions_dir
+        return spec
+
+    def _root_with_project_ledger(self, tmp):
+        root = Path(tmp)
+        (root / ".claude" / "docs" / "decisions").mkdir(parents=True)
+        (root / "projects" / "demo" / "docs" / "decisions").mkdir(parents=True)
+        return root
+
+    def _run_capturing_stderr(self, spec, **kwargs):
+        import io
+        from contextlib import redirect_stderr
+
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            result, code = run(spec, **kwargs)
+        return result, code, buf.getvalue()
+
+    def test_warns_and_still_records_when_the_destination_is_ambiguous(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root_with_project_ledger(tmp)
+            harness = root / ".claude" / "docs" / "decisions"
+
+            result, code, err = self._run_capturing_stderr(
+                self._spec(), decisions_dir=harness, record=True, workspace_root=root
+            )
+
+            self.assertEqual(code, 0, "the run completes — this warns, it does not refuse")
+            self.assertIsNotNone(result.get("dec_record_path"), "the record was still written")
+            self.assertIn("ambiguous", err.lower())
+            self.assertIn("projects/demo/docs/decisions", err.replace(os.sep, "/"))
+            self.assertIn("decisions_dir", err, "the remedy is named, not merely the problem")
+
+    def test_a_spec_that_declares_its_ledger_is_never_warned_about(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root_with_project_ledger(tmp)
+            project = root / "projects" / "demo" / "docs" / "decisions"
+
+            result, code, err = self._run_capturing_stderr(
+                self._spec(decisions_dir=str(project)),
+                record=True,
+                workspace_root=root,
+            )
+
+            self.assertEqual(code, 0)
+            self.assertNotIn("ambiguous", err.lower())
+            self.assertIn("projects", result["dec_record_path"], "recorded where it was declared")
+
+    def test_an_explicit_flag_is_never_warned_about(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root_with_project_ledger(tmp)
+            harness = root / ".claude" / "docs" / "decisions"
+
+            _, code, err = self._run_capturing_stderr(
+                self._spec(), decisions_dir=harness, record=True, workspace_root=root,
+                declared_destination=True,
+            )
+            self.assertEqual(code, 0)
+            self.assertNotIn("ambiguous", err.lower())
+
+    def test_a_workspace_with_no_project_ledger_is_never_warned_about(self):
+        """The genuine-harness-decision case, and the one that must not regress: a
+        checkout with no project ledger has no ambiguity to report."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            harness = root / ".claude" / "docs" / "decisions"
+            harness.mkdir(parents=True)
+
+            result, code, err = self._run_capturing_stderr(
+                self._spec(), decisions_dir=harness, record=True, workspace_root=root
+            )
+
+            self.assertEqual(code, 0)
+            self.assertEqual(err, "", "silence when there is nothing to disambiguate")
+            self.assertIsNotNone(result.get("dec_record_path"))
+
+    def test_a_non_recording_run_is_never_warned_about(self):
+        """A scoring run writes nothing, so it has no destination to be ambiguous about.
+        Warning there would fire on the common case."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root_with_project_ledger(tmp)
+
+            _, code, err = self._run_capturing_stderr(
+                self._spec(), record=False, workspace_root=root
+            )
+
+            self.assertEqual(code, 0)
+            self.assertEqual(err, "")
+
+    def test_candidate_ledgers_are_listed_repo_relative_and_sorted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root_with_project_ledger(tmp)
+            (root / "projects" / "alpha" / "docs" / "decisions").mkdir(parents=True)
+            harness = root / ".claude" / "docs" / "decisions"
+
+            _, _, err = self._run_capturing_stderr(
+                self._spec(), decisions_dir=harness, record=True, workspace_root=root
+            )
+            normalized = err.replace(os.sep, "/")
+            self.assertLess(
+                normalized.index("projects/alpha/docs/decisions"),
+                normalized.index("projects/demo/docs/decisions"),
+                "candidates are sorted, so the message is stable across machines",
+            )
+            self.assertNotIn(str(root), err, "paths are repo-relative, not absolute")

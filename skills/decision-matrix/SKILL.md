@@ -86,7 +86,11 @@ of options is the failure this skill exists to prevent (`.claude/rules/common/de
   Precedence: flag > spec key > harness ledger. Relative paths resolve against the repository root,
   not the working directory, because the engine is run from this skill's directory.
   **Recording a project's decision in the harness ledger inflates the harness DEC sequence and hides
-  the decision from the project that owns it.**
+  the decision from the project that owns it.** When the workspace contains any
+  `projects/*/docs/decisions/` and the spec declares no `decisions_dir`, `--record` prints a warning
+  naming every candidate ledger before it writes — the destination was defaulted, not chosen
+  (DEC-0023). Declaring the key silences it, including for a genuine harness decision:
+  `"decisions_dir": ".claude/docs/decisions"` is a statement, the default is an assumption.
 - Visual: `node scripts/visual.mjs <result.json>` → self-contained HTML to stdout.
 
 **The engine refuses an incomplete spec on purpose.** A missing score is a question nobody answered;

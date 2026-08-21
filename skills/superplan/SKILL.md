@@ -194,8 +194,16 @@ Commit: `type: description`
 
 ### Task 2 — <title>
 
-<same five blocks; repeat per task — never "similar to Task 1", a cold executor may read them out
-of order>
+**Files:**
+- Create / Modify / Delete: `exact/path/to/another-file.ext`
+
+**Depends on:** Task 1
+
+Run: `<the command that proves this task landed>`
+Expected: <the output or state that means it passed>
+
+**Exit criteria:** <what is observably true when this task is done>
+Commit: `type: description`
 
 ## Done criteria
 
@@ -206,6 +214,18 @@ of order>
 Every row names a command, test or audit that can be run. "Measurable conditions" with nothing to
 run is the criterion this table replaced.
 ```
+
+**Repeat the five blocks for every task — never describe one by reference to another.** A dispatched
+executor sees only its own task and may read them out of order, so a task whose body points at an
+earlier one is a task nobody can execute cold. `plancheck` enforces this from both directions: a
+back-reference in place of a body trips its placeholder check, and a `**Depends on:**` naming a
+higher-numbered task is a forward dependency it refuses.
+
+This guidance sits **outside** the fence deliberately. The block above is copied verbatim into a plan
+doc; an instruction living inside it arrives in the copy, and prose about the template is not part of
+the template. The fenced block is also the fixture `.claude/tests/superplan-template.test.sh` extracts
+and feeds to the real `plancheck` — it parses clean today, and an instructional sentence added back
+inside it would turn that gate red (DEC-0011).
 
 **Self-check before Phase 3.5** — the rubric the `planner` agent applies:
 

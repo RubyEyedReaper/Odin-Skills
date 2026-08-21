@@ -172,7 +172,10 @@ the key keeps re-triggering the gate until somebody deletes the gate**.
      for a project key — or in a `.claude/rules/` file when it is a rule the harness carries. Route
      the rule-text half through the forked `rules-distill`, which drafts it, decides its tier
      (`paths:`-scoped by default; always-on costs context on every turn of every session) and
-     records the reasoning.
+     records the reasoning — as a row in `DISTILLATIONS.md` at the repository root, so the
+     promotion leaves evidence a later session can find (ADR-0067). A promotion whose rule half
+     exists only in a commit message is organised by commit time, which is the property that made
+     recurrence uncountable in the first place.
 
 3. **Close the loop on the rows.** The originating occurrences are what the gate reads, so a
    promotion that does not mark them leaves the gate failing forever:

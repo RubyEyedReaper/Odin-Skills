@@ -146,10 +146,75 @@ DEFAULT_SECTION_EXCLUDE = (
 
 # ----------------------------------------------------------------- path helpers
 
+def _worktree_roots(start):
+    """Every worktree of the repository containing `start`, or [] when there is no repository.
+
+    Silence is the honest answer outside a repository: no git, a plain directory, a roadmap
+    kept outside any checkout. An engine that refuses to work when git is unavailable is worse
+    than the defect it is guarding — the same reasoning ADR-0062 applied to an unreadable
+    `origin/main`.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", start, "worktree", "list", "--porcelain"],
+            capture_output=True, text=True, timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    return [line[len("worktree "):].strip()
+            for line in out.stdout.splitlines() if line.startswith("worktree ")]
+
+
+def _ambiguous_targets(start):
+    """The distinct roadmaps a mutating call run from `start` could plausibly have meant.
+
+    One entry — or none — is not ambiguity. Two are, and the pair is what the refusal prints:
+    a message that says "this is ambiguous" without naming the alternatives leaves the reader
+    with nothing to check.
+    """
+    found = []
+    for root in _worktree_roots(start):
+        candidate = schema_mod.locate(root)
+        if candidate is None:
+            continue
+        real = os.path.realpath(candidate)
+        if real not in found:
+            found.append(real)
+    return sorted(found)
+
+
 def _resolve(args, required=True):
     if getattr(args, "path", None):
         return os.path.abspath(args.path)
-    found = schema_mod.locate(getattr(args, "root", None) or os.getcwd())
+    root = getattr(args, "root", None)
+    # `render` is deliberately not in the mutating set. It rewrites only generated files, and
+    # `refresh()` regenerates those on every *read* command anyway — refusing `render` while
+    # `next` silently re-renders would be incoherent.
+    mutating = getattr(args, "mutating", False)
+    conditional = getattr(args, "mutating_when", None)
+    if conditional and getattr(args, conditional, None):
+        mutating = True   # `reconcile --apply-auto`, `prioritize --from` — writes only then
+    if root is None and mutating:
+        # The target was not named, and this call writes. `cwd` is the only thing left to
+        # resolve it with, and `cwd` is exactly what a command earlier in the session may have
+        # changed invisibly — DEC-0022, issue #355. The engine is the only party holding both
+        # the true `cwd` and the resolved target, so the refusal belongs here rather than in a
+        # hook that can see neither.
+        #
+        # The predicate is **two reachable roadmaps**, not two worktrees. A sibling worktree
+        # with no roadmap of its own creates no second target, and refusing there would be
+        # friction with no hazard behind it — which is how a guard ends up switched off.
+        candidates = _ambiguous_targets(os.getcwd())
+        if len(candidates) > 1:
+            _die(
+                "ambiguous target: this repository has %d worktrees holding a roadmap, and "
+                "this command writes.\n%s\n"
+                "  Name the one you mean: --root <dir>  (or --path <roadmap.json>)"
+                % (len(candidates), "\n".join("    %s" % c for c in candidates))
+            )
+    found = schema_mod.locate(root or os.getcwd())
     if found is None and required:
         _die(
             "no roadmap found. Create one with:\n"
@@ -353,9 +418,14 @@ def cmd_prioritize(args):
             ))
         return 0
 
+    # State the ledger this prioritisation belongs to rather than leaving `decision-matrix` to
+    # pick it from a default. For a harness roadmap the default happened to be right; for a
+    # project roadmap it put the project's RICE decision in the harness DEC sequence, invisible
+    # to the project that owns it (harness:RM-0170, #380).
     spec = prioritize_mod.export_spec(
         doc, ids=_csv(args.ids) or None, tier=args.tier,
         unblocked_only=args.unblocked, goal=args.goal,
+        decisions_dir=prioritize_mod.ledger_for(path, relative_to=_repo_root(path)),
     )
     text = json.dumps(spec, indent=2)
     if args.out:
@@ -367,6 +437,18 @@ def cmd_prioritize(args):
     else:
         print(text)
     return 0
+
+
+def _repo_root(json_path):
+    """The repository a relative `decisions_dir` will be resolved against, or None.
+
+    `decision-matrix` resolves a relative path against *its own* repository root, so that is
+    the anchor the exported value has to be relative to — not the roadmap's own root, which for
+    a project under `projects/` is a different directory.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))          # .../skills/roadmap/scripts
+    root = os.path.abspath(os.path.join(here, "..", "..", "..", ".."))
+    return root if os.path.commonpath([root, os.path.abspath(json_path)]) == root else None
 
 
 def _resolve_ref(doc, path, text):
@@ -548,7 +630,29 @@ def cmd_render(args):
     return 0
 
 
+def _fail_on_kinds(raw):
+    """Parse `--fail-on` into a set of finding kinds, or raise on one the engine cannot emit.
+
+    Refusing an unknown kind is the point (DEC-0015). A typo'd kind would match nothing and the
+    gate would pass — green for the wrong reason, which is precisely the failure this whole change
+    exists to remove.
+    """
+    kinds = {part.strip() for part in str(raw or "").split(",") if part.strip()}
+    unknown = sorted(kinds - reconcile_mod.FINDING_KINDS)
+    if unknown:
+        raise ValueError(
+            "unknown finding kind(s) for --fail-on: %s\nknown kinds: %s"
+            % (", ".join(unknown), ", ".join(sorted(reconcile_mod.FINDING_KINDS)))
+        )
+    return kinds
+
+
 def cmd_reconcile(args):
+    try:
+        fail_on = _fail_on_kinds(getattr(args, "fail_on", ""))
+    except ValueError as exc:
+        sys.stderr.write("[roadmap] %s\n" % exc)
+        return 2
     path, doc = _load(args)
     refresh(path, args)
     report = reconcile_mod.reconcile(
@@ -603,6 +707,16 @@ def cmd_reconcile(args):
         print("%d item(s) added; %d auto finding(s) needed no item; "
               "%d item(s) need confirmation"
               % (len(added), skipped, len(report["manual"])))
+    # The report is printed either way. `--fail-on` decides the exit code and nothing else, so a
+    # CI wrapper never parses this output — the severity decision lives here, in Python, under the
+    # existing test suite, rather than in a bash `grep` that would drift from it
+    # (`.claude/rules/ci/patterns.md`).
+    if fail_on:
+        hit = sorted({f["kind"] for f in report["findings"]} & fail_on)
+        if hit:
+            sys.stderr.write(
+                "[roadmap] failing on: %s\n" % ", ".join(hit))
+            return 1
     return 0
 
 
@@ -808,7 +922,7 @@ def build_parser():
                      help="only items with no unmet deps")
     pri.add_argument("--goal", help="override the decision goal line")
     pri.add_argument("--out", help="write the spec here instead of stdout")
-    pri.set_defaults(func=cmd_prioritize)
+    pri.set_defaults(func=cmd_prioritize, mutating_when="source")
 
     def add_item_flags(sub, require_title):
         sub.add_argument("--title", required=require_title)
@@ -832,7 +946,7 @@ def build_parser():
 
     add = subparsers.add_parser("add", help="append an item")
     add_item_flags(add, require_title=True)
-    add.set_defaults(func=cmd_add)
+    add.set_defaults(func=cmd_add, mutating=True)
 
     set_cmd = subparsers.add_parser("set", help="mutate an item")
     set_cmd.add_argument("id")
@@ -842,7 +956,7 @@ def build_parser():
         help="claim an item %s already shows in-progress or done. Bypasses the concurrency "
              "check only — never validation." % UPSTREAM_REF,
     )
-    set_cmd.set_defaults(func=cmd_set)
+    set_cmd.set_defaults(func=cmd_set, mutating=True)
 
     render = subparsers.add_parser("render", help="regenerate ROADMAP.md and the graph")
     render.set_defaults(func=cmd_render)
@@ -851,11 +965,15 @@ def build_parser():
     rec.add_argument("--format", choices=("text", "json"), default="text")
     rec.add_argument("--no-git", action="store_true")
     rec.add_argument("--no-gh", action="store_true")
+    rec.add_argument(
+        "--fail-on", dest="fail_on", default="", metavar="KIND[,KIND...]",
+        help="exit 1 when a finding of one of these kinds is produced (default: never)",
+    )
     rec.add_argument("--apply-auto", action="store_true")
     rec.add_argument("--surface-root", dest="surface_roots", action="append",
                      help="directory to sweep for unclaimed surfaces "
                           "(repeatable; overrides `surface_roots` in the doc)")
-    rec.set_defaults(func=cmd_reconcile)
+    rec.set_defaults(func=cmd_reconcile, mutating_when="apply_auto")
 
     due = subparsers.add_parser("due", help="is a reconcile overdue?")
     due.add_argument("--format", choices=("text", "json"), default="text")
@@ -874,7 +992,7 @@ def build_parser():
                            % (", ".join(sorted(STARTER_SURFACES)), DEFAULT_STARTER_PROFILE))
     boot.add_argument("--sections-exclude", dest="sections_exclude",
                       help="regex of headings to skip (default: run/meta sections)")
-    boot.set_defaults(func=cmd_bootstrap)
+    boot.set_defaults(func=cmd_bootstrap, mutating=True)
 
     return parser
 
@@ -886,6 +1004,11 @@ def main(argv=None):
         return args.func(args)
     except SystemExit:
         raise
+    except schema_mod.StaleWrite as exc:
+        # A refusal, not a crash. Every one of the six `save` sites raises this the same way and
+        # none of them checks for it — that is the point of raising rather than returning — so
+        # the translation into an engine exit belongs here, once.
+        _die(str(exc))
     except FileNotFoundError as exc:
         _die(str(exc))
     except (KeyError, ValueError) as exc:

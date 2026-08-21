@@ -134,17 +134,114 @@ def content_hash(doc):
     return hashlib.sha256(canonical_json(doc).encode("utf-8")).hexdigest()
 
 
+class StaleWrite(Exception):
+    """A write whose target moved on disk since this process read it.
+
+    Raised by `save` rather than returned, because every caller's correct response is the
+    same — abandon the write and re-run — and a return value is the kind of thing six call
+    sites forget to check one at a time.
+    """
+
+
+#: What each in-memory document was read from: ``id(doc) -> (doc, realpath, digest)``.
+#:
+#: **Keyed on the document, not on the path.** A path-keyed memory answers "what did this
+#: process last see on disk", which is the wrong question: two documents loaded from one file
+#: share that answer, so the second write looks current and clobbers the first. The question a
+#: write has to answer is "have the bytes *this document* was derived from moved", and only
+#: the document identifies that.
+#:
+#: The document is held in the tuple to pin its `id` — CPython recycles ids of collected
+#: objects, and a recycled id would attach one document's provenance to an unrelated one. The
+#: engine is a short-lived CLI holding a handful of documents, so the retention is bounded by
+#: how many roadmaps one command reads.
+#:
+#: **Populated by `load`, deliberately, not by the callers.** A guard that asks writers to opt
+#: in covers only the writers that opted in — including none of the ones somebody adds next
+#: year. `load` is the only way a roadmap document enters this process, so keying on it reaches
+#: every write path without any of them knowing the guard exists.
+_origin = {}
+
+
+def _digest_on_disk(path):
+    """The digest of the file as it is right now, or None when there is no file."""
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except FileNotFoundError:
+        return None
+
+
+def forget(path):
+    """Drop this process's memory of every document read from `path`.
+
+    The escape hatch, and the seam a test uses to force the stale branch. Named rather than
+    private because a caller that genuinely means to overwrite — a repair, a restore from a
+    backup — needs a way to say so that is not "delete the guard".
+    """
+    resolved = os.path.realpath(path)
+    for key in [k for k, (_, origin, _) in _origin.items() if origin == resolved]:
+        del _origin[key]
+
+
 def load(path):
     with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+        text = fh.read()
+    doc = json.loads(text)
+    _origin[id(doc)] = (doc, os.path.realpath(path),
+                        hashlib.sha256(text.encode("utf-8")).hexdigest())
+    return doc
 
 
 def save(path, doc):
+    """Write `doc` to `path`, refusing a write whose target changed since we read it.
+
+    Two guarantees, and they depend on each other:
+
+    **Compare-and-swap.** If this process loaded `path` and the bytes there are no longer the
+    bytes it saw, the write is refused (`StaleWrite`). This is the same-directory half of the
+    lost update — ADR-0062 closed the cross-worktree half at claim time and at integration
+    time, and explicitly does not cover two processes on one file. `harness:RM-0050`, DEC-0028.
+
+    **Atomicity.** The document is written to a sibling temp file and `os.replace`d onto the
+    target, so a reader sees the old file or the new one and never a truncated one. Without
+    this the compare-and-swap above would be comparing against bytes another process might be
+    halfway through writing.
+
+    A path this process never loaded is not a stale write and is not refused — `init` creates
+    a file it never read. After a successful write the remembered digest becomes the one just
+    written, so a second save in the same process compares against our own last write.
+    """
+    resolved = os.path.realpath(path)
+    remembered = _origin.get(id(doc))
+    if remembered is not None and remembered[1] == resolved:
+        current = _digest_on_disk(path)
+        if current is not None and current != remembered[2]:
+            raise StaleWrite(
+                "%s changed on disk since this process read it — refusing to overwrite. "
+                "Another agent or process wrote it first, and applying this document would "
+                "silently revert their write. Nothing was changed; re-run the command."
+                % os.path.basename(path)
+            )
+
+    text = canonical_json(doc)  # serialise before touching the target, never during
     parent = os.path.dirname(os.path.abspath(path))
     if parent:
         os.makedirs(parent, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(canonical_json(doc))
+    tmp = "%s.%d.tmp" % (os.path.abspath(path), os.getpid())
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    _origin[id(doc)] = (doc, resolved, hashlib.sha256(text.encode("utf-8")).hexdigest())
 
 
 def paths_for(json_path):
