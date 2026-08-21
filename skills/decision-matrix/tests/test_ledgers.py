@@ -112,6 +112,44 @@ class TestCheckLedger(unittest.TestCase):
             write_index(ledger, "0001", "0002")
             self.assertTrue(any("names no record" in f for f in check_ledger(ledger)))
 
+    def test_two_records_sharing_a_number_fails(self):
+        """THE INCIDENT (2026-08-20). Two live sessions each read the ledger's high-water
+        mark in their own worktree and both minted DEC-0028, for two unrelated decisions.
+        Both records were correct in isolation — right frontmatter, one index row between
+        them — so every predicate here passed and the gate exited 0. Uniqueness of the
+        number across records was the one thing nothing asserted.
+
+        This is the half of harness:RM-0165 that survives a fresh clone: no local counter
+        can see a duplicate that arrived by `git pull`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = Path(tmp) / "decisions"
+            ledger.mkdir(parents=True)
+            for slug in ("alpha", "beta"):
+                (ledger / f"DEC-0028-{slug}.md").write_text(
+                    "---\ndec_id: DEC-0028\ndate: 2026-08-20\n"
+                    f"goal: Fixture {slug}\nwinner: a\n---\n## Recommendation\n",
+                    encoding="utf-8",
+                )
+            (ledger / "README.md").write_text(
+                "# Decision Ledger\n\n| DEC | Title | Winner | Record |\n|---|---|---|---|\n"
+                "| DEC-0028 | Alpha | a | [DEC-0028-alpha.md](DEC-0028-alpha.md) |\n",
+                encoding="utf-8",
+            )
+            failures = check_ledger(ledger)
+            self.assertTrue(any("share the number" in f for f in failures), failures)
+            joined = " ".join(failures)
+            self.assertIn("DEC-0028-alpha.md", joined)
+            self.assertIn("DEC-0028-beta.md", joined)
+
+    def test_one_record_per_number_passes(self):
+        """The negative control. Without it the uniqueness check could be unconditional."""
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = Path(tmp) / "decisions"
+            write_record(ledger, "0027")
+            write_record(ledger, "0028")
+            write_index(ledger, "0027", "0028")
+            self.assertEqual(check_ledger(ledger), [])
+
     def test_numbering_gaps_are_not_a_failure(self):
         """next_dec_number is max+1 and workers reserve id blocks, so gaps are the
         expected residue of normal operation rather than drift."""

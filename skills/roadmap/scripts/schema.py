@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from pathlib import Path
 import re
 from datetime import date
 
@@ -380,13 +381,60 @@ def find(doc, item_id):
     return None
 
 
+def _id_alloc_module():
+    """The shared id allocator, loaded by path. None when it is not reachable.
+
+    scripts/ -> roadmap/ -> skills/ -> .claude/ -> scripts/lib/id_alloc.py
+    """
+    import importlib.util
+    target = Path(__file__).resolve().parents[3] / "scripts" / "lib" / "id_alloc.py"
+    if not target.is_file():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("odin_id_alloc", target)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except OSError:
+        return None
+
+
 def alloc_id(doc):
+    """The next free RM id, reserved against the counter every worktree of a clone shares.
+
+    THE DEFECT (harness:RM-0165). max+1 over this document's items is max+1 over ONE
+    working copy. Two git worktrees hold two roadmaps, so two sessions adding an item at
+    the same time both get the same number — the same shape that produced two DEC-0028
+    records on 2026-08-20, one namespace over.
+
+    KEYED TO THE DOCUMENT, NOT TO THE CALLERS — ADR-0075's rule, applied to allocation
+    rather than to writing. `add_item` has five call sites across three modules, and a
+    `path=` parameter threaded through them would cover exactly the ones that were updated,
+    including none of the ones added later by someone who never read this. `load()` already
+    records where each document came from, so asking `_origin` reaches every caller and
+    every future one without any of them knowing the allocator is here.
+
+    The document's own maximum stays the FLOOR: a roadmap edited by hand, or one loaded
+    from a path this process never read, still allocates above its highest item. That is
+    what makes a document with no recorded origin — an in-memory doc built by a test or by
+    `init` — behave exactly as it did before.
+    """
     highest = 0
     for item in doc.get("items", []):
         item_id = item.get("id", "")
         if ID_RE.match(item_id):
             highest = max(highest, int(item_id[3:]))
-    return "RM-%04d" % (highest + 1)
+
+    remembered = _origin.get(id(doc))
+    module = _id_alloc_module() if remembered else None
+    if module is None:
+        return "RM-%04d" % (highest + 1)
+
+    start = Path(remembered[1]).parent
+    if module.common_dir(start) is None:
+        return "RM-%04d" % (highest + 1)
+    with module.reserve("rm", highest, start=start) as number:
+        return "RM-%04d" % number
 
 
 def add_item(doc, title, kind, today=None, **kw):

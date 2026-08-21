@@ -73,6 +73,35 @@ class TestRunWithRecord(unittest.TestCase):
             self.assertTrue(dec_path.exists())
             self.assertTrue(dec_path.name.startswith("DEC-0001-"))
 
+    def test_a_reserved_id_binds_end_to_end(self):
+        """harness:RM-0165, the whole point. A worker handed DEC-0042 in writing could not
+        make the engine use it: `run` took max+1 and the worker renamed the file and
+        repaired the index row afterwards. Now the reservation reaches the filename, the
+        frontmatter and the index row in one pass."""
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            result, exit_code = run(
+                _spec(), decisions_dir=decisions_dir, record=True, dec_id="DEC-0042"
+            )
+            self.assertEqual(exit_code, 0)
+            dec_path = Path(result["dec_record_path"])
+            self.assertTrue(dec_path.name.startswith("DEC-0042-"), dec_path.name)
+            self.assertIn("dec_id: DEC-0042", dec_path.read_text(encoding="utf-8"))
+            self.assertIn(
+                "| DEC-0042 |", (decisions_dir / "README.md").read_text(encoding="utf-8")
+            )
+
+    def test_a_reserved_id_that_is_taken_is_refused_not_moved(self):
+        """The negative control, and the reason this is a refusal rather than a bump: a run
+        that asked for DEC-0042 and silently got DEC-0043 writes 0043's record under 0042's
+        name in the filename, the frontmatter, the index row and the commit message."""
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            run(_spec(), decisions_dir=decisions_dir, record=True, dec_id="DEC-0042")
+            with self.assertRaises(Exception) as caught:
+                run(_spec(), decisions_dir=decisions_dir, record=True, dec_id="DEC-0042")
+            self.assertIn("already spoken for", str(caught.exception))
+
     def test_record_true_writes_readme_index(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
@@ -340,7 +369,12 @@ class TestAmbiguousLedgerWarning(unittest.TestCase):
             )
 
             self.assertEqual(code, 0)
-            self.assertEqual(err, "", "silence when there is nothing to disambiguate")
+            # Scoped to the ambiguity warning, which is what this case owns. stderr is a
+            # shared channel: the id allocator announces a degrade there too, and asserting
+            # the whole stream empty makes this case fail whenever any unrelated subsystem
+            # correctly says something. The invariant is "no warning", not "no output".
+            warnings = [ln for ln in err.splitlines() if ln.startswith("warning:")]
+            self.assertEqual(warnings, [], "silence when there is nothing to disambiguate")
             self.assertIsNotNone(result.get("dec_record_path"))
 
     def test_a_non_recording_run_is_never_warned_about(self):
@@ -371,4 +405,8 @@ class TestAmbiguousLedgerWarning(unittest.TestCase):
                 normalized.index("projects/demo/docs/decisions"),
                 "candidates are sorted, so the message is stable across machines",
             )
-            self.assertNotIn(str(root), err, "paths are repo-relative, not absolute")
+                # The warning block is what must carry repo-relative paths; a diagnostic from
+            # another subsystem naming an absolute path is not this invariant's business.
+            warning_block = err.split("note:")[0]
+            self.assertNotIn(str(root), warning_block,
+                             "paths are repo-relative, not absolute")

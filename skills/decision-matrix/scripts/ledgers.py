@@ -35,6 +35,11 @@ WHAT IS DELIBERATELY NOT CHECKED:
   advance, so gaps (0010, 0013, 0016 today) are the expected residue of normal operation.
   A contiguity predicate would be red forever on a healthy ledger.
 
+  *Uniqueness is a different question and IS checked.* A gap means nobody used a number; a
+  duplicate means two sessions used the same one, which is a real defect with two records
+  to reconcile. The two predicates are opposites, not neighbours — adding the second does
+  not weaken the case against the first (harness:RM-0165).
+
 Usage:  python3 -m scripts.ledgers [--root ROOT] [--json]
 Exit:   0 every ledger consistent
         1 at least one violation, one FAIL line each
@@ -119,6 +124,30 @@ def check_ledger(ledger: Path) -> list:
     failures = []
     records = sorted(p for p in ledger.glob("DEC-*.md") if _RECORD_RE.match(p.name))
     readme = ledger / "README.md"
+
+    # Uniqueness of the NUMBER across records, checked before anything else reads them.
+    #
+    # THE INCIDENT (2026-08-20, harness:RM-0165). Two live sessions each read this ledger's
+    # high-water mark in their own worktree and both minted DEC-0028, for two unrelated
+    # decisions. Each record was internally correct — right frontmatter, one index row
+    # between them — so every predicate below passed and this gate exited 0 while printing
+    # "2 records, 1 rows".
+    #
+    # This is deliberately the DETECTION half of that item, and it is the half that keeps
+    # working where the allocator cannot: a shared counter lives in one clone's git
+    # directory, so a duplicate that arrives by `git pull`, from another machine, or from a
+    # hand-written record is invisible to it and visible here.
+    by_number = {}
+    for record in records:
+        by_number.setdefault(_RECORD_RE.match(record.name).group(1), []).append(record)
+    for number, group in sorted(by_number.items()):
+        if len(group) > 1:
+            names = ", ".join(r.name for r in group)
+            failures.append(
+                f"DEC-{number}: {len(group)} records share the number ({names}) — "
+                "two allocations resolved to one id. Renumber all but one through the "
+                "engine, which rewrites the dec_id and the index row with the filename."
+            )
 
     if records and not readme.is_file():
         failures.append(f"{ledger}: {len(records)} record(s) and no README.md to index them")

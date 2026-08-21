@@ -42,6 +42,7 @@ from scripts.sensitivity import (
     disagreement_report,
 )
 from scripts.ledger import (
+    allocate_dec_id,
     next_dec_number,
     write_dec_record,
     update_readme_index,
@@ -411,7 +412,8 @@ def _revisit_reminder(spec: dict) -> dict:
 
 
 def run(spec: dict, *, decisions_dir: Path = None, record: bool = False,
-        workspace_root: Path = None, declared_destination: bool = False) -> tuple:
+        workspace_root: Path = None, declared_destination: bool = False,
+        dec_id: str = None) -> tuple:
     """Core orchestration. Returns (result_dict, exit_code).
 
     decisions_dir/record control DEC-ledger recording (Sprint 4):
@@ -570,19 +572,25 @@ def run(spec: dict, *, decisions_dir: Path = None, record: bool = False,
 
         if recommendation.get("winner") is not None:
             title = spec.get("goal", "Untitled decision")
-            dec_number = next_dec_number(resolved_decisions_dir)
-            dec_id = f"DEC-{dec_number:04d}"
-            # The id can move: write_dec_record bumps the number if another session
-            # claimed the slot after next_dec_number() read it. Index what was written.
-            dec_path, dec_id = write_dec_record(dec_id, spec, result, resolved_decisions_dir)
-            update_readme_index(
-                dec_id, title, dec_path, resolved_decisions_dir, winner=recommendation.get("winner")
-            )
-            result["dec_record_path"] = str(dec_path)
-            html_path, html_err = _render_visual(result, dec_path)
-            result["html_artifact_path"] = html_path
-            if html_err is not None:
-                result["html_artifact_error"] = html_err
+            # Allocated against the counter every worktree of this clone shares, with this
+            # ledger's own scan as the floor (harness:RM-0165). The reservation is held for
+            # the duration of the write, so a failed record write rewinds it rather than
+            # burning the number.
+            with allocate_dec_id(resolved_decisions_dir, want=dec_id) as reserved_id:
+                # The id can still move on the degrade path, where there is no counter and
+                # write_dec_record's own bump is the last net. Index what was written.
+                dec_path, dec_id = write_dec_record(
+                    reserved_id, spec, result, resolved_decisions_dir
+                )
+                update_readme_index(
+                    dec_id, title, dec_path, resolved_decisions_dir,
+                    winner=recommendation.get("winner"),
+                )
+                result["dec_record_path"] = str(dec_path)
+                html_path, html_err = _render_visual(result, dec_path)
+                result["html_artifact_path"] = html_path
+                if html_err is not None:
+                    result["html_artifact_error"] = html_err
     else:
         result["prior_decisions"] = []
         result["dec_record_path"] = None
@@ -617,6 +625,16 @@ def main() -> None:
     )
     parser.set_defaults(record=False)
     parser.add_argument(
+        "--dec-id",
+        metavar="DEC-NNNN",
+        default=None,
+        help="Record this decision under one specific id. Honoured when the number is "
+             "free and REFUSED when it is taken — never silently changed. This is what "
+             "makes a reserved id block binding; before it existed, a worker holding a "
+             "reservation in writing still had to rename the record and repair the index "
+             "row by hand afterwards (harness:RM-0165).",
+    )
+    parser.add_argument(
         "--decisions-dir",
         metavar="PATH",
         default=None,
@@ -647,6 +665,7 @@ def main() -> None:
             decisions_dir=decisions_dir,
             record=args.record,
             declared_destination=decisions_dir is not None,
+            dec_id=args.dec_id,
         )
     except Exception as exc:  # noqa: BLE001 — top-level safety net
         payload = _build_error_response(f"unexpected error: {exc}")

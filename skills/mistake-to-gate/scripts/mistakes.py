@@ -22,8 +22,16 @@ from pathlib import Path
 #: Closed set, taken verbatim from `oops` §3 so the key is chosen by a step the procedure already
 #: forces — which is what makes two sessions land on the same prefix for the same failure.
 CLASSES = ("input", "precondition", "postcondition", "error-path", "ci-gate", "judgment")
-STATUSES = ("logged", "guarded", "promoted", "wontfix")
+# `promoted-rule` closes a CROSS-OWNER promotion, and is deliberately distinct from `promoted`.
+# A per-owner promotion demands both halves — a check in that owner's gate list and rule text. A
+# cross-owner one demands only the rule half, because a check is local (one gate list, one tree)
+# while a rule is not, and demanding a check from a count spread across owners points its owner at
+# the wrong gate list (harness:RM-0182, DEC-0029).
+STATUSES = ("logged", "guarded", "promoted", "promoted-rule", "wontfix")
 DEFAULT_THRESHOLD = 4
+
+#: How this script is invoked, for printing runnable commands in its own findings.
+_SELF = ".claude/skills/mistake-to-gate/scripts/mistakes.py"
 LOG_NAME = "MISTAKES.md"
 
 ID_RE = re.compile(r"^M-\d{4}$")
@@ -147,10 +155,89 @@ def due(rows, threshold=DEFAULT_THRESHOLD):
     for key, n in sorted(tally.items()):
         if n < threshold:
             continue
-        if all(r.status == "promoted" for r in rows if r.key == key and r.status != "wontfix"):
+        if all(r.status in ("promoted", "promoted-rule")
+               for r in rows if r.key == key and r.status != "wontfix"):
             continue
         out.append(key)
     return out
+
+
+def cross_owner_due(per_owner_rows, threshold=DEFAULT_THRESHOLD, cross_threshold=None):
+    """Findings for a key that reaches the threshold ACROSS owners without reaching it in any one.
+
+    The gap this closes: `MISTAKES.md` rows are owned, and the threshold is applied per owner, so one
+    failure mode recurring across the harness and three projects is four counts of one, below
+    threshold forever. Measured, not supposed — `ci-gate/fixture-reads-ambient-state` stood at four
+    in the harness log and one in a project's, and had it been 2+2 it would have been invisible while
+    being the most common shape in the repository (#387).
+
+    Three boundaries, each of which was a way to get this wrong:
+
+    * **Only the RULE half is demanded.** A check runs in one gate list against one tree; a rule does
+      not. Demanding a check here would point an owner at a gate list that cannot hold it, which is
+      `mistake-to-gate` §8's boundary error reached from a new direction (DEC-0029).
+    * **Distinct keys never sum.** Two different failure modes at two occurrences each are not one
+      failure mode at four. A gate that fired on unrelated work would be disabled, taking its true
+      positives with it.
+    * **A key already at threshold within a single owner is left alone.** That owner's finding
+      already demands both halves; adding a rule-only finding beside it would let the weaker demand
+      look like the whole obligation.
+    """
+    # TWO THRESHOLDS, READ FOR TWO DIFFERENT PURPOSES — and this is the whole reason the
+    # flag needed a decision rather than a substitution. `cross_threshold` gates the TOTAL.
+    # `threshold` keeps gating the SUPPRESSION rule below, because "is this already some
+    # single owner's business?" is a question about the per-owner rung and nothing else.
+    # Substituting one number for both makes a lower cross-threshold either double-report a
+    # key or suppress both findings.
+    if cross_threshold is None:
+        cross_threshold = threshold
+
+    totals, holders = {}, {}
+    for owner, rows in per_owner_rows.items():
+        for key, n in counts(rows).items():
+            totals[key] = totals.get(key, 0) + n
+            holders.setdefault(key, []).append((owner, n))
+
+    out = []
+    for key in sorted(totals):
+        if totals[key] < cross_threshold:
+            continue
+        # Already the per-owner check's business.
+        if any(n >= threshold for _, n in holders[key]):
+            continue
+        # Closed: every non-wontfix row carrying the key is promoted, by either route.
+        if all(r.status in ("promoted", "promoted-rule")
+               for rows in per_owner_rows.values()
+               for r in rows if r.key == key and r.status != "wontfix"):
+            continue
+        where = ", ".join("%s (%d)" % (o, n) for o, n in sorted(holders[key]))
+        out.append(
+            "cross-owner promotion due — %r has %d recorded occurrences across %d owners "
+            "(cross-threshold %d), and no single owner reaches the per-owner threshold "
+            "of %d: %s. "
+            "Only the RULE half is due: land rule text in the harness's .claude/rules/ at a "
+            "paths:-scoped tier via rules-distill, then mark every row for the key promoted-rule. "
+            "Do NOT land a check for this — a check belongs to one owner's gate list, and this "
+            "count belongs to none of them.%s"
+            % (key, totals[key], len(holders[key]), cross_threshold, threshold, where,
+               _closing_commands(key, holders[key])))
+    return out
+
+
+def _closing_commands(key, holders):
+    """The exact commands that close this finding, one per owner root.
+
+    Printed because closure spans several roots: a reader who is told to "mark every row"
+    still has to work out that it means N invocations in N directories, and a closing step
+    somebody has to reconstruct is one they get wrong or skip.
+    """
+    lines = ["\n  Close it with, one per owner:"]
+    for owner, _ in sorted(holders):
+        root = "." if owner in ("", ".", LOG_NAME) else owner
+        lines.append(
+            "    python3 %s promote %s --key %s --status promoted-rule "
+            "--fix 'rule: <path to the rule text>'" % (_SELF, root, key))
+    return "\n".join(lines)
 
 
 def siblings(rows, key):
@@ -289,11 +376,13 @@ def cmd_check(args):
         print("note: %s is its own repository — it keeps its own %s and its own gate"
               % (s, LOG_NAME), file=sys.stderr)
     findings = []
+    per_owner_rows = {}
     for owner in included:
         rows, errors = _load(owner)
         findings.extend(errors)
         if rows is None:
             continue
+        per_owner_rows[owner] = rows
         for key in due(rows, args.threshold):
             n = counts(rows)[key]
             findings.append(
@@ -301,6 +390,10 @@ def cmd_check(args):
                 "Run mistake-to-gate: land a mechanical check in this owner's gate list, rule text "
                 "in its CLAUDE.md, then mark every row for the key promoted."
                 % (owner, LOG_NAME, key, n, args.threshold))
+
+    findings.extend(cross_owner_due(per_owner_rows, args.threshold,
+                                    getattr(args, "cross_threshold", None)))
+
     for f in findings:
         print("FAIL: %s" % f, file=sys.stderr)
     if findings:
@@ -317,6 +410,26 @@ def cmd_report(args):
         print("FAIL: %s" % exc, file=sys.stderr)
         return 1
     rc = 0
+    cross = getattr(args, "cross_threshold", None) or args.threshold
+
+    # Every owner's rows are collected BEFORE anything is printed. The cross-owner total
+    # does not exist while the loop is still walking owners one at a time, which is why the
+    # unfiltered report could not name it: the number was not computable at print time.
+    #
+    # This is the visibility half of harness:RM-0182. `report --key K` already showed a
+    # per-owner section, so a reader who ALREADY suspected a key could see both counts —
+    # and the ladder exists precisely because nobody suspects the key. A count that is only
+    # visible to someone who already knows what to look for is not a signal.
+    all_rows = {}
+    for owner in included:
+        rows, _ = _load(owner)
+        if rows is not None:
+            all_rows[owner] = rows
+    totals = {}
+    for owner, rows in all_rows.items():
+        for key, n in counts(rows).items():
+            totals.setdefault(key, []).append((owner, n))
+
     for owner in included:
         rows, errors = _load(owner)
         print("\n== %s" % owner)
@@ -332,6 +445,21 @@ def cmd_report(args):
                 continue
             n = tally[key]
             print("  %-44s %d  %s" % (key, n, band(n, args.threshold)))
+            holders = totals.get(key, [])
+            if len(holders) > 1:
+                total = sum(count for _, count in holders)
+                elsewhere = ", ".join(
+                    "%s (%d)" % (o, c) for o, c in sorted(holders) if o != owner)
+                line = "      also in %s — total %d across %d owners" % (
+                    elsewhere, total, len(holders))
+                # The cross rung's verdict travels with the key rather than only at the
+                # bottom of the run, and `band()` stays the single source of what a count
+                # demands — a second band computed inline is how one gate starts giving two
+                # answers.
+                if total >= cross and not any(c >= args.threshold for _, c in holders):
+                    line += " — %s on the cross-owner rung (rule half only)" % band(
+                        total, cross)
+                print(line)
             for other in near_duplicates(rows, key):
                 print("      near-duplicate spelling: %s" % other)
             if args.key:
@@ -362,19 +490,38 @@ def cmd_append(args):
 
 
 def cmd_promote(args):
+    """Close a promotion by marking every row for the key.
+
+    `--status` exists because the cross-owner rung closes with `promoted-rule`, not
+    `promoted`, and this command hardcoded the latter. The finding printed by
+    `cross_owner_due` told the reader to "mark every row for the key promoted-rule" while
+    no command could write it, so the only route was hand-editing markdown rows — the
+    unclearable gate ADR-0057 names as the thing that gets a gate deleted.
+
+    The default stays `promoted`, so every existing invocation keeps its meaning.
+    """
     log = Path(args.root) / LOG_NAME
     if not log.is_file():
         print("FAIL: %s does not exist" % log, file=sys.stderr)
         return 1
-    n = set_status(log, args.key, "promoted", fix=args.fix)
-    print("%s: marked %d row(s) for %s promoted" % (log, n, args.key))
+    n = set_status(log, args.key, args.status, fix=args.fix)
+    print("%s: marked %d row(s) for %s %s" % (log, n, args.key, args.status))
     return 0
 
 
 def build_parser():
     p = argparse.ArgumentParser(prog="mistakes.py", description=__doc__.splitlines()[0])
     p.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD,
-                   help="occurrences that promote a key (default %d)" % DEFAULT_THRESHOLD)
+                   help="occurrences that promote a key within ONE owner "
+                        "(default %d)" % DEFAULT_THRESHOLD)
+    # Default None, not DEFAULT_THRESHOLD. A flag's absence and its zero value are
+    # different things: absent means "follow --threshold", which reproduces today's verdict
+    # exactly, while a hardcoded 4 here silently decouples the two the day --threshold is
+    # retuned. The separability is the point — the two rungs answer different questions and
+    # a repository may want them at different numbers — but the default must not move.
+    p.add_argument("--cross-threshold", type=int, default=None,
+                   help="occurrences that promote a key ACROSS owners, demanding the rule "
+                        "half only (default: follow --threshold)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("check", help="gate: grammar, owner coverage, promotion-due keys")
@@ -384,6 +531,9 @@ def build_parser():
     r = sub.add_parser("report", help="human/agent view of counts and bands")
     r.add_argument("root", nargs="?", default=".")
     r.add_argument("--key")
+    # No --cross-threshold here. It is a top-level flag, like --threshold, and defining it
+    # on a subparser as well would silently overwrite a top-level value with the
+    # subparser's default — argparse applies subparser defaults after the top-level parse.
     r.set_defaults(func=cmd_report)
 
     a = sub.add_parser("append", help="append one occurrence to an owner's log")
@@ -398,6 +548,9 @@ def build_parser():
     m.add_argument("root", nargs="?", default=".")
     m.add_argument("--key", required=True)
     m.add_argument("--fix", help="replacement fix text, e.g. the gate path")
+    m.add_argument("--status", default="promoted", choices=("promoted", "promoted-rule"),
+                   help="promoted closes a per-owner promotion (a check AND rule text); "
+                        "promoted-rule closes a cross-owner one (rule text only)")
     m.set_defaults(func=cmd_promote)
     return p
 

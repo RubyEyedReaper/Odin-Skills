@@ -189,6 +189,36 @@ the key keeps re-triggering the gate until somebody deletes the gate**.
    the proof the promotion is complete — the same "assert behaviour, never source" rule applied to
    your own closing step.
 
+### When the count is spread across owners
+
+A key can reach the threshold **across** owners without reaching it in any one — three rows in the
+harness log and one in a project's is four occurrences of one failure mode and a promotion nobody
+owes. `mistakes-check.sh` reports that separately, and it demands **only the rule half**:
+
+1. **Do not land a check.** A check runs in one gate list against one tree, and this count belongs
+   to no single tree. Landing one in whichever owner happens to be handy is §8's boundary error
+   reached from a new direction (ADR-0084, DEC-0029).
+2. **Land the rule text**, routed through the forked `rules-distill` exactly as in §11 step 2 — the
+   harness's `.claude/rules/` at a `paths:`-scoped tier, because the property that generalises is the
+   one every owner's files can match.
+3. **Close every owner's rows**, one command per owner root. The finding prints them:
+
+   ```sh
+   python3 .claude/skills/mistake-to-gate/scripts/mistakes.py promote . \
+     --key ci-gate/stale-reference --status promoted-rule --fix 'rule: .claude/rules/<file>.md'
+   python3 .claude/skills/mistake-to-gate/scripts/mistakes.py promote projects/<slug> \
+     --key ci-gate/stale-reference --status promoted-rule --fix 'rule: .claude/rules/<file>.md'
+   ```
+
+   `promoted-rule` is a different status from `promoted` on purpose: `promoted` asserts that both
+   halves landed, and marking a rule-only closure with it would make the weaker demand look like the
+   whole obligation for anyone reading the log later.
+
+A key already at threshold **within** one owner is never reported here — that owner's finding
+already demands both halves. The two rungs have separate numbers (`--threshold` and
+`--cross-threshold`), because "does this owner need a check" and "is this shape general enough to
+need a rule" are different questions.
+
 Later occurrences of a promoted key are still logged. A row arriving after promotion means the rule
 exists and the check missed it, which is a new incident about the check — the most valuable kind.
 

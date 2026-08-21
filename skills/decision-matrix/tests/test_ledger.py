@@ -10,6 +10,8 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.ledger import (
+    IdCollision,
+    allocate_dec_id,
     next_dec_number,
     slugify,
     write_dec_record,
@@ -441,3 +443,54 @@ class TestWriteDecRecordReturnsResolvedId(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAllocateDecId(unittest.TestCase):
+    """harness:RM-0165 — the allocator, seen through the DEC ledger's own entry point.
+
+    The cross-worktree behaviour is asserted by `.claude/tests/id-allocation.test.sh`,
+    which builds real repositories. These cases cover the seam: that `allocate_dec_id`
+    hands `next_dec_number`'s answer down as the floor, and that a requested id is either
+    honoured exactly or refused loudly.
+
+    THE EVIDENCE, three instances in one campaign. Two sessions minted DEC-0028 for
+    unrelated decisions on 2026-08-20. A third worker, holding a reservation of 0036-0038
+    in writing, minted 0029/0038/0038 and renamed the files and repaired the index rows by
+    hand afterwards — because there was no way to tell the engine an id. That third one is
+    the cleanest statement of the defect: a reservation that exists only in prose binds
+    nothing.
+    """
+
+    def test_the_ledger_scan_is_the_floor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            decisions_dir.mkdir()
+            (decisions_dir / "DEC-0041-existing.md").write_text("x", encoding="utf-8")
+            with allocate_dec_id(decisions_dir) as dec_id:
+                self.assertEqual(dec_id, "DEC-0042")
+
+    def test_a_requested_id_is_honoured_exactly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            decisions_dir.mkdir()
+            with allocate_dec_id(decisions_dir, want="DEC-0042") as dec_id:
+                self.assertEqual(dec_id, "DEC-0042")
+
+    def test_a_requested_id_already_on_disk_is_refused(self):
+        """Not bumped. A caller that asked for DEC-0042 and silently received DEC-0043
+        writes 0043's record under 0042's name in four places, all self-consistent."""
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            decisions_dir.mkdir()
+            (decisions_dir / "DEC-0042-taken.md").write_text("x", encoding="utf-8")
+            with self.assertRaises(IdCollision):
+                with allocate_dec_id(decisions_dir, want="DEC-0042"):
+                    pass
+
+    def test_a_malformed_request_is_refused_rather_than_guessed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            decisions_dir.mkdir()
+            with self.assertRaises(ValueError):
+                with allocate_dec_id(decisions_dir, want="0042"):
+                    pass

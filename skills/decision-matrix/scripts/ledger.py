@@ -4,12 +4,81 @@ A "DEC" is a numbered, recorded decision produced by a scoring run: a markdown f
 YAML frontmatter (hand-rolled, not a YAML library — stdlib only) plus a human-readable
 recommendation, scored matrix, and sensitivity summary.
 """
+import importlib.util
 import re
+import sys
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
 _DEC_FILENAME_RE = re.compile(r"^DEC-(\d{4})-")
+_DEC_ID_FORMAT_RE = re.compile(r"^DEC-(\d{4})$")
 _SLUG_MAX_LEN = 40
+
+# scripts/ -> decision-matrix/ -> skills/ -> .claude/
+_ID_ALLOC = Path(__file__).resolve().parents[3] / "scripts" / "lib" / "id_alloc.py"
+
+
+def _load_id_alloc():
+    """Load the shared allocator by path.
+
+    By path rather than by import, because this skill's `scripts/` package is not on the
+    path that reaches `.claude/scripts/lib/`, and a `sys.path` mutation at import time
+    changes resolution for every module the process later loads. The allocator is stdlib
+    only, so this costs nothing but the file read.
+    """
+    spec = importlib.util.spec_from_file_location("odin_id_alloc", _ID_ALLOC)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+try:
+    _id_alloc = _load_id_alloc()
+    IdCollision = _id_alloc.IdCollision
+except (OSError, AttributeError):  # pragma: no cover - the allocator is shipped beside us
+    _id_alloc = None
+
+    class IdCollision(RuntimeError):
+        """Placeholder so callers can catch it even where the allocator is absent."""
+
+
+@contextmanager
+def allocate_dec_id(decisions_dir, want=None):
+    """Yield a DEC id reserved against the counter every worktree of this clone shares.
+
+    THE DEFECT THIS CLOSES (harness:RM-0165). `next_dec_number` scans one working copy,
+    and each git worktree holds its own. On 2026-08-20 two sessions each read this ledger's
+    high-water mark in their own worktree and both minted DEC-0028 for unrelated decisions.
+    A third worker the same day held a reservation of 0036-0038 *in writing*, minted
+    0029/0038/0038 anyway, and renamed the files and repaired the index rows by hand —
+    because nothing here could be told an id. That third instance is the cleanest statement
+    of the defect: a reservation that lives only in prose binds nothing.
+
+    `next_dec_number` keeps its meaning and becomes the FLOOR. The counter cannot be behind
+    a record somebody wrote by hand, which is what the harness asks parallel workers to do.
+
+    `want` is the reservation made binding: `"DEC-0042"` is honoured when free and raises
+    `IdCollision` when taken. It is never quietly turned into a different number.
+    """
+    floor = next_dec_number(Path(decisions_dir)) - 1
+
+    wanted = None
+    if want is not None:
+        match = _DEC_ID_FORMAT_RE.match(str(want))
+        if match is None:
+            raise ValueError(
+                "a requested DEC id must read DEC-NNNN, got %r — refusing rather than "
+                "guessing which number was meant" % (want,)
+            )
+        wanted = int(match.group(1))
+
+    if _id_alloc is None:  # pragma: no cover - shipped together
+        yield "DEC-%04d" % (wanted or floor + 1)
+        return
+
+    with _id_alloc.reserve("dec", floor, start=Path(decisions_dir), want=wanted) as number:
+        yield "DEC-%04d" % number
 
 
 def next_dec_number(decisions_dir: Path) -> int:
