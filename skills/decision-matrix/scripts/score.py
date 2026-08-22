@@ -17,6 +17,7 @@ from pathlib import Path
 from scripts.validate import (
     validate_spec,
     apply_constraints,
+    constraint_violations,
     criteria_quality_warnings,
 )
 from scripts.aggregation import (
@@ -444,11 +445,17 @@ def run(spec: dict, *, decisions_dir: Path = None, record: bool = False,
 
     # 2. Apply constraints
     vetoed_ids, active_ids = apply_constraints(spec)
+    # Why the option survived is half the answer; harness:RM-0228 is the other half. It goes
+    # in the result rather than the renderer because `_render_visual` hands `visual.mjs` the
+    # result and never the spec — a reason that lives only in ledger.py could not reach the
+    # HTML companion of the same DEC.
+    veto_reasons = constraint_violations(spec)
 
     if not active_ids:
         result = {
             "schema_version": SCHEMA_VERSION,
             "vetoed_options": vetoed_ids,
+            "veto_reasons": veto_reasons,
             "active_options": [],
             "aggregated_scores": {},
             "criteria_quality": {"warnings": []},
@@ -551,6 +558,7 @@ def run(spec: dict, *, decisions_dir: Path = None, record: bool = False,
     result = {
         "schema_version": SCHEMA_VERSION,
         "vetoed_options": vetoed_ids,
+        "veto_reasons": veto_reasons,
         "active_options": active_ids,
         "aggregated_scores": aggregated,
         "criteria_quality": {"warnings": warnings},

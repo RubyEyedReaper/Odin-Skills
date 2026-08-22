@@ -119,7 +119,7 @@ mean and where it misleads.
 | `near_tie_pairs` includes the winner | The lead is inside the noise | Say so; decide on a tiebreaker criterion and name it — [references/sensitivity-analysis.md](references/sensitivity-analysis.md) |
 | `criteria_quality.warnings` → `overweight` | One criterion is the decision | Either accept that explicitly, or rebalance and re-run |
 | `non-discriminating` criterion | It scores every option alike | Drop it — it adds arithmetic, not information |
-| All options vetoed | The constraints are the real decision | Report the binding constraint; do not relax one silently |
+| All options vetoed | The constraints are the real decision | Quote `veto_reasons` — the engine names the binding constraint; do not relax one silently |
 | `promote_to_adr_hint` true | One-way door, decided with confidence | Write the ADR (`architecture-decision-records`) |
 
 ## Hand-offs

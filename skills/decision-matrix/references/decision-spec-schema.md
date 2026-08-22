@@ -33,7 +33,8 @@ Field-by-field documentation for the input spec JSON and the result JSON produce
 ```json
 {
   "id": "open-source",
-  "description": "Must be open-source or have a free tier"
+  "description": "Must be open-source or have a free tier",
+  "lifted_by": "The vendor's Q3 licence change, which adds a free tier"
 }
 ```
 
@@ -41,6 +42,19 @@ Field-by-field documentation for the input spec JSON and the result JSON produce
 |---|---|---|
 | `id` | string | Unique slug, referenced in `option.constraint_results` |
 | `description` | string | Human-readable requirement |
+| `lifted_by` | string, optional | The event that would remove this requirement, recorded into every DEC a veto by it produces |
+
+**Why `lifted_by` cannot be derived.** A vetoed option means the winner beat a *smaller field*,
+so a record that names the constraint but not what would lift it is not re-runnable. That
+condition is an event **outside** the decision — an issue closing, a budget review, a dependency
+shipping — and no traversal of `{id, description}` produces it. A sentence computed from the
+description ("lifts when the option satisfies the constraint") restates the veto in future tense
+and asserts nothing, while reading as though it carries information. Left undeclared, the record
+says so plainly instead.
+
+Constraint ids are **not** cross-checked against `option.constraint_results`: an id answered
+there but never declared here is accepted, and is reported with a null description rather than
+an invented one.
 
 ---
 
@@ -187,6 +201,7 @@ Emitted to **stderr** (with `exit 1`) on validation or runtime error.
 |---|---|---|
 | `schema_version` | `"1"` | Schema version for forward compatibility |
 | `vetoed_options` | `string[]` | Option ids eliminated by constraint failures |
+| `veto_reasons` | `VetoReason[]` | Which constraint eliminated each vetoed option, in option order. `[]` when nothing was vetoed |
 | `active_options` | `string[]` | Option ids that passed all constraints |
 | `aggregated_scores` | object | Per-option, per-criterion aggregation. Sprint 1 (1 scorer): `mean == value`, `std_dev == 0.0`, `confidence_adjusted == value * confidence` |
 | `criteria_quality.warnings` | `Warning[]` | Non-fatal quality signals about the criteria design |
@@ -195,6 +210,26 @@ Emitted to **stderr** (with `exit 1`) on validation or runtime error.
 | `recommendation.winner` | `string \| null` | Id of the rank-1 option, or `null` if all options were vetoed |
 | `recommendation.confidence` | `"low" \| "medium" \| "high"` | `"low"` when winner is in a near-tie pair; `"medium"` otherwise (Sprint 1) |
 | `recommendation.caveats` | `string[]` | Auto-generated cautions (near-tie notices, etc.) |
+
+#### `VetoReason`
+
+One entry per vetoed option — an option that passed is **absent**, never an empty entry, so
+there is exactly one way to say "not vetoed". `[o["option"] for o in veto_reasons]` equals
+`vetoed_options`, order included.
+
+| Field | Description |
+|---|---|
+| `option` | Option id, in `spec.options` order |
+| `option_label` | Display name, falling back to the id |
+| `constraints` | The constraints this option failed: declared `spec.constraints` order first, then ids answered but never declared |
+| `constraints[].id` | Constraint id — the machine handle a re-run needs |
+| `constraints[].description` | The requirement, or `null` when the id was never declared in `spec.constraints` |
+| `constraints[].lifted_by` | The declared expiry condition, or `null` |
+
+The veto predicate is identity-strict: only `false` vetoes, so `0`, `"false"` and `null` in
+`constraint_results` do not. An **unanswered** constraint is a pass — `constraint_results` may
+be partial, and an option that never answered a constraint is active. The record's veto section
+therefore names what failed, and never implies that every other option answered everything.
 
 #### `Warning`
 

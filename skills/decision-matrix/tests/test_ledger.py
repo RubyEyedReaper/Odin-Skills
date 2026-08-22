@@ -298,6 +298,149 @@ class TestWriteDecRecord(unittest.TestCase):
             self.assertIsInstance(path, Path)
 
 
+class TestVetoSectionInRecord(unittest.TestCase):
+    """harness:RM-0228 — the record must say WHY an option was eliminated.
+
+    Before this, a vetoed option printed real per-criterion numbers and an em-dash for its
+    total, which is what an unscored option looks like. On the record that motivated this
+    item the vetoed row scored 95 and 95 and read as the strongest contender.
+    """
+
+    def _vetoed(self, **constraint_overrides):
+        constraint = {
+            "id": "self-hostable",
+            "description": "Must be self-hostable on our own hardware",
+        }
+        constraint.update(constraint_overrides)
+        spec = _spec(constraints=[constraint])
+        spec["options"][1]["constraint_results"] = {"self-hostable": False}
+        result = _result(
+            vetoed_options=["memcached"],
+            active_options=["redis"],
+            veto_reasons=[{
+                "option": "memcached",
+                "option_label": "Memcached",
+                "constraints": [{
+                    "id": "self-hostable",
+                    "description": constraint["description"],
+                    "lifted_by": constraint.get("lifted_by"),
+                }],
+            }],
+        )
+        result["method_results"]["weighted-sum"]["ranking"] = [
+            {"option": "redis", "score": 82.0, "rank": 1},
+        ]
+        return spec, result
+
+    def _write(self, spec, result):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        path, _ = write_dec_record("DEC-0001", spec, result, Path(tmp) / "decisions")
+        return path.read_text(encoding="utf-8")
+
+    def test_the_record_names_the_violated_constraint_id(self):
+        text = self._write(*self._vetoed())
+        self.assertIn("self-hostable", text)
+
+    def test_the_record_carries_the_constraint_description(self):
+        """The id is the machine handle for a re-run; the description is what a human
+        needs to know what would lift it. Neither is recoverable from the other."""
+        text = self._write(*self._vetoed())
+        self.assertIn("Must be self-hostable on our own hardware", text)
+
+    def test_the_vetoed_row_is_marked_in_the_scored_matrix(self):
+        """A section further down does not repair the table a reader scans first."""
+        text = self._write(*self._vetoed())
+        row = next(ln for ln in text.splitlines() if ln.startswith("| Memcached"))
+        self.assertIn("(vetoed)", row)
+        # Not an em-dash, which means "no data", and not a number either: an eliminated
+        # option was never ranked, so a score beside it is the misreading this item names.
+        self.assertNotIn("|—|", row.replace(" ", ""))
+        self.assertTrue(row.rstrip().endswith("| vetoed |"), row)
+
+    def test_the_active_row_is_untouched(self):
+        text = self._write(*self._vetoed())
+        row = next(ln for ln in text.splitlines() if ln.startswith("| Redis"))
+        self.assertNotIn("vetoed", row)
+        self.assertIn("82.00", row)
+
+    def test_a_declared_expiry_condition_reaches_the_record(self):
+        spec, result = self._vetoed(lifted_by="The Q3 hardware order, which adds a rack")
+        text = self._write(spec, result)
+        self.assertIn("The Q3 hardware order, which adds a rack", text)
+
+    def test_no_declared_expiry_says_so_rather_than_inventing_one(self):
+        """A sentence derived from {id, description} restates the veto in future tense
+        and names no event outside the decision. An honest absence beats a tautology
+        that satisfies a grep."""
+        text = self._write(*self._vetoed())
+        self.assertIn("no expiry condition declared", text.lower())
+
+    def test_a_record_with_nothing_vetoed_has_no_veto_section(self):
+        text = self._write(_spec(), _result(veto_reasons=[]))
+        self.assertNotIn("Vetoed", text)
+
+    def test_a_result_predating_the_key_still_renders_from_the_spec(self):
+        """write_dec_record already receives the spec, and hand-built result dicts exist
+        in this very module. A missing key must degrade, never raise."""
+        spec, _ = self._vetoed()
+        legacy = _result(vetoed_options=["memcached"], active_options=["redis"])
+        self.assertNotIn("veto_reasons", legacy)
+
+        text = self._write(spec, legacy)
+        self.assertIn("self-hostable", text)
+        self.assertIn("Must be self-hostable on our own hardware", text)
+
+    def test_an_undeclared_constraint_id_renders_without_an_empty_gap(self):
+        spec = _spec()
+        spec["options"][1]["constraint_results"] = {"x": False}
+        result = _result(
+            vetoed_options=["memcached"],
+            active_options=["redis"],
+            veto_reasons=[{
+                "option": "memcached",
+                "option_label": "Memcached",
+                "constraints": [{"id": "x", "description": None, "lifted_by": None}],
+            }],
+        )
+
+        text = self._write(spec, result)
+        section = text.split("## Vetoed by Constraint", 1)[1].split("## Sensitivity", 1)[0]
+        self.assertIn("`x`", section)
+        # Scoped to the section: the record's Caveats line legitimately reads "_None._".
+        self.assertNotIn("None", section)
+
+    def test_a_pipe_in_a_description_does_not_break_the_table(self):
+        """Constraint text is free user input interpolated into markdown. The shell gate
+        over DEC records parses frontmatter and index rows only, so a mangled body passes
+        CI silently and is found by reading a record."""
+        spec, result = self._vetoed()
+        broken = "Must be self-hostable | on-prem or colo"
+        spec["constraints"][0]["description"] = broken
+        result["veto_reasons"][0]["constraints"][0]["description"] = broken
+
+        text = self._write(spec, result)
+        rows = [ln for ln in text.splitlines() if ln.startswith("|")]
+        # Derived from the header, never hardcoded: the count is a property of the criteria
+        # in the spec, and a literal here would fail for a reason that is not the defect.
+        expected = rows[0].count("|")
+        for line in rows:
+            self.assertEqual(
+                expected, line.count("|"), f"a description leaked a cell boundary into: {line}"
+            )
+
+    def test_a_newline_in_a_description_stays_on_one_line(self):
+        spec, result = self._vetoed()
+        broken = "Must be self-hostable\n\n---\nnot really frontmatter"
+        spec["constraints"][0]["description"] = broken
+        result["veto_reasons"][0]["constraints"][0]["description"] = broken
+
+        text = self._write(spec, result)
+        body = text.split("---\n", 2)[2]
+        self.assertNotIn("\n---\n", body)
+        self.assertIn("not really frontmatter", body)
+
+
 class TestUpdateReadmeIndex(unittest.TestCase):
 
     def test_creates_readme_with_header_if_missing(self):

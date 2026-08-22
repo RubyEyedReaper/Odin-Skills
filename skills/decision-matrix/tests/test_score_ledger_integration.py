@@ -146,6 +146,151 @@ class TestRunWithRecord(unittest.TestCase):
             self.assertIn("dec_record_path", result)
 
 
+class TestVetoReasonsInResult(unittest.TestCase):
+    """harness:RM-0228 — the reason must travel in the result, not only in the renderer.
+
+    `_render_visual` hands `visual.mjs` the result and nothing else, so a reason that lives
+    only inside the markdown writer can never reach the HTML companion of the same DEC, and
+    the two files of one decision would disagree.
+    """
+
+    def _vetoed_spec(self):
+        spec = _spec(constraints=[
+            {"id": "self-hostable", "description": "Must be self-hostable on our own hardware"},
+        ])
+        spec["options"][0]["constraint_results"] = {"self-hostable": False}
+        spec["options"][1]["constraint_results"] = {"self-hostable": True}
+        return spec
+
+    def test_the_normal_path_carries_the_reason(self):
+        result, exit_code = run(self._vetoed_spec())
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(result["veto_reasons"], [{
+            "option": "redis",
+            "option_label": "Redis",
+            "constraints": [{
+                "id": "self-hostable",
+                "description": "Must be self-hostable on our own hardware",
+                "lifted_by": None,
+            }],
+        }])
+
+    def test_nothing_vetoed_is_an_empty_list_not_a_missing_key(self):
+        result, _ = run(_spec())
+        self.assertEqual(result["veto_reasons"], [])
+
+    def test_the_all_options_vetoed_path_carries_it_too(self):
+        """The path that returns early, before any of the scoring pipeline runs.
+
+        Two result dicts are built by hand in this module and have already drifted from
+        each other; this is the case that fails if only one of them is edited.
+        """
+        spec = _spec(constraints=[
+            {"id": "self-hostable", "description": "Must be self-hostable"},
+        ])
+        spec["options"][0]["constraint_results"] = {"self-hostable": False}
+        spec["options"][1]["constraint_results"] = {"self-hostable": False}
+
+        result, exit_code = run(spec)
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(result["recommendation"]["rationale"], "all options vetoed")
+        self.assertEqual([v["option"] for v in result["veto_reasons"]], ["redis", "memcached"])
+        self.assertEqual(
+            result["veto_reasons"][0]["constraints"][0]["description"], "Must be self-hostable"
+        )
+
+    def test_a_non_recording_run_carries_it_and_still_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            result, _ = run(self._vetoed_spec(), decisions_dir=decisions_dir, record=False)
+
+            self.assertEqual(len(result["veto_reasons"]), 1)
+            self.assertFalse(decisions_dir.exists())
+
+    def test_the_explanation_cannot_drift_from_the_partition(self):
+        """Across every golden fixture, in order — not just as sets.
+
+        Three of the seven carry a veto. If the two lists are ever computed by different
+        predicates, this is what says so.
+        """
+        fixtures_dir = (
+            Path(__file__).resolve().parent.parent / "evals" / "fixtures"
+        )
+        specs = sorted(
+            p for p in fixtures_dir.glob("*.json") if not p.name.endswith(".expected.json")
+        )
+        self.assertGreaterEqual(len(specs), 7, "the skill's golden fixtures are missing")
+
+        vetoed_seen = 0
+        for path in specs:
+            with self.subTest(fixture=path.name):
+                result, _ = run(json.loads(path.read_text(encoding="utf-8")))
+                self.assertEqual(
+                    [v["option"] for v in result["veto_reasons"]],
+                    result["vetoed_options"],
+                    f"{path.name}: veto_reasons and vetoed_options disagree",
+                )
+                vetoed_seen += len(result["vetoed_options"])
+
+        self.assertGreater(vetoed_seen, 0, "no fixture vetoes anything — this asserts nothing")
+
+    def test_a_round_trip_proves_the_recorded_file_carries_the_constraint_text(self):
+        """The acceptance is about the file on disk, not about a dict a function returned.
+
+        Runs the real entry point against the skill's own hiring-candidate fixture — which
+        vetoes candidate-c on the declared constraint `salary-band` — records it, and reads
+        the produced markdown back off the path the run reported.
+        """
+        fixture = (
+            Path(__file__).resolve().parent.parent
+            / "evals" / "fixtures" / "hiring-candidate.json"
+        )
+        spec = json.loads(fixture.read_text(encoding="utf-8"))
+        declared = next(c for c in spec["constraints"] if c["id"] == "salary-band")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result, exit_code = run(spec, decisions_dir=Path(tmp) / "decisions", record=True)
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["vetoed_options"], ["candidate-c"])
+
+            text = Path(result["dec_record_path"]).read_text(encoding="utf-8")
+
+            self.assertIn("salary-band", text)
+            self.assertIn(declared["description"], text)
+            # The sections that were already there must survive the insertion.
+            for heading in ("## Recommendation", "## Scored Matrix", "## Sensitivity"):
+                self.assertIn(heading, text)
+
+    def test_the_round_trip_fixture_is_one_a_reader_could_misread(self):
+        """The case above proves nothing if the vetoed option was going to lose anyway.
+
+        Cora outscores the winner outright on Collaboration & Communication — 82.8 to 52.0,
+        the widest gap in the table — so her row is exactly the shape that reads as a strong
+        contender when its total is a bare em-dash.
+        """
+        fixture = (
+            Path(__file__).resolve().parent.parent
+            / "evals" / "fixtures" / "hiring-candidate.json"
+        )
+        result, _ = run(json.loads(fixture.read_text(encoding="utf-8")))
+
+        winner = result["recommendation"]["winner"]
+        vetoed = result["vetoed_options"][0]
+        agg = result["aggregated_scores"]
+        beaten = [
+            cid for cid in agg[vetoed]
+            if agg[vetoed][cid]["confidence_adjusted"] > agg[winner][cid]["confidence_adjusted"]
+        ]
+        self.assertTrue(beaten, "the vetoed fixture option is beaten everywhere — it proves nothing")
+        widest = max(
+            agg[vetoed][cid]["confidence_adjusted"] - agg[winner][cid]["confidence_adjusted"]
+            for cid in beaten
+        )
+        self.assertGreater(widest, 25.0, "the vetoed option's lead is too small to misread")
+
+
 class TestRevisitReminder(unittest.TestCase):
 
     def test_revisit_after_days_two_way_sets_reminder(self):

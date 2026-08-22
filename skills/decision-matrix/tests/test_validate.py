@@ -6,7 +6,13 @@ import os
 # Ensure the skill root is on sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.validate import validate_spec, apply_constraints, criteria_quality_warnings, aggregate_scores
+from scripts.validate import (
+    validate_spec,
+    apply_constraints,
+    constraint_violations,
+    criteria_quality_warnings,
+    aggregate_scores,
+)
 
 
 def _minimal_spec(**overrides):
@@ -284,6 +290,138 @@ class TestApplyConstraints(unittest.TestCase):
         self.assertIn("opt-a", vetoed)
         self.assertIn("opt-b", vetoed)
         self.assertEqual(active, [])
+
+
+class TestConstraintViolations(unittest.TestCase):
+    """harness:RM-0228 — a veto that does not say which constraint bound it is half a record.
+
+    `apply_constraints` computes the failing constraint and returns only the partition, so the
+    half that makes the decision re-runnable never leaves this module. These cases pin the
+    other half: which constraint, in what order, and what the renderer is allowed to assume.
+    """
+
+    def test_nothing_vetoed_is_an_empty_list(self):
+        self.assertEqual(constraint_violations(_minimal_spec()), [])
+
+    def test_a_vetoed_option_names_the_constraint_and_its_description(self):
+        spec = _minimal_spec(constraints=[
+            {"id": "budget", "description": "Must fit the approved budget"},
+        ])
+        spec["options"][0]["constraint_results"] = {"budget": False}
+
+        violations = constraint_violations(spec)
+
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0]["option"], "opt-a")
+        self.assertEqual(violations[0]["option_label"], "Option A")
+        self.assertEqual(violations[0]["constraints"], [
+            {"id": "budget", "description": "Must fit the approved budget", "lifted_by": None},
+        ])
+
+    def test_a_passing_option_is_absent_not_an_empty_entry(self):
+        """One way to say 'not vetoed', so no consumer can branch on the wrong one."""
+        spec = _minimal_spec(constraints=[{"id": "budget", "description": "Must fit"}])
+        spec["options"][0]["constraint_results"] = {"budget": False}
+        spec["options"][1]["constraint_results"] = {"budget": True}
+
+        self.assertEqual([v["option"] for v in constraint_violations(spec)], ["opt-a"])
+
+    def test_a_satisfied_constraint_on_a_vetoed_option_is_not_listed(self):
+        spec = _minimal_spec(constraints=[
+            {"id": "budget", "description": "Must fit"},
+            {"id": "timeline", "description": "Must ship this quarter"},
+        ])
+        spec["options"][0]["constraint_results"] = {"budget": True, "timeline": False}
+
+        self.assertEqual(
+            [c["id"] for c in constraint_violations(spec)[0]["constraints"]], ["timeline"]
+        )
+
+    def test_several_violations_follow_declared_constraint_order(self):
+        """Declaration order, not the answer map's — a rendered record must not be a coin flip."""
+        spec = _minimal_spec(constraints=[
+            {"id": "budget", "description": "Must fit"},
+            {"id": "timeline", "description": "Must ship this quarter"},
+        ])
+        spec["options"][0]["constraint_results"] = {"timeline": False, "budget": False}
+
+        self.assertEqual(
+            [c["id"] for c in constraint_violations(spec)[0]["constraints"]], ["budget", "timeline"]
+        )
+
+    def test_options_follow_spec_option_order(self):
+        spec = _minimal_spec(constraints=[{"id": "budget", "description": "Must fit"}])
+        spec["options"][0]["constraint_results"] = {"budget": False}
+        spec["options"][1]["constraint_results"] = {"budget": False}
+
+        self.assertEqual([v["option"] for v in constraint_violations(spec)], ["opt-a", "opt-b"])
+
+    def test_an_undeclared_constraint_id_carries_a_null_description(self):
+        """Nothing cross-checks the two, and the suite's own helper specs ship this shape.
+
+        The id is still the machine handle a re-run needs, so it is reported; the description
+        is never fabricated.
+        """
+        spec = _minimal_spec()
+        spec["options"][0]["constraint_results"] = {"x": False}
+
+        self.assertEqual(constraint_violations(spec)[0]["constraints"], [
+            {"id": "x", "description": None, "lifted_by": None},
+        ])
+
+    def test_declared_ids_come_before_undeclared_ones(self):
+        spec = _minimal_spec(constraints=[{"id": "budget", "description": "Must fit"}])
+        spec["options"][0]["constraint_results"] = {"x": False, "budget": False}
+
+        self.assertEqual(
+            [c["id"] for c in constraint_violations(spec)[0]["constraints"]], ["budget", "x"]
+        )
+
+    def test_lifted_by_is_carried_when_the_constraint_declares_it(self):
+        """The expiry condition names an event outside the decision; it cannot be derived."""
+        spec = _minimal_spec(constraints=[{
+            "id": "budget",
+            "description": "Must fit the approved budget",
+            "lifted_by": "The Q3 budget review, which raises the cap",
+        }])
+        spec["options"][0]["constraint_results"] = {"budget": False}
+
+        self.assertEqual(
+            constraint_violations(spec)[0]["constraints"][0]["lifted_by"],
+            "The Q3 budget review, which raises the cap",
+        )
+
+    def test_the_veto_predicate_is_identity_strict(self):
+        """`apply_constraints` vetoes on `is False`, so 0/"false"/None do not veto.
+
+        A second traversal written as `if not v` would explain options that were never
+        eliminated. The two must agree.
+        """
+        spec = _minimal_spec(constraints=[{"id": "budget", "description": "Must fit"}])
+        spec["options"][0]["constraint_results"] = {"budget": 0}
+        spec["options"][1]["constraint_results"] = {"budget": None}
+
+        vetoed, _active = apply_constraints(spec)
+        self.assertEqual(vetoed, [])
+        self.assertEqual(constraint_violations(spec), [])
+
+    def test_the_option_list_matches_apply_constraints_in_order(self):
+        spec = _minimal_spec(constraints=[
+            {"id": "budget", "description": "Must fit"},
+            {"id": "timeline", "description": "Must ship"},
+        ])
+        spec["options"][0]["constraint_results"] = {"budget": False}
+        spec["options"][1]["constraint_results"] = {"timeline": False}
+
+        vetoed, _active = apply_constraints(spec)
+        self.assertEqual([v["option"] for v in constraint_violations(spec)], vetoed)
+
+    def test_option_label_falls_back_to_the_id(self):
+        spec = _minimal_spec(constraints=[{"id": "budget", "description": "Must fit"}])
+        del spec["options"][0]["label"]
+        spec["options"][0]["constraint_results"] = {"budget": False}
+
+        self.assertEqual(constraint_violations(spec)[0]["option_label"], "opt-a")
 
 
 class TestCriteriaQualityWarnings(unittest.TestCase):

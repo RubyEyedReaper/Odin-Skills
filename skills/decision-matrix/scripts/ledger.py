@@ -11,6 +11,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+from scripts.validate import constraint_violations
+
 _DEC_FILENAME_RE = re.compile(r"^DEC-(\d{4})-")
 _DEC_ID_FORMAT_RE = re.compile(r"^DEC-(\d{4})$")
 _SLUG_MAX_LEN = 40
@@ -134,6 +136,65 @@ def _unique_dec_filename(decisions_dir: Path, dec_id: str, slug: str) -> tuple[P
         n += 1
 
 
+def _md_cell(text: str) -> str:
+    """Make free-form spec text safe to interpolate into markdown.
+
+    Constraint descriptions are user input and land in a document whose only gate parses
+    frontmatter and index rows — a pipe that breaks a table row, or a newline that opens a
+    second frontmatter block, passes CI silently and is discovered by reading a record.
+    Escaping belongs here, at the render boundary, and not in `validate_spec`: a description
+    containing a pipe is a perfectly valid decision spec.
+    """
+    return " ".join(str(text).split()).replace("|", "\\|")
+
+
+def _format_veto_section(spec: dict, result: dict) -> str:
+    """Render the constraints that eliminated each vetoed option.
+
+    Reads `result["veto_reasons"]` and falls back to recomputing from the spec, which this
+    module already receives: hand-built result dicts exist in the test suite, and result
+    JSON written before harness:RM-0228 has no such key. A missing key degrades; it never
+    raises.
+    """
+    reasons = result.get("veto_reasons")
+    if reasons is None:
+        reasons = constraint_violations(spec)
+    if not reasons:
+        return ""
+
+    lines = ["## Vetoed by Constraint", ""]
+    lines.append(
+        "These options were eliminated before scoring, so the winner above beat a smaller "
+        "field. Each entry names the constraint that bound and what would lift it — without "
+        "that, the decision cannot be re-run."
+    )
+    lines.append("")
+
+    for entry in reasons:
+        label = entry.get("option_label") or entry.get("option")
+        lines.append(f"- **{_md_cell(label)}** (`{entry.get('option')}`)")
+        for constraint in entry.get("constraints", []):
+            cid = constraint.get("id")
+            description = constraint.get("description")
+            if description:
+                lines.append(f"  - fails `{cid}` — {_md_cell(description)}")
+            else:
+                lines.append(
+                    f"  - fails `{cid}` — no description declared in `spec.constraints`"
+                )
+            lifted_by = constraint.get("lifted_by")
+            if lifted_by:
+                lines.append(f"    - Lifted by: {_md_cell(lifted_by)}")
+            else:
+                lines.append(
+                    "    - No expiry condition declared. What lifts this veto is an event "
+                    "outside the decision, so it cannot be derived from the spec — declare "
+                    "`lifted_by` on the constraint to record it."
+                )
+
+    return "\n".join(lines)
+
+
 def _format_scored_matrix(spec: dict, result: dict) -> str:
     """Build a markdown table: options x criteria with weighted-sum scores."""
     options = spec.get("options", [])
@@ -147,17 +208,32 @@ def _format_scored_matrix(spec: dict, result: dict) -> str:
     header = "| Option | " + " | ".join(crit_labels) + " | Weighted-Sum Score |"
     separator = "|---" * (len(criteria) + 2) + "|"
 
+    vetoed = set(result.get("vetoed_options", []))
+
     rows = [header, separator]
     for option in options:
         opt_id = option.get("id")
         opt_label = option.get("label", opt_id)
+        # The table is what a reader scans first, and an em-dash there means "no data" —
+        # indistinguishable from an option that simply was not scored. The tag is the same
+        # word the HTML companion already uses, so the two files of one DEC read alike.
+        if opt_id in vetoed:
+            opt_label = f"{opt_label} (vetoed)"
         cells = []
         for crit in criteria:
             cid = crit.get("id")
             agg = aggregated.get(opt_id, {}).get(cid, {})
             cells.append(f"{agg.get('confidence_adjusted', 0):.1f}" if agg else "—")
         score = score_by_option.get(opt_id)
-        score_cell = f"{score:.2f}" if score is not None else "—"
+        # Veto takes precedence over any score present. An eliminated option is excluded,
+        # not ranked, so printing a number next to it invites the reading this item exists
+        # to stop — and the engine's own ranking never contains a vetoed option anyway.
+        if opt_id in vetoed:
+            score_cell = "vetoed"
+        elif score is not None:
+            score_cell = f"{score:.2f}"
+        else:
+            score_cell = "—"
         rows.append(f"| {opt_label} | " + " | ".join(cells) + f" | {score_cell} |")
 
     return "\n".join(rows)
@@ -230,6 +306,9 @@ def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path)
         "\n".join(f"- {c}" for c in caveats) if caveats else "_None._"
     )
 
+    veto_section = _format_veto_section(spec, result)
+    _veto_section = f"\n{veto_section}\n" if veto_section else ""
+
     body = f"""
 ## Recommendation
 
@@ -245,7 +324,7 @@ def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path)
 ## Scored Matrix
 
 {_format_scored_matrix(spec, result)}
-
+{_veto_section}
 ## Sensitivity
 
 {_format_sensitivity_summary(result)}

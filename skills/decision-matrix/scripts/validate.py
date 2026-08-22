@@ -145,6 +145,73 @@ def apply_constraints(spec: dict) -> Tuple[list, list]:
     return vetoed, active
 
 
+def constraint_violations(spec: dict) -> list:
+    """Return, per vetoed option, which constraints it violated.
+
+    ``apply_constraints`` answers *whether* an option survived; this answers *why* it did
+    not, which is the half that makes a recorded decision re-runnable — a vetoed option
+    means the winner beat a smaller field, and without the binding constraint there is no
+    way to know what would restore it (harness:RM-0228).
+
+    Shape, ordered rather than mapped because the order is part of the contract::
+
+        [{"option": str,
+          "option_label": str,
+          "constraints": [{"id": str,
+                           "description": str | None,
+                           "lifted_by": str | None}]}]
+
+    Options that passed are **absent**, never an empty entry: one way to say "not vetoed".
+    Options follow ``spec["options"]`` order and, within an option, declared
+    ``spec["constraints"]`` order first, then ids answered but never declared, in the
+    answer map's own order. A rendered record must not be a coin flip.
+
+    The veto predicate is ``v is False``, restated verbatim from ``apply_constraints``
+    rather than shared: writing it as ``if not v`` here would report reasons for options
+    that ``apply_constraints`` left active, and ``0``/``None`` are not vetoes. The two are
+    held together by a test asserting the option lists match, not by adjacency.
+
+    A constraint id answered in ``constraint_results`` but absent from ``constraints[]``
+    carries ``description: None``. Nothing in the engine cross-checks the two, so this is
+    the ordinary case, not an error — the id is still the handle a re-run needs, and the
+    description is never invented to fill the gap.
+    """
+    declared = {}
+    for constraint in spec.get("constraints", []):
+        cid = constraint.get("id")
+        if cid is not None and cid not in declared:
+            declared[cid] = constraint
+
+    declared_order = list(declared)
+    violations: list = []
+
+    for option in spec.get("options", []):
+        results = option.get("constraint_results", {})
+        failed = [cid for cid, value in results.items() if value is False]
+        if not failed:
+            continue
+
+        failed_set = set(failed)
+        ordered = [cid for cid in declared_order if cid in failed_set]
+        ordered += [cid for cid in failed if cid not in declared]
+
+        opt_id = option.get("id")
+        violations.append({
+            "option": opt_id,
+            "option_label": option.get("label", opt_id),
+            "constraints": [
+                {
+                    "id": cid,
+                    "description": declared.get(cid, {}).get("description"),
+                    "lifted_by": declared.get(cid, {}).get("lifted_by"),
+                }
+                for cid in ordered
+            ],
+        })
+
+    return violations
+
+
 def criteria_quality_warnings(spec: dict) -> list:
     """Return a list of warning dicts: {"type": str, "criterion": str, "message": str}.
 
