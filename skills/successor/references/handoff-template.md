@@ -12,6 +12,13 @@ see ADR-0038, ADR-0050 (per-roadmap id counters), ADR-0056 (launch-directory har
 rules are stated once, there. This template adds only what is new: the six assignment elements and
 the standing invariants.
 
+**`model:` is optional and usually omitted.** Successors default to Sonnet because a worker
+executes a handoff somebody else already planned. Declare `model: opus` when *this worker's own*
+work is the deep-reasoning kind — a `superplan`, a `blueprint`, an architecture fork it must
+resolve itself — not because the campaign around it is important. Before the default existed,
+`odin-relay.sh` passed no `--model` at all and every worker silently inherited Opus: 4,915 sessions
+over 29 days, $4,419, and exactly $0.00 of it Sonnet.
+
 ---
 
 ```markdown
@@ -22,6 +29,7 @@ mem_class: <read .claude/.runtime/active-mem-class — do not guess>
 active_branch: <the branch THIS worker owns>
 plan_file: <path the worker will write its plan to, or null>
 next_action: <one imperative line — the worker's first move>
+model: <omit for sonnet; opus only when this worker's own work is deep reasoning>
 ---
 
 # Successor brief — Workstream <id>: <one-line title>

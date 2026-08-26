@@ -85,9 +85,28 @@ At a checkpoint, run the predicates in order and take the first that fires.
 
 | Predicate — observable, in this order | Continuation |
 |---|---|
+| `bash .claude/scripts/session-burn.sh` exits 3 | **Relay.** Same continuation as the context predicate below, fired on spend instead of depth. |
 | Context past ~half the ceiling | **Relay.** `/relay` writes the handoff and launches the successor; this session stops after confirming the branch is pushed. A successor with a good handoff beats an iteration spent re-reading what this one already established. |
 | `roadmap waves` puts **≥2 items in the same layer**, and their surfaces do not overlap | **Delegate.** Become a coordinator: `successor`, all five phases. Then integrate, then resume the loop at phase 1. |
 | Anything else — one item, or a colliding pair | **Continue inline.** Next iteration, same session, phase 1. |
+
+**Spend and depth are different quantities, and the burn predicate is first because depth cannot
+see it.** A session sitting at a quarter of its ceiling and re-reading that quarter a thousand times
+never trips the context predicate. Measured over 29 days: 48 sessions — the top 1% — accounted for
+69.5% of all successor cache-read, and the heaviest ran 853 turns at ~239K prefix (about 24% of a 1M
+ceiling, so the context row never fired once) for **$159.61**. The median successor session cost
+about a cent. Relaying is not a tax on the loop; a successor restarts at a fraction of that prefix
+and does the same work the 853rd turn was doing at 239K.
+
+The starting figure is deliberately not stated. Measured first-turn prefixes are bimodal — a tight
+cluster around 7K and a second around 65–75K — and the obvious single number to quote, first-turn
+`cache_read`, is wrong by construction: on turn one most of the prefix is *written* to cache, not
+read from it, so that field understates the real prefix by roughly half. The predicate does not
+depend on the number, and a figure this easy to misread does not belong in a rule.
+
+The meter reports and never kills: the continuation is `/relay`, which preserves the work. Run
+`session-burn.sh --json` for the machine-readable form, `--threshold 0` to disable when a run has a
+sanctioned reason to be expensive — and say what the reason was.
 
 **Layer width alone is not the predicate.** Two items in one layer that touch the same files are one
 worker's work, not two: the graph knows about dependencies, not about collisions. Diff the surfaces
