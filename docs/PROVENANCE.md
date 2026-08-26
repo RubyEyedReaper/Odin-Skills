@@ -2,14 +2,14 @@
 
 Every skill in this repository is either **authored for Odin** (no upstream exists) or a **fork**
 (a real upstream exists and Odin's copy diverges from it). Nothing else ships here: the Odin harness
-also vendors 82 third-party skills it has never modified, and redistributing those is not this
-repository's job. (82 = the harness's 99 skill directories minus the 17 mirrored here; measured
-2026-08-17, not inherited.)
+also vendors 83 third-party skills it has never modified, and redistributing those is not this
+repository's job. (83 = the harness's 101 skill directories minus the 18 mirrored here; measured
+2026-08-26, not inherited.)
 
 `scripts/validate-skills.sh` cross-checks this table against `skills/` and
 `.claude-plugin/plugin.json`, so a skill added without a row here fails CI.
 
-## Odin-authored (7)
+## Odin-authored (8)
 
 Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 
@@ -19,6 +19,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `endless` | The continuous work loop — three defined checkpoints, and three continuations chosen by predicate: continue inline, fan out, or relay |
 | `mistake-to-gate` | Turns a mistake into an always-on mechanical gate, with a matrix proving the gate fires |
 | `oops` | Root-causes something that should not have happened, then hands off to `mistake-to-gate` for the guard |
+| `not-impressed` | Hostile-prior review of machine-generated code — the one verdict it owns is whether the implementation is overdeveloped, and every finding names what to delete |
 | `roadmap` | Standing inventory + dependency graph; waves computed from the graph rather than stored |
 | `successor` | Fleet-scale delegation to other Claude sessions — a six-element handoff bar, five ordered phases, and coordinator-owned integration |
 | `superplan` | Multi-agent deep planning — planner + architect + adversarial reviewer in parallel, synthesized into one approved plan |
