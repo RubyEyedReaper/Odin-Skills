@@ -18,6 +18,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `decision-matrix` | Quantitative weighted-decision engine — weighted-sum / Pugh / TOPSIS / RICE, sensitivity analysis, recorded DEC decisions |
 | `endless` | The continuous work loop — three defined checkpoints, and three continuations chosen by predicate: continue inline, fan out, or relay |
 | `mistake-to-gate` | Turns a mistake into an always-on mechanical gate, with a matrix proving the gate fires |
+| `improve` | The rung below a gate — a recurring friction no script can decide, changed only with a declared reason and falsifier, and reverted rather than patched when it reddens a gate |
 | `oops` | Root-causes something that should not have happened, then hands off to `mistake-to-gate` for the guard |
 | `not-impressed` | Hostile-prior review of machine-generated code — the one verdict it owns is whether the implementation is overdeveloped, and every finding names what to delete |
 | `roadmap` | Standing inventory + dependency graph; waves computed from the graph rather than stored |

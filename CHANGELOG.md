@@ -23,6 +23,13 @@ sync; entries below record what changed in this distribution.
   per-project artifact checklist, whose point is that silence from a project-scoped guard means
   "not configured", not "clean". Four states, each transition naming the evidence it requires,
   read from the tree rather than set by hand.
+- **`improve`** — the rung the failure-to-enforcement ladder did not have. `oops` owns the
+  incident, `mistake-to-gate` owns anything a script can decide about the repository, and
+  `rules-distill` owns a pattern that has spread. What had no owner is a friction that recurs
+  and that no predicate can catch — a body that routes badly, a reference nobody reads, a step
+  everybody skips. Five declared fields including a falsifier, and a revert protocol that
+  reverts on a red gate rather than patching forward, because patching forward from red means
+  the next failure cannot be attributed. Adds no register: it reads the existing one.
 
 - **`work-loop`** — the cycle contract and its resumable ledger. Eleven fields declared before
   the first iteration and refused if any is missing; six outcomes of which exactly one ends each
