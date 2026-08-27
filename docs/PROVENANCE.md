@@ -21,6 +21,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `oops` | Root-causes something that should not have happened, then hands off to `mistake-to-gate` for the guard |
 | `not-impressed` | Hostile-prior review of machine-generated code — the one verdict it owns is whether the implementation is overdeveloped, and every finding names what to delete |
 | `roadmap` | Standing inventory + dependency graph; waves computed from the graph rather than stored |
+| `projects` | One operating model for a project subtree — a routing table over the skills that already own each phase, plus the switch ritual and the per-project artifact checklist that nothing owned |
 | `workflows` | Lifecycle of a reusable workflow — define, version, supersede, retire; the runner refuses a retired manifest and an empty set |
 | `work-loop` | The cycle contract and its resumable ledger — eleven declared fields, six outcomes that describe the iteration and never the session, four mechanical stall predicates |
 | `successor` | Fleet-scale delegation to other Claude sessions — a six-element handoff bar, five ordered phases, and coordinator-owned integration |

@@ -16,6 +16,13 @@ sync; entries below record what changed in this distribution.
   that served it; then branch movement; then landedness by content rather than ancestry. Five
   verdicts including a mandatory `undetermined`, and distinct exit codes for the channels that
   could not be read, because a check that could not look is a finding and never a silence.
+- **`projects`** — one operating model for a project subtree. Almost every phase already has
+  an owner, so the body is mostly a routing table; what it adds is the two things nothing owned:
+  the project-switch ritual, which asserts the new project's own goal, scope and namespace
+  before anything else because carrying the previous project's scope forward is silent; and the
+  per-project artifact checklist, whose point is that silence from a project-scoped guard means
+  "not configured", not "clean". Four states, each transition naming the evidence it requires,
+  read from the tree rather than set by hand.
 
 - **`work-loop`** — the cycle contract and its resumable ledger. Eleven fields declared before
   the first iteration and refused if any is missing; six outcomes of which exactly one ends each
