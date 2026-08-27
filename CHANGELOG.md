@@ -17,6 +17,12 @@ sync; entries below record what changed in this distribution.
   refuses credentials, personal data, task chatter, duplicates and anything derivable from the
   codebase, each with its own exit code — and the credential refusal redacts by key name, never
   by matching the value.
+- **`campaign`** — several delegated sessions as one unit of work. The manifest holds the plan —
+  waves, per-worker scope, reserved identifiers, the objective — and never a status, which is
+  computed at read time from the roadmap plus landedness by content. `close` refuses while any item
+  lacks a landed sha and names each blocker, and refuses with a *distinct* exit code when
+  landedness could not be determined, because a check that could not look is a finding rather than
+  a silence.
 
 - **`successor-manager`** — who owns a delegated session, and what is actually true of it.
   The verdict is computed from channels the session does not control, in a fixed order: daemon

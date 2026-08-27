@@ -18,6 +18,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `decision-matrix` | Quantitative weighted-decision engine — weighted-sum / Pugh / TOPSIS / RICE, sensitivity analysis, recorded DEC decisions |
 | `endless` | The continuous work loop — three defined checkpoints, and three continuations chosen by predicate: continue inline, fan out, or relay |
 | `mistake-to-gate` | Turns a mistake into an always-on mechanical gate, with a matrix proving the gate fires |
+| `campaign` | Several delegated sessions as one unit of work — the manifest holds the plan and never a status, and `close` refuses while any item is unlanded, with a distinct refusal for landedness that could not be determined |
 | `improve` | The rung below a gate — a recurring friction no script can decide, changed only with a declared reason and falsifier, and reverted rather than patched when it reddens a gate |
 | `learn` | The capture bar for durable knowledge — five confidence rungs, six outcomes, and a `verified_by` command on every record so a later session re-runs the evidence instead of trusting the record |
 | `oops` | Root-causes something that should not have happened, then hands off to `mistake-to-gate` for the guard |
