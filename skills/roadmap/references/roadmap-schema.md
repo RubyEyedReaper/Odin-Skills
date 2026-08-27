@@ -20,14 +20,14 @@ engine; no dependencies to install.
 | `schema` | Format version. Currently `1`; a mismatch fails `validate`. |
 | `scope` | Memory-class style label, e.g. `task:<slug>` or `operational`. **Not an identity** — two roadmaps may share one. |
 | `slug` | Optional. The roadmap's *identity*, used to qualify its item ids as `<slug>:RM-####`. Absent is valid: it derives from the layout — `harness` for a harness roadmap, the project root's basename for a project one. Declared wins. Must be unique across the roadmaps in a tree; `roadmap-check.sh` fails on a clash (ADR-0050). |
+| `updated` | Last mutation date (ISO). Stamped automatically. |
+| `last_reconcile` | Last drift check. `null` means never — `reconcile` is due. |
+| `surface_roots` | Optional. Directories the reconcile **surface sweep** (`scripts/sweep.py`) walks, repo-relative. Absent means the conventional source roots that exist. Unrelated to bootstrap's `--surface-sweep`, which adds **starter surfaces**. |
 
 **`id` is only unique within its own roadmap.** `RM-####` comes from a per-file counter, so the same
 id names different work in every roadmap that exists. Cite one in any document that will be read
 elsewhere — a handoff above all — in the qualified form the engine prints: `harness:RM-0034`.
 `odin-relay.sh` refuses a handoff that does not.
-| `updated` | Last mutation date (ISO). Stamped automatically. |
-| `last_reconcile` | Last drift check. `null` means never — `reconcile` is due. |
-| `surface_roots` | Optional. Directories the reconcile surface sweep walks, repo-relative. Absent means the conventional source roots that exist. |
 
 ## Item
 

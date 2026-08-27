@@ -7,6 +7,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from scripts import schema  # noqa: E402
 from scripts.schema import (  # noqa: E402
     SCHEMA_VERSION,
     add_item,
@@ -280,3 +281,37 @@ class TestPaths(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDeriveScope(unittest.TestCase):
+    """harness:RM-0102 — one owner for the memory-class default.
+
+    `projects/README.md:41` documents `--root projects/<slug> init` with no `--scope`, and the
+    engine rejected it at exit 2. Two sibling constructors disagreed about the field: `init`
+    required it, while `cmd_bootstrap` silently defaulted to a bare `os.path.basename(root)` —
+    `Odin-Skills`, not the `task:<slug>` form the same convention states.
+    """
+
+    def _scope_for(self, layout):
+        with tempfile.TemporaryDirectory() as tmp:
+            if layout == "harness":
+                json_path = os.path.join(tmp, ".claude", "docs", "roadmap", "roadmap.json")
+            else:
+                json_path = os.path.join(tmp, "My-Project", "docs", "roadmap", "roadmap.json")
+            os.makedirs(os.path.dirname(json_path))
+            return schema.derive_scope(json_path)
+
+    def test_a_harness_roadmap_is_operational(self):
+        self.assertEqual("operational", self._scope_for("harness"))
+
+    def test_a_project_roadmap_takes_the_task_form(self):
+        """Lower-cased through the same slug derivation, so the scope and the slug agree."""
+        self.assertEqual("task:my-project", self._scope_for("project"))
+
+    def test_the_scope_agrees_with_the_slug_it_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            json_path = os.path.join(tmp, "My-Project", "docs", "roadmap", "roadmap.json")
+            os.makedirs(os.path.dirname(json_path))
+            self.assertEqual(
+                "task:%s" % schema.derive_slug(json_path), schema.derive_scope(json_path),
+            )

@@ -14,6 +14,7 @@ from scripts.render import (  # noqa: E402
     render_dot,
     render_md,
 )
+from scripts.render import expected_md  # noqa: E402
 from scripts.schema import content_hash, default_doc, paths_for, save  # noqa: E402
 
 TODAY = "2026-07-29"
@@ -81,6 +82,50 @@ class TestDot(unittest.TestCase):
     def test_status_colours_applied(self):
         dot = render_dot(_doc(_item("RM-0001", status="done")))
         self.assertIn("fillcolor", dot)
+
+
+class TestHeaderNamesTheSlug(unittest.TestCase):
+    """harness:RM-0041 — the H1 names the roadmap's identity, not its memory class.
+
+    `scope` is a memory-class label (`operational`, `task:<slug>`) and two roadmaps may share one;
+    `slug` is the identity every `RM-####` in the document resolves against (ADR-0050). Printing
+    the scope told a reader the one thing that cannot disambiguate the ids beneath it.
+
+    Both fixtures declare `slug` explicitly. `derive_slug` falls back to the project root's
+    basename, so a fixture under `mktemp -d` would otherwise render a header named after the
+    temporary directory and the assertion would depend on where the suite happened to run.
+    """
+
+    def _render(self, scope, slug, layout):
+        with tempfile.TemporaryDirectory() as tmp:
+            if layout == "harness":
+                json_path = os.path.join(tmp, ".claude", "docs", "roadmap", "roadmap.json")
+            else:
+                json_path = os.path.join(tmp, "proj", "docs", "roadmap", "roadmap.json")
+            os.makedirs(os.path.dirname(json_path))
+            doc = default_doc(scope, today=TODAY)
+            doc["slug"] = slug
+            save(json_path, doc)
+            return expected_md(doc, json_path)
+
+    def test_harness_header_names_the_slug_not_the_memory_class(self):
+        md = self._render("operational", "harness", "harness")
+        self.assertEqual("# Roadmap — harness", md.splitlines()[2])
+
+    def test_project_header_names_the_slug(self):
+        md = self._render("task:odin-skills", "odin-skills", "project")
+        self.assertEqual("# Roadmap — odin-skills", md.splitlines()[2])
+
+    def test_the_memory_class_survives_on_the_metadata_line(self):
+        """Dropping `scope` from the rendering would be an information regression.
+
+        `odin-roadmap-gate.sh` routes on it, so a reader who can no longer see it in the rendered
+        document has to open the JSON to learn which memory class the roadmap belongs to.
+        """
+        md = self._render("operational", "harness", "harness")
+        meta = [ln for ln in md.splitlines() if ln.startswith("Last updated ")]
+        self.assertEqual(1, len(meta), md)
+        self.assertIn("scope `operational`", meta[0])
 
 
 class TestMarkdown(unittest.TestCase):

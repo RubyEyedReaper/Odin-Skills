@@ -307,6 +307,25 @@ def derive_slug(json_path):
     return _slugify(os.path.basename(paths["root"]))
 
 
+def derive_scope(json_path):
+    """The memory class a roadmap belongs to, when its creator did not name one.
+
+    Two sibling constructors disagreed about this field and both were wrong in different
+    directions: `init` demanded `--scope`, so the invocation `projects/README.md` documents exited
+    2 for anyone who followed it; `cmd_bootstrap` silently defaulted to a bare
+    `os.path.basename(root)`, producing `Odin-Skills` where the same convention states
+    `task:<slug>`. One owner, and the convention stated once (harness:RM-0102).
+
+    Derived from `derive_slug`, not from the directory name, so the scope and the slug can never
+    disagree about the same roadmap — and so the lower-casing happens in exactly one place.
+
+    A caller that passes `--scope` still wins. This is the default, not a policy.
+    """
+    if derive_slug(json_path) == HARNESS_SLUG:
+        return "operational"
+    return "task:%s" % derive_slug(json_path)
+
+
 def slug_of(doc, json_path):
     """Declared wins; derived otherwise.
 

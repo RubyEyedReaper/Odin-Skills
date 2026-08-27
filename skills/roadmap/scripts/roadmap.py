@@ -269,7 +269,8 @@ def cmd_init(args):
     path = args.path or os.path.join(root, "docs", "roadmap", "roadmap.json")
     if os.path.exists(path) and not args.force:
         _die("%s already exists (use --force to overwrite)" % path)
-    doc = schema_mod.default_doc(args.scope, today=args.today)
+    doc = schema_mod.default_doc(
+        args.scope or schema_mod.derive_scope(path), today=args.today)
     schema_mod.save(path, doc)
     render_mod.render_all(path)
     print("initialised %s" % path)
@@ -664,6 +665,14 @@ def cmd_reconcile(args):
         print(json.dumps(report["findings"], indent=2))
     else:
         findings = report["findings"]
+        # Printed before the findings, and unconditionally. A channel that returned nothing has to
+        # say *why* it returned nothing, or "no drift" reads identically whether the tracker was
+        # clean, switched off, unreachable, or not this roadmap's to answer for (ADR-0069, and
+        # ADR-0076 for the fourth case). This line is the only place `not-owned` becomes visible.
+        statuses = (report.get("evidence") or {}).get("channel_status") or {}
+        if statuses:
+            print("channels: %s" % " ".join(
+                "%s=%s" % (name, statuses[name]) for name in sorted(statuses)))
         if not findings:
             print("no drift — %s" % path)
         else:
@@ -780,8 +789,8 @@ def cmd_bootstrap(args):
     if os.path.exists(path):
         doc = schema_mod.load(path)
     else:
-        doc = schema_mod.default_doc(args.scope or os.path.basename(root),
-                                     today=args.today)
+        doc = schema_mod.default_doc(
+            args.scope or schema_mod.derive_scope(path), today=args.today)
 
     existing = {(i.get("title") or "").strip().lower() for i in doc.get("items", [])}
     added = []
@@ -888,7 +897,12 @@ def build_parser():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     init = subparsers.add_parser("init", help="create an empty roadmap")
-    init.add_argument("--scope", required=True, help="e.g. task:MyProject")
+    # Optional, with the default derived by `schema.derive_scope` — `projects/README.md`
+    # documents `--root projects/<slug> init` with no scope, and a documented invocation the
+    # engine rejects is a reader following instructions into exit 2 (harness:RM-0102).
+    init.add_argument("--scope",
+                      help="e.g. task:MyProject (default: derived — operational for a harness "
+                           "roadmap, task:<slug> for a project)")
     init.add_argument("--force", action="store_true")
     init.set_defaults(func=cmd_init)
 

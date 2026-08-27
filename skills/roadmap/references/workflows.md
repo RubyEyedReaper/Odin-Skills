@@ -26,7 +26,14 @@ runs it. An absolute path is taken as given. If **every** named source is unread
 exits 1 and writes nothing: a bootstrap that read no source is a failed bootstrap, not an empty
 success, and `--surface-sweep` does not excuse a mistyped path.
 
-**`--surface-sweep` is not optional for a product.** Project docs describe what the
+**Two different things are called a sweep, and only one of them is this.** `--surface-sweep`
+adds **starter surfaces** — a fixed profile checklist of what a project of this kind will
+need, from `STARTER_SURFACES` in `scripts/roadmap.py`. Reconcile's **surface sweep**
+(`scripts/sweep.py`) is the opposite direction: it enumerates directories on disk that no
+item claims. The flag keeps its spelling for back-compat — every transcript and the roadmap
+gate's own nudge use it — but the two mechanisms never share a noun in prose (`CONTEXT.md`).
+
+**Starter surfaces are not optional for a product.** Project docs describe what the
 author was thinking about; they systematically omit the surfaces every web product
 eventually needs — login, signup, password reset, profiles, account settings, FAQ,
 help, blog, news, about, pricing, contact, terms, privacy, cookie consent, search,

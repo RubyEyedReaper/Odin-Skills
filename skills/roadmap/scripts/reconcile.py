@@ -45,6 +45,12 @@ MAX_UNLINKED_ISSUES = 20
 CHANNEL_RAN = "ran"
 CHANNEL_SKIPPED = "skipped"
 CHANNEL_UNAVAILABLE = "unavailable"
+# A fourth state, distinct from all three above (ADR-0076). `skipped` is a caller's choice and
+# `unavailable` is a blind spot; this is neither — the channel was not consulted because the
+# question does not apply to this roadmap. Reported like the others, never silent: a filter that
+# matches nothing is otherwise indistinguishable from a tracker with nothing to report, which is
+# exactly the shape ADR-0069 exists to refuse.
+CHANNEL_NOT_OWNED = "not-owned"
 
 # Every kind `analyze` can emit. Its one consumer is `--fail-on`, which refuses a kind that is not
 # in here rather than silently matching nothing — a typo'd gate that passes for the wrong reason is
@@ -459,6 +465,36 @@ def _git_touched(root, items, since_days=STALE_AFTER_DAYS):
     return touched, status
 
 
+def owns_tracker(root):
+    """`(owns, status)` — may this roadmap's repository be asked to account for the tracker?
+
+    `_gh_issues` runs `gh` with `cwd=root`, and `gh` resolves the repository by walking *up* from
+    there. A roadmap in a subtree — `projects/<x>/docs/roadmap/` — therefore queries a tracker it
+    never named, and every open issue in the enclosing repository comes back as its drift. Measured
+    before this existed: the harness roadmap reported zero unlinked issues while each project
+    roadmap reported eight plus "14 further open issue(s) … were not reported".
+
+    The predicate is the layout, mirroring `schema.derive_slug`: a roadmap owns the tracker when its
+    own root **is** the git toplevel. That is correct for every case without a schema change and
+    without a special case — the harness roadmap sits at the toplevel and owns Odin's tracker; a
+    project subtree sits below it and owns none; a project that is its own repository (a submodule,
+    or one extracted later) starts owning its own tracker the moment that becomes true.
+
+    An explicit `tracker` field was rejected for now (DEC-0030): no project has its own tracker, and
+    `slug` is the cautionary precedent — a declared-optional field with no writer, populable only by
+    the hand edit this system forbids. If one is ever added, its writer ships in the same commit.
+
+    **Failure is not non-ownership.** When the probe cannot run, the answer is `unavailable`, so the
+    caller falls back to consulting the tracker rather than silently claiming nothing is owed.
+    "Could not look" must never collapse into "nothing to look at" (ADR-0069).
+    """
+    out, status = _run(["git", "-C", root, "rev-parse", "--show-toplevel"], cwd=root)
+    if status != CHANNEL_RAN or not (out or "").strip():
+        return None, CHANNEL_UNAVAILABLE
+    toplevel = os.path.realpath(out.strip())
+    return os.path.realpath(root) == toplevel, CHANNEL_RAN
+
+
 def _gh_issues(root):
     """`(issues, status)` — the tracker's issues, and whether the tracker could be reached.
 
@@ -571,7 +607,21 @@ def gather_evidence(json_path, doc, run_git=True, run_gh=True, surface_roots=Non
             root, doc, override=surface_roots,
         )
     if run_gh:
-        ev["issues"], ev["channel_status"]["gh"] = _gh_issues(root)
+        # Applied here rather than in `analyze`, and deliberately so. `MAX_UNLINKED_ISSUES` is
+        # applied *inside* `analyze`, so a filter placed after it would already have discarded owned
+        # issues in favour of foreign ones — the crowding-out this defect reports. Placing it at the
+        # evidence boundary also means `reconcile --apply-auto` inherits it: `untracked-issue` is
+        # auto-applicable off this same list, so an unscoped one would mint a foreign repository's
+        # issues into a project's canonical file. A predicate in the gate script could reach neither
+        # (DEC-0015: the severity decision lives in Python, and the gate never parses the report).
+        owns, _probe = owns_tracker(root)
+        if owns is False:
+            ev["channel_status"]["gh"] = CHANNEL_NOT_OWNED
+        else:
+            # `owns is True`, or the probe itself failed — in which case consult the tracker exactly
+            # as before. Failing *open* is the deliberate direction: an unreadable probe leaves the
+            # verdict identical to today's rather than inventing a new way for the gate to redden on
+            ev["issues"], ev["channel_status"]["gh"] = _gh_issues(root)
     # Disk is the one channel with no external dependency: `_missing_files` and `_changelog_unlinked`
     # are filesystem reads that either succeed or raise. It is recorded anyway so the status map
     # enumerates every channel rather than only the fragile ones — a consumer asking "did disk run?"
