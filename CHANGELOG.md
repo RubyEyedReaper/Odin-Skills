@@ -23,6 +23,11 @@ sync; entries below record what changed in this distribution.
   lacks a landed sha and names each blocker, and refuses with a *distinct* exit code when
   landedness could not be determined, because a check that could not look is a finding rather than
   a silence.
+- **`automate`** — what to automate, at which level, and whether an existing automation still
+  earns its keep. Prose only: the deciding question is whether a call's result was already
+  derivable from what the session held, which is a judgment rather than a repository fact, and a
+  gate that cannot fail is worse than none. Six verdicts, six levels, every level naming its
+  approval boundary and a rollback that is never an optional field.
 
 - **`successor-manager`** — who owns a delegated session, and what is actually true of it.
   The verdict is computed from channels the session does not control, in a fixed order: daemon
