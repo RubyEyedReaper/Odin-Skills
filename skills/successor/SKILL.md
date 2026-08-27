@@ -22,14 +22,20 @@ Rigid skill. The phases run in order; the bar has no optional elements.
 
 | Situation | Fire |
 |---|---|
-| Hand THIS session's work forward, one successor | `/relay` — already does it, has its own gates |
+| Hand THIS session's work forward, one successor | `handoff` skill, or `/relay` — write, launch, monitor (ADR-0077) |
 | Two or more independent workers, coordinated | **this skill** |
 | A campaign with waves, per-worker branches | **this skill** |
 | Parallel work inside one context window | `dispatching-parallel-agents` (subagents, not sessions) |
 | A delegated session stalled or wedged | **this skill** → Phase 3 |
 | A worker's branch is ready to land | **this skill** → Phase 4 |
 
-One successor = `/relay`. A coordinated fleet = this skill.
+One successor = the `handoff` skill (`/relay` is its command form). A coordinated fleet = this skill.
+
+**"The successor manager" is a role, and `successor-manager` is the skill that owns it**
+(ADR-0105). Its occupant is whoever launched the sessions — the delegating session for one
+successor, the coordinator for a fleet. Phase 3 below is the monitoring duty; the ownership
+register and the five verdicts computed from channels the session does not control are that
+skill's, and are not restated here.
 
 Not for: work that fits one session (just do it), or work whose steps share mutable state — parallel
 sessions on one checkout corrupt each other's index (ADR-0054).
