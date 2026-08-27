@@ -28,6 +28,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `successor` | Fleet-scale delegation to other Claude sessions — a six-element handoff bar, five ordered phases, and coordinator-owned integration |
 | `successor-manager` | Ownership of a delegated session and a verdict computed from channels it does not control — daemon health first, then branch movement, then landedness by content |
 | `superplan` | Multi-agent deep planning — planner + architect + adversarial reviewer in parallel, synthesized into one approved plan |
+| `tidy` | A verdict per path over spent material — it decides and never acts, performs no discovery of its own, and permanently refuses to give a delete verdict for a branch |
 
 ## Forks (10)
 

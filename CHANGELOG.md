@@ -30,6 +30,14 @@ sync; entries below record what changed in this distribution.
   everybody skips. Five declared fields including a falsifier, and a revert protocol that
   reverts on a red gate rather than patching forward, because patching forward from red means
   the next failure cannot be attributed. Adds no register: it reads the existing one.
+- **`tidy`** — the deliberate act over spent material, split from discovery. `leek` finds what
+  is stale and never cleans up; this takes a supplied path and returns a verdict, and it does
+  not act either. A `delete` verdict requires the basename to appear in a changelog or a
+  decision ledger — evidence that the content survived somewhere. Every other answer falls
+  toward keeping: an unresolvable path returns a stated reason, not a delete, because a check
+  that could not look is a finding. A **branch is permanently refused** with its own exit
+  code — landedness can be computed, but computing it is not authorization, and a wrongly
+  deleted branch has no reflex that restores it.
 
 - **`work-loop`** — the cycle contract and its resumable ledger. Eleven fields declared before
   the first iteration and refused if any is missing; six outcomes of which exactly one ends each

@@ -36,6 +36,7 @@
     "./skills/successor",
     "./skills/successor-manager",
     "./skills/superplan",
+    "./skills/tidy",
     "./skills/test-driven-development",
     "./skills/using-superpowers",
     "./skills/verification-before-completion",
