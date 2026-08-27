@@ -36,6 +36,7 @@
     "./skills/test-driven-development",
     "./skills/using-superpowers",
     "./skills/verification-before-completion",
+    "./skills/work-loop",
     "./skills/workflows"
   ]
 }

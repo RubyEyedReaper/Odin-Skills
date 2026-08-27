@@ -8,6 +8,15 @@ sync; entries below record what changed in this distribution.
 
 ## [Unreleased]
 
+### Added
+
+- **`work-loop`** — the cycle contract and its resumable ledger. Eleven fields declared before
+  the first iteration and refused if any is missing; six outcomes of which exactly one ends each
+  iteration; four stall predicates a script can decide (repeated error signature, repeated state
+  hash, retries exhausted, dependency unavailable); and a ledger a fresh session resumes from
+  without repeating a completed action. `escalate` and `pause` end the loop and record what a
+  later session needs — neither ever waits for a human.
+
 ### Fixed — the published tree stops linking to a private repository
 
 - **Five links to `github.com/RubyEyedReaper/Odin` are gone.** This repository is public; that one

@@ -22,6 +22,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `not-impressed` | Hostile-prior review of machine-generated code — the one verdict it owns is whether the implementation is overdeveloped, and every finding names what to delete |
 | `roadmap` | Standing inventory + dependency graph; waves computed from the graph rather than stored |
 | `workflows` | Lifecycle of a reusable workflow — define, version, supersede, retire; the runner refuses a retired manifest and an empty set |
+| `work-loop` | The cycle contract and its resumable ledger — eleven declared fields, six outcomes that describe the iteration and never the session, four mechanical stall predicates |
 | `successor` | Fleet-scale delegation to other Claude sessions — a six-element handoff bar, five ordered phases, and coordinator-owned integration |
 | `superplan` | Multi-agent deep planning — planner + architect + adversarial reviewer in parallel, synthesized into one approved plan |
 
