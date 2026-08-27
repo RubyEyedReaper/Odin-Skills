@@ -10,6 +10,14 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`learn`** — what is worth a durable record, how confident it is, and when it stops being
+  true. Adds no store: five confidence rungs with stated promotion and demotion evidence, six
+  outcomes exactly one of which applies per pass, and a `verified_by` field naming the command
+  that re-checks the record rather than a date saying somebody once looked. The capture bar
+  refuses credentials, personal data, task chatter, duplicates and anything derivable from the
+  codebase, each with its own exit code — and the credential refusal redacts by key name, never
+  by matching the value.
+
 - **`successor-manager`** — who owns a delegated session, and what is actually true of it.
   The verdict is computed from channels the session does not control, in a fixed order: daemon
   health first, because a monitor cannot read its own subject and a registry outlives the daemon
