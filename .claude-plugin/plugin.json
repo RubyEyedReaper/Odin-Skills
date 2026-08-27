@@ -32,6 +32,7 @@
     "./skills/roadmap",
     "./skills/rules-distill",
     "./skills/successor",
+    "./skills/successor-manager",
     "./skills/superplan",
     "./skills/test-driven-development",
     "./skills/using-superpowers",

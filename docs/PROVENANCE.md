@@ -24,6 +24,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `workflows` | Lifecycle of a reusable workflow — define, version, supersede, retire; the runner refuses a retired manifest and an empty set |
 | `work-loop` | The cycle contract and its resumable ledger — eleven declared fields, six outcomes that describe the iteration and never the session, four mechanical stall predicates |
 | `successor` | Fleet-scale delegation to other Claude sessions — a six-element handoff bar, five ordered phases, and coordinator-owned integration |
+| `successor-manager` | Ownership of a delegated session and a verdict computed from channels it does not control — daemon health first, then branch movement, then landedness by content |
 | `superplan` | Multi-agent deep planning — planner + architect + adversarial reviewer in parallel, synthesized into one approved plan |
 
 ## Forks (10)

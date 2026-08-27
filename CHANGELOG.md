@@ -10,6 +10,13 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`successor-manager`** — who owns a delegated session, and what is actually true of it.
+  The verdict is computed from channels the session does not control, in a fixed order: daemon
+  health first, because a monitor cannot read its own subject and a registry outlives the daemon
+  that served it; then branch movement; then landedness by content rather than ancestry. Five
+  verdicts including a mandatory `undetermined`, and distinct exit codes for the channels that
+  could not be read, because a check that could not look is a finding and never a silence.
+
 - **`work-loop`** — the cycle contract and its resumable ledger. Eleven fields declared before
   the first iteration and refused if any is missing; six outcomes of which exactly one ends each
   iteration; four stall predicates a script can decide (repeated error signature, repeated state
