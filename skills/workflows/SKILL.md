@@ -7,17 +7,18 @@ description: Use when a reusable workflow chain is being defined, validated, ver
 
 ## What this is not for
 
-A chain document under `.claude/docs/skill-workflows/` says *which skills fire in which order*
-(ADR-0021). Nothing today says who owns it, which version is current, or whether it is still the
-right chain. This skill owns that half — it **versions and retires** those documents, it does not
-replace them.
+A chain document under `.claude/docs/workflows/` says *which skills fire in which order*
+(ADR-0021, superseded on the storage question by ADR-0104). This skill owns the other half — who
+owns the chain, which version is current, and whether it is still the right one — by **validating,
+versioning, superseding and retiring** the manifest that the chain document carries. It does not
+write the chain's prose, and it never executes a step.
 
 | The task | Its owner | Why not this skill |
 |---|---|---|
 | Running the repository's gate chain | `.claude/scripts/ci-local.sh` | A gate chain is one script with an exit code, not a manifest. |
 | Iterating until the work is done | `endless` | This skill emits one chain's steps once. Continuation across items is a different problem. |
 | Deciding whether a task-local harness is warranted at all | `dynamic-workflow-mode` | That is a judgment about whether to build; this is the lifecycle of one already built. |
-| Writing the prose sequence of skills | `.claude/docs/skill-workflows/` | The chain document is the prose. The manifest is its lifecycle record beside it. |
+| Writing the prose sequence of skills | the chain's owning skill | The prose says how the work is done; this skill only asserts the manifest that sits in the same file is well-formed and current. |
 | Choosing what to work on next | `roadmap` | A workflow is *how* a class of work is done, never *which* work is next. |
 
 ## Non-goals, decided
