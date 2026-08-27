@@ -18,7 +18,7 @@ Delegation itself already has an owner. Route there instead.
 | Planning a multi-successor campaign, waves, campaign closure | `campaign` — harness:RM-0302, **not yet built** | Waves are a different item. The seam is named, not filled: this skill classifies the sessions a campaign launched; it does not decide what a campaign contains or when it is finished. |
 | Parallel work inside one context window | `dispatching-parallel-agents` | Subagents. They share the parent's lifetime, return text, and die with the turn — there is no register row and no verdict to compute. |
 | Whether to keep going at all | `endless` | Continuation doctrine. This skill says what happened; it never says whether to carry on. |
-| Cost of a session that is progressing but expensive | ADR-0097's branch | The burn predicate and `session-burn.sh` live on `origin/harness/successor-burn-audit`. Named as a seam in [escalation-paths.md](references/escalation-paths.md); nothing here duplicates them. |
+| Cost of a session that is progressing but expensive | ADR-0097 | The burn predicate and `.claude/scripts/session-burn.sh` are on `main` (PR #487); what is still open is when spend alone earns an escalation. Named as a seam in [escalation-paths.md](references/escalation-paths.md); nothing here duplicates them. |
 
 ## The stance
 

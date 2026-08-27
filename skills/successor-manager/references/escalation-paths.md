@@ -158,12 +158,13 @@ expensive sessions — a heaviest-to-median ratio near 9,500×. The context-full
 `endless` already carries could not fire on any of them, because they sat at about a quarter of the
 context ceiling for hundreds of turns, re-reading the same depth.
 
-**That ADR, its `--model` flag and its `session-burn.sh` live on `origin/harness/successor-burn-audit`
-(PR #487), and nothing in this skill duplicates them** — a second copy of that meter would conflict
-at integration and drift afterwards. What this skill contributes to it is the `model` field in the
-register row: a launch tier nobody records is a tier nobody notices reverting, which is exactly how
-the measured $0.00 Sonnet share went unnoticed.
+**That ADR, its `--model` flag and `.claude/scripts/session-burn.sh` landed on `main` in PR #487,
+and nothing in this skill duplicates them** — a second copy of that meter would drift from the one
+that runs. What this skill contributes is the `model` field in the register row: a launch tier
+nobody records is a tier nobody notices reverting, which is exactly how the measured $0.00 Sonnet
+share went unnoticed.
 
-When that branch lands, the burn check belongs in this file as a sixth section, and `stalled`
-acquires a sibling. Until then, a `stalled` row on a session that is visibly consuming is read by a
-human, not by the probe.
+The burn check is not yet a sixth section here, and that is the open seam rather than the branch:
+`session-burn.sh` measures spend, and what it does not yet decide is when a session that is
+progressing but expensive earns an escalation. Until it does, a `stalled` row on a session that is
+visibly consuming is read by a human, not by the probe.
