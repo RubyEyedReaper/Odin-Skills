@@ -19,7 +19,7 @@ added later must not renumber the fields already there.
 
 | Field | Records | Why it is here |
 |---|---|---|
-| `session_id` | the id `claude agents` knows the session by | The join key. Membership of the registry's id set is one of the three signals, and without this there is nothing to look up. Defaults to the filename if omitted. |
+| `session_id` | the id `claude agents` knows the session by | The join key. Membership of the registry's id set is one of the three signals, and without this there is nothing to look up. **Required** — see below. |
 | `worker` | the human-readable name passed at launch | What a report calls it. An id is not something a person can hold in their head across a fleet. |
 | `branch` | the topic branch the worker pushes to | The other two signals are both questions about this branch. A row without it can only ever be `undetermined`, and the probe says so rather than guessing. |
 | `worktree` | absolute path to the worker's checkout | Where to look when a verdict needs a human. Also what teardown removes — a spent worktree left registered keeps the concurrency guard armed against the main checkout (ADR-0054). |
@@ -30,6 +30,28 @@ added later must not renumber the fields already there.
 | `model` | the tier the session was launched on | A measured $0.00 Sonnet share across 4,915 successor sessions was an absent flag, not a preference, and absent flags fail silently and forever (ADR-0097, landed in PR #487). A launch tier nobody records is one nobody notices reverting. |
 | `launched_at` | unix seconds at launch | The staleness fallback when a branch has no commits yet, so a worker in its first minutes is not read as stalled. |
 | `launch_sha` | the base sha the branch was cut from | Branch **movement** is this sha against the published one. Without it, "has this worker done anything" has no answer that does not involve trusting the worker. |
+| `liveness` | which channel reports this row's liveness — `branch` (the default when absent) or `session` | An observation role's branch carries a **record**, not a deliverable, so movement is the wrong channel for it and the row read `stalled` permanently once the window passed. Declared rather than inferred from the role's name: a worker called `monitor-adjacent` would inherit a guess. |
+
+## `session_id` is required, and an unrecognised `liveness` is not the default
+
+Two rules the probe enforces, both instances of one stance — **a channel that could not answer says
+so, rather than producing a verdict.**
+
+A row without `session_id` classifies `undetermined` and prints its own path where the id would go.
+The field used to fall back to the filename, and the fallback invented an id: a row named
+`e27be091.tsv` produced `e27be091.tsv`, which matched no session, so the row read `failed` — a
+positive claim meaning *gone from a registry the health gate proved current* — while the session was
+live and working (`harness:RM-0401`). An id inferred from a filename is the same defect as a verdict
+inferred from a subject.
+
+A `liveness` value that is neither `branch` nor `session` classifies `undetermined` and prints the
+value. A misspelled `sessoin` quietly meaning `branch` would be that same defect one field over.
+
+**A `liveness=session` row still probes landedness, and `landed` still wins.** The field decides
+which channel reports *live versus stalled*; it does not decide whether content in the base counts.
+An observation branch that really did land a record is reported landed and its row retires normally.
+A row of either kind whose branch has **no commits of its own** reads `no-commits` and takes
+`live`/`failed` from the registry alone — no work yet is not work that landed (`harness:RM-0319`).
 
 ## Retirement — an explicit act, never an age sweep
 
@@ -65,8 +87,14 @@ mkdir -p "$reg"
   printf 'model\t%s\n'       "$model"
   printf 'launched_at\t%s\n' "$(date +%s)"
   printf 'launch_sha\t%s\n'  "$(git -C "$wt" rev-parse origin/main)"
+  # Only for a role whose branch carries a record rather than a deliverable. Omit it otherwise —
+  # absent is `branch`, and every row written before this field existed keeps its meaning.
+  # printf 'liveness\tsession\n'
 } > "$reg/$sid"
 ```
+
+`session_id` is the one field with no sensible default: a row that omits it can be joined to
+nothing, and the probe reports that rather than inventing an id from the filename.
 
 Written at launch, in the same breath as the launch. A row recorded afterwards is a row that is
 missing for exactly as long as it takes something to go wrong.

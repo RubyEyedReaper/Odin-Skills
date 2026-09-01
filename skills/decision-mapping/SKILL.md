@@ -14,6 +14,13 @@ argument-hint: "[the loose idea, or a path to an existing map + optional ticket 
 license: MIT
 metadata:
   origin: Odin — fork of mattpocock/skills `wayfinder` (formerly `decision-mapping`)
+artifact: .claude/docs/plans/*-map.md
+artifact_status: never-run
+artifact_status_reason: >-
+  no decision map has ever been committed — .claude/docs/plans holds no *-map.md, measured
+  2026-09-01. Writing one so this gate goes green would be manufacturing an instance to satisfy a
+  detector, which is the detector working backwards. The exemption lifts the first time a real
+  decision map is charted.
 ---
 
 # Decision Mapping — chart the way before planning it

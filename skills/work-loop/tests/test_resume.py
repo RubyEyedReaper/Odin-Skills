@@ -142,7 +142,14 @@ class ResumingAPausedLoop(unittest.TestCase):
         for outcome, extra in (
             ("complete", []),
             ("stop", []),
-            ("escalate", ["--recommended-next", "capture a roadmap item"]),
+            (
+                "escalate",
+                [
+                    "--blocker", "the credential the contract declares is absent",
+                    "--evidence", "gh auth status exited 1",
+                    "--recommended-next", "capture a roadmap item",
+                ],
+            ),
         ):
             with self.subTest(outcome=outcome), fx.LedgerRoot() as root:
                 fx.open_loop(root)

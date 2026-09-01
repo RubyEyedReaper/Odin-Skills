@@ -63,6 +63,18 @@ digraph verdict {
    every sha, and ancestry answered "not merged" for 56 of 110 branches that had in fact landed
    (ADR-0093).
 
+Each signal is bounded, and the bound is the reason there are three of them. What a signal cannot
+answer is not a caveat on the verdict — it is the whole reason the next signal is consulted:
+
+| Signal | What it establishes | Does not establish |
+|---|---|---|
+| `bash .claude/scripts/fleet-health.sh` | whether the daemon every other channel is served by is alive, and whether a verdict may be claimed at all | anything about one session. A healthy daemon is a precondition, never a finding about a worker. |
+| `git ls-remote --heads origin <branch>` | the published sha, and when the tip last moved | that anything landed, and — inside the staleness window — that the session is working rather than pushing noise. Movement is a question about shas. |
+| `bl_classify` (`.claude/scripts/lib/branch-landedness.sh`) | whether the branch's content is in the base | *why* a branch is unlanded, and it withholds a verdict outright when the commits pair only partly (`undetermined`). |
+| `claude logs <id>` — not one of the three | what a session's screen showed | anything, unless the escapes are stripped first: it exits 0 while returning a screen recording (harness:RM-0340). `handoff` § 3 carries the filter; this skill orders signals and does not restate it. |
+
+The registry's **id set** is the fourth reading, and its bound is the sharpest of all — see below.
+
 The registry's **id set** is consulted, and nothing else from it. Membership is the daemon's account
 of who exists, and step 1 has just proved that account current; the per-session field describing how
 a session feels is the subject talking.
@@ -116,3 +128,4 @@ is declared.
 | "Resume from where the transcript stops" | A transcript records what was attempted, not what landed, and a relaunched session has none. |
 | "The row can go, the session is gone" | A gone session with an unlanded branch is the `failed` finding. Retiring the row deletes the evidence for it. |
 | "It is expensive, so it is stuck" | Burning without progressing is its own pathology, and it is not `stalled`. See the burn seam. |
+| "The message was sent, so the worker was told" | A send reports on the send. The fourth channel is the one that reports success and drops the message: nothing on the receiving side is ever wrong to look at, because nothing arrived. Confirm from the worker's own next action — a branch, a commit, a reply — never from the send's exit. |

@@ -65,7 +65,11 @@ Template: `references/handoff-template.md`.
 - The successor is **monitored** by the delegating session until it lands or is stopped.
 - The successor is **autonomous** — never `AskUserQuestion`, on any fork, including scope
   (ADR-0052, `.claude/rules/common/decision-authority.md`). It decides, records, continues.
-- The successor speaks **terse Odin voice** (ADR-0011), which never lapses mid-skill.
+- The successor speaks **terse Odin voice** (ADR-0011), **strict and always** — never a default
+  and never off, including mid-skill. A skill's first-person instruction is translated into
+  fragments, never quoted. Deliverable content stays normal English. The full statement, with
+  the `sentence-prose` lapse mode that is the one that actually recurs, is in
+  `references/handoff-template.md` and every handoff carries it.
 - The successor **arms its own posture** as its first action: `bash .claude/scripts/odin-autonomous.sh on`.
   A coordinator cannot arm a child — the claim ticket is stamped by the claiming session's own next
   hook (ADR-0051).

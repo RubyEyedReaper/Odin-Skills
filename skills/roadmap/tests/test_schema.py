@@ -152,6 +152,59 @@ class TestValidation(unittest.TestCase):
     def test_self_parent_rejected(self):
         self.assertIn("parent", self._errs(_doc(_item("RM-0001", parent="RM-0001"))))
 
+    def test_done_parent_with_an_open_child_rejected(self):
+        # harness:RM-0373. The rule is in the skill's own prose — "the parent goes done only when
+        # every child does" — and was in no predicate, so `validate` exited 0 over a document that
+        # contradicted it. This repository's own roadmap carried such a pair.
+        doc = _doc(
+            _item("RM-0001", status="done"),
+            _item("RM-0002", status="proposed", parent="RM-0001"),
+        )
+        errs = self._errs(doc)
+        self.assertIn("RM-0001", errs)
+        self.assertIn("RM-0002", errs)
+        # The child's status is named, so the reader knows which end to move.
+        self.assertIn("proposed", errs)
+
+    def test_done_parent_with_a_done_child_accepted(self):
+        doc = _doc(
+            _item("RM-0001", status="done"),
+            _item("RM-0002", status="done", parent="RM-0001"),
+        )
+        self.assertEqual(validate(doc), [])
+
+    def test_done_parent_with_a_dropped_child_accepted(self):
+        # The half that stops the predicate becoming a nuisance. A dropped child is a decision
+        # that it will not be built; holding its parent open for it would make `dropped` unusable,
+        # and a rule nobody can clear except by un-dropping work is one that gets switched off.
+        doc = _doc(
+            _item("RM-0001", status="done"),
+            _item("RM-0002", status="dropped", parent="RM-0001"),
+        )
+        self.assertEqual(validate(doc), [])
+
+    def test_an_open_parent_with_an_open_child_accepted(self):
+        # The rule is about closing early, never about the ordinary in-flight state.
+        doc = _doc(
+            _item("RM-0001", status="in-progress"),
+            _item("RM-0002", status="proposed", parent="RM-0001"),
+        )
+        self.assertEqual(validate(doc), [])
+
+    def test_every_violating_child_is_reported_not_only_the_first(self):
+        # A validator that stops at one finding hides the rest, and this repository's document has
+        # thirteen parents. Both open children must appear.
+        doc = _doc(
+            _item("RM-0001", status="done"),
+            _item("RM-0002", status="proposed", parent="RM-0001"),
+            _item("RM-0003", status="in-progress", parent="RM-0001"),
+            _item("RM-0004", status="done", parent="RM-0001"),
+        )
+        errs = self._errs(doc)
+        self.assertIn("RM-0002", errs)
+        self.assertIn("RM-0003", errs)
+        self.assertNotIn("RM-0004", errs)
+
     def test_valid_doc_has_no_errors(self):
         doc = _doc(
             _item("RM-0001", status="done"),
@@ -277,6 +330,30 @@ class TestPaths(unittest.TestCase):
         # `.claude/.claude/**` and call every finished item's files missing.
         p = paths_for("/repo/.claude/docs/roadmap/roadmap.json")
         self.assertEqual(p["root"], "/repo")
+
+    def test_an_unrecognised_layout_roots_at_the_json_directory(self):
+        # harness:RM-0364. The two-level walk used to run for every path, so a roadmap the named
+        # layouts do not describe got a root two directories above itself — and rendered there.
+        p = paths_for("/repo/scratch/roadmap.json")
+        self.assertEqual(p["root"], "/repo/scratch")
+        self.assertEqual(p["md"], "/repo/scratch/ROADMAP.md")
+
+    def test_every_generated_path_is_inside_the_reported_root(self):
+        # The invariant, stated over all three layouts at once. A future fourth layout that
+        # forgets it fails here rather than in whichever directory it happened to escape into.
+        for json_path in (
+            "/repo/projects/Demo/docs/roadmap/roadmap.json",
+            "/repo/.claude/docs/roadmap/roadmap.json",
+            "/repo/scratch/roadmap.json",
+            "/roadmap.json",
+        ):
+            p = paths_for(json_path)
+            root = p["root"].rstrip("/")
+            for key in ("json", "graph_dir", "dot", "svg", "md"):
+                self.assertTrue(
+                    p[key] == root or p[key].startswith(root + "/"),
+                    "%s: %s escapes root %s" % (json_path, key, p["root"]),
+                )
 
 
 if __name__ == "__main__":

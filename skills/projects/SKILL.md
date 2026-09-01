@@ -1,6 +1,7 @@
 ---
 name: projects
 description: Use when starting or switching to a project subtree, when a project's own README, changelog, ADR set, decision ledger, roadmap or data-provenance manifest may be missing, or when deciding whether a project is initialized, active, dormant or completed.
+artifact: projects/*/README.md
 ---
 
 # Projects — one operating model, from onboarding to completion

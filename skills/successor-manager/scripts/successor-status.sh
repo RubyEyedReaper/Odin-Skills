@@ -164,6 +164,14 @@ if [ "$DAEMON_DOWN" -eq 0 ]; then
 fi
 in_registry() { printf '%s\n' "$registry_ids" | grep -qxF "$1"; }
 
+registry_verdict() {  # registry_verdict <session-id> -> live | failed
+  # For a row whose branch cannot report liveness by moving — because it has nothing to move past,
+  # or because it carries a record rather than a deliverable. The registry's id set is then the only
+  # channel with an answer, and the health gate has already proved that account current. One
+  # implementation, used by both such rows, so the two cannot drift apart.
+  if in_registry "$1"; then printf live; else printf failed; fi
+}
+
 NOW=$(date +%s)
 
 resolve_ref() {  # resolve_ref <branch> -> the local ref that can be read, or ""
@@ -183,22 +191,45 @@ resolve_ref() {  # resolve_ref <branch> -> the local ref that can be read, or ""
 }
 
 findings=0
+matched=0
 json_rows=""
 [ "$AS_JSON" -eq 0 ] && printf '%-14s %-13s %-26s %-6s %-19s %-8s %s\n' \
   SESSION VERDICT BRANCH MOVED LANDEDNESS MODEL INTEGRATOR
 
 for f in "${rows[@]}"; do
-  sid="$(field "$f" session_id)"; [ -n "$sid" ] || sid="$(basename "$f")"
-  [ -n "$ONLY" ] && [ "$ONLY" != "$sid" ] && continue
+  # A ROW'S IDENTITY IS DECLARED, NEVER INFERRED FROM ITS FILENAME. The basename fallback that
+  # stood here invented an id — `e27be091.tsv` for a row about session `e27be091` — and the invented
+  # id never matched the registry's id set, so the row classified `failed`, which asserts "gone from
+  # a registry the health gate proved current". The session was live and working. An id inferred
+  # from a filename is the same defect as a verdict inferred from a subject: a channel answering a
+  # question it was not asked (harness:RM-0401).
+  declared_id="$(field "$f" session_id)"
+  sid="${declared_id:-$f}"          # undeclared rows name their own path, so the finding is fixable
+  if [ -n "$ONLY" ]; then
+    [ "$ONLY" = "$declared_id" ] || continue
+  fi
+  matched=$((matched+1))
 
   branch="$(field "$f" branch)"
   model="$(field "$f" model)";           [ -n "$model" ]      || model="-"
   integrator="$(field "$f" integrator)"; [ -n "$integrator" ] || integrator="-"
+  # WHICH CHANNEL REPORTS THIS ROW'S LIVENESS — declared, never guessed from the role's name. An
+  # observation role's branch carries a record rather than a deliverable, so it cannot report
+  # liveness by moving, and the row read `stalled` permanently once the window passed
+  # (harness:RM-0402). Absent means `branch`, which is every existing row's meaning unchanged.
+  liveness="$(field "$f" liveness)"; [ -n "$liveness" ] || liveness=branch
   launch_sha="$(field "$f" launch_sha)"
   launched_at="$(field "$f" launched_at)"
   case "$launched_at" in ''|*[!0-9]*) launched_at="$NOW" ;; esac
 
-  if [ -z "$branch" ]; then
+  if [ -z "$declared_id" ]; then
+    verdict=undetermined; moved="?"; landedness="no-session-id"
+  elif [ "$liveness" != branch ] && [ "$liveness" != session ]; then
+    # A value that could not be understood is not the default. `sessoin` silently meaning `branch`
+    # is this file's own defect one field over: a channel that could not answer producing a
+    # confident verdict rather than saying so. The value is printed, so the row is fixable.
+    verdict=undetermined; moved="?"; landedness="bad-liveness:$liveness"
+  elif [ -z "$branch" ]; then
     verdict=undetermined; moved="?"; landedness="no-branch-recorded"
   elif [ "$DAEMON_DOWN" -eq 1 ]; then
     # The gate has spoken. The registry is not consulted, the refs are not consulted, and no row
@@ -224,6 +255,28 @@ for f in "${rows[@]}"; do
       landedness="$(bl_classify "$ROOT" "$ref" "$BASE")"
       progress="$(git -C "$ROOT" log -1 --format=%ct "$ref" 2>/dev/null)"
       case "$progress" in ''|*[!0-9]*) progress="$launched_at" ;; esac
+
+      # NO WORK YET IS NOT WORK THAT LANDED. A branch whose content is entirely in the base is
+      # landed, and that reading is ADR-0093's — but a branch with no commits of its own has that
+      # property trivially, and `landed` tells the manager to retire the row. Measured against the
+      # live fleet at base 4582682a: session 14ca88c4 was running, its branch stood at a02d00a9 with
+      # zero commits ahead, and it read `landed` sixty seconds after launch (harness:RM-0319).
+      #
+      # THE PREDICATE SITS BEHIND THE LANDEDNESS CHANNEL, NOT IN FRONT OF IT, for three reasons.
+      # A root, ref or base bl_classify could not resolve — `evidence-unavailable`, wave 6b — makes
+      # this count no more obtainable than the classification, so running it first would answer with
+      # a number in the one case where no number exists. `landed` is the only value a zero-commit
+      # branch can produce, since it has no unpaired commit for the library to find. And a count
+      # this probe could not obtain is not zero: that is `undetermined`, fail closed, exactly as the
+      # unreadable-remote arm below already does.
+      if [ "$landedness" = "landed" ]; then
+        if ahead="$(git -C "$ROOT" rev-list --count "$BASE..$ref" 2>/dev/null)" \
+           && [ -n "$ahead" ] && [ -z "${ahead//[0-9]/}" ]; then
+          [ "$ahead" -eq 0 ] && landedness="no-commits"
+        else
+          landedness="commit-count-unreadable"
+        fi
+      fi
     elif [ "$remote_sha" = "?" ]; then
       landedness="remote-unreadable"; progress="$launched_at"
     elif [ -n "$remote_sha" ]; then
@@ -236,10 +289,19 @@ for f in "${rows[@]}"; do
     case "$landedness" in
       landed)
         verdict=landed ;;
-      undetermined|evidence-unavailable|remote-unreadable|unfetched)
+      undetermined|evidence-unavailable|remote-unreadable|unfetched|commit-count-unreadable)
         verdict=undetermined ;;
+      no-commits)
+        # The branch has nothing to move past, so movement cannot report liveness for it and the
+        # staleness comparison is skipped. The registry's id set decides, and nothing else.
+        verdict="$(registry_verdict "$sid")" ;;
       *)
-        if in_registry "$sid"; then
+        if [ "$liveness" = session ]; then
+          # The row declared that its branch does not report its liveness. The registry's id set
+          # decides, and the staleness comparison is not made — which is what keeps a role whose
+          # branch carries a record from reading `stalled` forever.
+          verdict="$(registry_verdict "$sid")"
+        elif in_registry "$sid"; then
           if [ $((NOW - progress)) -lt "$STALE_AFTER" ]; then verdict=live; else verdict=stalled; fi
         else
           # Gone from a registry the health gate has just proved current, with nothing landed.
@@ -268,6 +330,16 @@ if [ "$DAEMON_DOWN" -eq 1 ]; then
   printf 'successor-status: the session daemon is gone. Every session is dead whatever the registry\n' >&2
   printf '                  last knew. Relaunch the fleet from amended handoffs — see the successor skill.\n' >&2
   exit "$EX_DAEMON"
+fi
+
+if [ -n "$ONLY" ] && [ "$matched" -eq 0 ]; then
+  # The same answer the empty register gets at the top of this file, reached through the filter
+  # instead of through the directory: nothing was inspected, so nothing may be claimed. Exit 0 here
+  # would mean "every row is live or landed" about a run that read no row — and that is exactly how
+  # an unjoinable id used to disappear silently rather than be reported (harness:RM-0401).
+  printf 'successor-status: no row declares session_id %s in %s\n' "$ONLY" "$REGISTER" >&2
+  printf '                  no verdict is claimed. Run without --session to list the declared ids.\n' >&2
+  exit "$EX_REGISTER"
 fi
 
 [ "$findings" -eq 0 ] && exit "$EX_OK"

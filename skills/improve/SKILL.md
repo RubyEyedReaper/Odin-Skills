@@ -1,6 +1,13 @@
 ---
 name: improve
 description: Use when a friction keeps recurring in a skill and no script can decide it — a body that routes badly, a reference nobody reads, a step everybody skips — or when a skill change must declare its reason, its falsifier, and what happens if it reddens a gate.
+artifact_status: never-run
+artifact_status_reason: >-
+  the record is five fields in the commit body, which no glob can match, and the mechanism has
+  never run: 0 of the 30 commits touching .claude/skills since improve landed at b5aaf902
+  (2026-08-26) carry them, measured 2026-09-01. Retro-fitting them would mean rewriting published
+  history, and a record written now from memory is a function of who remembered. The obligation
+  binds forward from here.
 ---
 
 # Improve — the rung the ladder does not have

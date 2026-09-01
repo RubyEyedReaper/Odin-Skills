@@ -16,6 +16,7 @@ from contextlib import redirect_stderr, redirect_stdout
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from scripts import schema as schema_mod  # noqa: E402
 from scripts.roadmap import main  # noqa: E402
 
 TODAY = "2026-08-15"
@@ -251,6 +252,59 @@ class TestNextOnAnEmptyRoadmap(unittest.TestCase):
         code, out, _ = _run(self.json_path, "next")
         self.assertEqual(code, 0)
         self.assertIn("waiting on a dependency", out)
+
+
+class TestParentDoneRefusal(unittest.TestCase):
+    """`validate` refuses a parent closed over an open child (harness:RM-0373).
+
+    The rule was stated in the skill's prose and in no predicate, so the gate list's own consumer
+    exited 0 over a document that contradicted it — and this repository's roadmap carried such a
+    pair for as long as nobody read the sentence.
+
+    The violating fixture is built through the document layer rather than through `add`/`set`,
+    because those two now refuse to create it. That is the point of the second case below: after
+    this change the only way a violating document exists is the way the real one did — written
+    before the predicate — so that is the document the exit-code case has to present.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.json_path = os.path.join(self._tmp.name, "docs", "roadmap", "roadmap.json")
+        _run(self.json_path, "init", "--scope", "task:Demo")
+        _run(self.json_path, "add", "--title", "Parent thing", "--kind", "feature")
+        _run(self.json_path, "add", "--title", "Child thing", "--kind", "feature",
+             "--parent", "RM-0001")
+        self.addCleanup(self._tmp.cleanup)
+
+    def _close_the_parent_behind_the_engines_back(self):
+        doc = schema_mod.load(self.json_path)
+        for item in doc["items"]:
+            if item["id"] == "RM-0001":
+                item["status"] = "done"
+                item["completed"] = TODAY
+        schema_mod.save(self.json_path, doc)
+
+    def test_validate_exits_one_and_names_both_ends(self):
+        self._close_the_parent_behind_the_engines_back()
+        code, _, err = _run(self.json_path, "validate")
+        self.assertEqual(code, 1)
+        self.assertIn("RM-0001", err)
+        self.assertIn("RM-0002", err)
+        self.assertIn("proposed", err)
+
+    def test_set_refuses_to_close_a_parent_over_an_open_child(self):
+        code, _, err = _run(self.json_path, "set", "RM-0001", "--status", "done")
+        self.assertEqual(code, 1)
+        self.assertIn("RM-0002", err)
+        # Refused means unchanged, not "warned and written anyway".
+        self.assertEqual(schema_mod.load(self.json_path)["items"][0]["status"], "proposed")
+
+    def test_validate_exits_zero_once_the_child_is_closed(self):
+        self.assertEqual(_run(self.json_path, "set", "RM-0002", "--status", "done")[0], 0)
+        self.assertEqual(_run(self.json_path, "set", "RM-0001", "--status", "done")[0], 0)
+        code, out, err = _run(self.json_path, "validate")
+        self.assertEqual(code, 0, err)
+        self.assertIn("ok", out)
 
 
 if __name__ == "__main__":

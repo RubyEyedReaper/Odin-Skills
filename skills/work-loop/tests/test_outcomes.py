@@ -137,15 +137,30 @@ class TheContract(unittest.TestCase):
 class NeitherEscalateNorPauseBlocks(unittest.TestCase):
     """ADR-0103. A run that stops has ended; these two outcomes end the *loop*."""
 
-    def test_escalate_requires_a_recommended_next_action(self):
-        with fx.LedgerRoot() as root:
-            fx.open_loop(root)
-            code, _, err = fx.run_cli(
-                "iterate", "--root", root.path, "--session", fx.SESSION,
-                "--outcome", "escalate", "--note", "postgres refused the connection",
-            )
-            self.assertEqual(code, EXIT_INVALID)
-            self.assertIn("recommended-next", err)
+    def test_escalate_requires_each_of_the_three_fields(self):
+        """harness:RM-0361. A hard external blocker is the only sanctioned reason to stop short of
+        done, and until this was enforced the engine checked one of the three fields the skill's
+        own body promises. Each absence is refused on its own, so a record cannot be half written.
+        What is checkable is that the stop RECORDED a blocker in a stated form — never whether the
+        blocker was genuine, which is a judgment a gate must not encode."""
+        complete = {
+            "--blocker": "postgres refused the connection and the container is not ours to start",
+            "--evidence": "psql exited 2: connection refused on port 55432",
+            "--recommended-next": "capture a roadmap item for the container",
+        }
+        for omitted in complete:
+            with self.subTest(omitted=omitted), fx.LedgerRoot() as root:
+                fx.open_loop(root)
+                argv = []
+                for flag, value in complete.items():
+                    if flag != omitted:
+                        argv += [flag, value]
+                code, _, err = fx.run_cli(
+                    "iterate", "--root", root.path, "--session", fx.SESSION,
+                    "--outcome", "escalate", *argv
+                )
+                self.assertEqual(code, EXIT_INVALID)
+                self.assertIn(omitted.lstrip("-"), err)
 
     def test_escalate_records_the_blocker_and_ends_the_loop(self):
         with fx.LedgerRoot() as root:
@@ -153,16 +168,42 @@ class NeitherEscalateNorPauseBlocks(unittest.TestCase):
             code, _, _ = fx.run_cli(
                 "iterate", "--root", root.path, "--session", fx.SESSION,
                 "--outcome", "escalate", "--note", "postgres refused the connection",
+                "--blocker", "postgres refused the connection",
+                "--evidence", "psql exited 2: connection refused on port 55432",
                 "--recommended-next", "capture a roadmap item for the container",
             )
             self.assertEqual(code, EXIT_OK)
             ledger = fx.read_ledger(root)
             self.assertEqual(ledger["status"], "closed")
             self.assertEqual(ledger["final_outcome"], "escalate")
+            record = ledger["iterations"][-1]
+            self.assertEqual(record["blocker"], "postgres refused the connection")
             self.assertEqual(
-                ledger["iterations"][-1]["recommended_next"],
+                record["evidence"], "psql exited 2: connection refused on port 55432"
+            )
+            self.assertEqual(
+                record["recommended_next"],
                 "capture a roadmap item for the container",
             )
+
+    def test_a_stall_promoted_escalate_carries_all_three_fields(self):
+        """Nobody passed a blocker: the ENGINE promoted the outcome. It holds the facts — which
+        predicate fired and the signature behind it — so it names all three rather than writing
+        exactly the record `blocker-record-check.sh` refuses."""
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            for _ in range(3):
+                fx.run_cli(
+                    "iterate", "--root", root.path, "--session", fx.SESSION,
+                    "--outcome", "continue", "--error", "connection refused on port 5432",
+                )
+            record = fx.read_ledger(root)["iterations"][-1]
+            self.assertEqual(record["outcome"], "escalate")
+            for field in ("blocker", "evidence", "recommended_next"):
+                self.assertTrue(
+                    str(record.get(field) or "").strip(),
+                    "a stall-promoted escalate left %s empty" % field,
+                )
 
     def test_pause_checkpoints_the_completed_actions_and_ends_the_loop(self):
         with fx.LedgerRoot() as root:

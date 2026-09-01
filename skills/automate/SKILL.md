@@ -1,6 +1,8 @@
 ---
 name: automate
 description: Use when a repeated action might be worth automating — something done a third time, a call whose result was probably already known, a script about to be written, a level to run it at, or an existing automation nobody can justify keeping.
+artifact: .claude/scripts/*.sh .claude/hooks/*.sh
+artifact_pattern: ^#\s*record:
 ---
 
 # Automate — what to automate, at which level, and whether it is still worth having

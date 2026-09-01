@@ -137,7 +137,7 @@ After the launch, this session is the **successor manager**: it watches, and it 
 the delegated work. Building on in parallel is how two sessions edit the same branch and lose each
 other's commits.
 
-Three signals, in this order, because each alone lies:
+Four channels, in this order, because each alone lies:
 
 ```sh
 bash .claude/scripts/fleet-health.sh        # FIRST — is the daemon there at all
@@ -154,9 +154,34 @@ control socket from disk instead, which the subject cannot fake once it is gone 
 dead, relaunch from amended handoffs — and **exits 3** when the registry could not be read at all,
 where the honest conclusion is none.
 
+**Each channel establishes less than it appears to.** Read the third column before acting on any
+one of them — a channel answering is not the same as the question being answered.
+
+| Channel | What it establishes | Does not establish |
+|---|---|---|
+| `bash .claude/scripts/fleet-health.sh` | whether the daemon serving every other channel is alive | anything about one session's progress. It is the precondition for reading the other three, never a verdict about any one worker. |
+| `claude agents --json` | the id set the daemon currently holds, and each session's cwd | liveness. The registry outlives the daemon that served it, so a dead session goes on rendering as `blocked` (M-0014). |
+| `claude logs <id>` | what the successor's screen showed, once the escapes are stripped | that anything readable was returned at all — this channel exits 0 whatever it emits — and never what landed. |
+| `git ls-remote --heads origin '<class>/*'` | that a branch exists at some sha, and when its tip last moved | that the work landed. Movement and ancestry are questions about shas; landedness is a question about content, and ancestry answered wrong for 56 of 110 branches (ADR-0093). |
+
+`claude logs` is the channel that reports success while delivering nothing readable. Measured
+2026-09-01 against session `ccf3304f`: `rc=0`, 65627 bytes, **6568 escape sequences** — cursor
+addressing, 24-bit colour, absolute line positioning, ten sequences per hundred bytes. A screen
+recording, not a log. Read it through the filter:
+
+```log-filter
+claude logs <id> 2>&1 | sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' -e 's/\x1b[()][A-Za-z]//g' | tr '\r' '\n' | grep -v '^$' | tail -40
+```
+
+The `tr` matters as much as the `sed`: the source is a redrawn screen, so its lines are separated by
+carriage returns and overwritten in place. Spacing is lossy — words the terminal placed with cursor
+moves arrive run together — and that is this channel's honest ceiling. **`rc=0` from `claude logs`
+does not mean the output was readable.** That is the general lesson, and it is why this table has a
+third column: read what a command returns, never only what it exits.
+
 | Observation | Read it as | Do |
 |---|---|---|
-| `running`, no branch push, quiet | working, or wedged — undecided | `claude logs <id>`, read the last turn |
+| `running`, no branch push, quiet | working, or wedged — undecided | read the last turn through the filter above, never the raw channel |
 | logs repeating one tool call | wedged | `claude stop <id>`, amend the handoff, relaunch |
 | branch pushed, session idle | finished | integrate |
 | every session silent at once | a shared dependency died | `fleet-health.sh` names it; check it first |

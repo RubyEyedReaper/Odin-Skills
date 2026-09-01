@@ -107,7 +107,44 @@ class Counts(unittest.TestCase):
         self.assertEqual(mistakes.band(1), "logged")
         self.assertEqual(mistakes.band(2), "attention")
         self.assertEqual(mistakes.band(3), "attention")
-        self.assertEqual(mistakes.band(4), "promoted")
+
+    def test_band_at_threshold_without_the_rows_says_due_not_done(self):
+        # harness:RM-0362. The threshold decides whether promotion is OWED; only the rows say
+        # whether it HAPPENED. Asked without the rows, the honest answer is the owed one —
+        # a band that assumes closure is the defect, not a default.
+        self.assertEqual(mistakes.band(4), "promotion due")
+
+    def test_band_reads_the_rows_when_it_is_given_them(self):
+        key = "ci-gate/x"
+        logged = mistakes.parse_log(log(*[
+            row("M-%04d" % (i + 1), key) for i in range(4)]))
+        promoted = mistakes.parse_log(log(*[
+            row("M-%04d" % (i + 1), key, status="promoted") for i in range(4)]))
+        self.assertEqual(mistakes.band(4, rows=logged, key=key), "promotion due")
+        self.assertEqual(mistakes.band(4, rows=promoted, key=key), "promoted")
+
+    def test_band_keeps_promoted_rule_distinguishable_from_promoted(self):
+        # The two statuses carry different obligations — `promoted-rule` closes a CROSS-OWNER
+        # promotion. Collapsing them in the display is this same defect one level down.
+        key = "ci-gate/x"
+        by_rule = mistakes.parse_log(log(*[
+            row("M-%04d" % (i + 1), key, status="promoted-rule") for i in range(4)]))
+        self.assertEqual(mistakes.band(4, rows=by_rule, key=key), "promoted-rule")
+
+    def test_band_is_not_closed_by_one_unpromoted_row(self):
+        key = "ci-gate/x"
+        rows = mistakes.parse_log(log(
+            *[row("M-%04d" % (i + 1), key, status="promoted") for i in range(3)],
+            row("M-0004", key, status="guarded")))
+        self.assertEqual(mistakes.band(4, rows=rows, key=key), "promotion due")
+
+    def test_band_ignores_wontfix_rows_when_deciding_closure(self):
+        # `counts` already excludes wontfix, so closure must too, or a key can never read closed.
+        key = "ci-gate/x"
+        rows = mistakes.parse_log(log(
+            *[row("M-%04d" % (i + 1), key, status="promoted") for i in range(4)],
+            row("M-0005", key, status="wontfix")))
+        self.assertEqual(mistakes.band(4, rows=rows, key=key), "promoted")
 
 
 class Due(unittest.TestCase):
@@ -244,6 +281,84 @@ class Append(unittest.TestCase):
         rows = mistakes.parse_log(p.read_text())
         self.assertEqual(len(rows), 1)
         self.assertIn("a", rows[0].context)
+
+
+class BandAgreesWithCheck(unittest.TestCase):
+    """harness:RM-0362 — one file, two readings, and the one a human reads first said the work
+    was finished.
+
+    THE FIXTURE IS LOAD-BEARING, and this is not a stylistic preference. The defect does NOT
+    reproduce against the live `MISTAKES.md`: `check` reads clean there and the banded keys are
+    genuinely promoted, so a matrix built from the live file is green before and after the fix and
+    asserts nothing. The fixture is the real log with one key's rows set back to the status `main`
+    carried before wave 3f promoted them — the recorded occurrence, not a plausible variant.
+
+    Both commands are driven as SUBPROCESSES rather than through their functions: what the item is
+    about is the word a human reads on `report`'s output line, which no call to `band()` proves.
+    """
+    KEY = "ci-gate/stale-count-assertion"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.repo = Path(__file__).resolve().parents[4]
+        cls.engine = cls.repo / ".claude/skills/mistake-to-gate/scripts/mistakes.py"
+        cls.real_log = cls.repo / "MISTAKES.md"
+        if not cls.real_log.is_file() or not cls.engine.is_file():
+            raise unittest.SkipTest("not running inside the harness repository")
+
+    def fixture_from_real_log(self, key, status):
+        """The real log with every row for `key` set to `status`, in its own owner root.
+
+        The root needs a CHANGELOG.md or the tool refuses to scan it at all — owner enumeration
+        is keyed on that file, and a root with none raises rather than reporting zero owners.
+        """
+        root = Path(tempfile.mkdtemp())
+        (root / "CHANGELOG.md").write_text("# changelog\n")
+        out, touched = [], 0
+        for line in self.real_log.read_text().splitlines(True):
+            if line.startswith("| M-") and ("| %s |" % key) in line:
+                cells = line.rstrip("\n").split("|")
+                for i in range(len(cells) - 1, -1, -1):
+                    if cells[i].strip():
+                        cells[i] = " %s " % status
+                        touched += 1
+                        break
+                line = "|".join(cells) + "\n"
+            out.append(line)
+        self.assertGreaterEqual(
+            touched, 4,
+            "the fixture rewrote %d rows for %s — below the threshold, so it cannot reproduce "
+            "the defect. Re-point this at a key the live log still carries." % (touched, key))
+        (root / "MISTAKES.md").write_text("".join(out))
+        return root
+
+    def _run(self, *args):
+        import subprocess
+        proc = subprocess.run([sys.executable, str(self.engine)] + list(args),
+                              capture_output=True, text=True)
+        return proc.returncode, proc.stdout + proc.stderr
+
+    def _band_line(self, out):
+        for line in out.splitlines():
+            if self.KEY in line and "also in" not in line and line.startswith("  "):
+                return line
+        self.fail("no band line for %s in:\n%s" % (self.KEY, out))
+
+    def test_band_and_check_agree_when_promotion_is_due(self):
+        root = self.fixture_from_real_log(self.KEY, "logged")
+        _, band = self._run("report", str(root), "--key", self.KEY)
+        rc, _ = self._run("check", str(root))
+        line = self._band_line(band)
+        self.assertEqual(rc, 1, "check must call this promotion due")
+        self.assertNotIn("promoted", line)   # check says due; report must not say done
+        self.assertIn("due", line)
+
+    def test_band_reads_promoted_when_the_rows_are_promoted(self):
+        root = self.fixture_from_real_log(self.KEY, "promoted")
+        _, band = self._run("report", str(root), "--key", self.KEY)
+        rc, _ = self._run("check", str(root))
+        self.assertEqual(rc, 0)
+        self.assertIn("promoted", self._band_line(band))
 
 
 if __name__ == "__main__":

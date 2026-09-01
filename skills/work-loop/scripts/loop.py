@@ -73,6 +73,21 @@ STALL_RECOMMENDED = {
     STALL_DEPENDENCY: "a declared dependency was unavailable — capture the dependency as a roadmap item and end the loop",
 }
 
+#: A stall-promoted escalate is written by the engine, not by an author: nobody passed a blocker,
+#: and the record must still carry one or it is exactly the shape `blocker-record-check.sh` refuses.
+#: The engine holds the facts — which predicate fired, and the signature or dependency behind it —
+#: so it names the blocker rather than leaving the field empty and calling that honest.
+STALL_BLOCKER = {
+    STALL_REPEATED_ERROR: "the same failure repeated to the declared threshold and the loop cannot clear it",
+    STALL_DEPENDENCY: "a dependency the contract declares was unreachable from inside the loop",
+}
+
+#: The three fields an `escalate` record must carry. CLAUDE.md item 3 makes a hard external blocker
+#: the only sanctioned reason to stop short of done; this skill's own body has always said the
+#: blocker, its evidence and a recommended next action go to the ledger. Until harness:RM-0361 the
+#: engine enforced one of the three, so a stop could be recorded that named nothing.
+ESCALATE_FIELDS = ("blocker", "evidence", "recommended_next")
+
 DEFAULT_REPEATED_ERROR_THRESHOLD = 3
 
 RUNTIME_CLASS = os.path.join(".claude", ".runtime", "work-loop")
@@ -271,19 +286,32 @@ def cmd_iterate(args):
         )
         return EXIT_INVALID
 
-    if args.outcome == "escalate" and not args.recommended_next:
-        print(
-            "escalate: --recommended-next is required — escalate writes the blocker and "
-            "its next action into the ledger and ends the loop; it never asks and waits",
-            file=sys.stderr,
-        )
-        return EXIT_INVALID
+    if args.outcome == "escalate":
+        # A blocker record is EVIDENCE, not permission. Requiring all three makes escalating
+        # harder than it was, never easier: the record is what a later reader has instead of the
+        # session, and a stop that names no blocker is indistinguishable from giving up.
+        # What is checkable is that the stop RECORDED a blocker in a stated form — never whether
+        # the blocker was genuine, which is a judgment a gate must not encode.
+        missing = [
+            f for f in ESCALATE_FIELDS
+            if not (getattr(args, f, None) or "").strip()
+        ]
+        if missing:
+            print(
+                "escalate: %s required — escalate writes the blocker, its evidence and its next "
+                "action into the ledger and ends the loop; it never asks and waits"
+                % ", ".join("--" + f.replace("_", "-") for f in missing),
+                file=sys.stderr,
+            )
+            return EXIT_INVALID
 
     signature = error_signature(args.error)
     state = state_hash(args.state)
     stall = None
     outcome = args.outcome
     recommended = args.recommended_next
+    blocker = args.blocker
+    evidence = args.evidence
 
     if args.outcome == "continue":
         stall = detect_stall(
@@ -292,8 +320,21 @@ def cmd_iterate(args):
         )
         if stall:
             outcome = STALL_OUTCOME[stall]
-            if outcome == "escalate" and not recommended:
-                recommended = STALL_RECOMMENDED[stall]
+            if outcome == "escalate":
+                if not recommended:
+                    recommended = STALL_RECOMMENDED[stall]
+                if not blocker:
+                    blocker = STALL_BLOCKER[stall]
+                if not evidence:
+                    # The predicate's own input is the evidence, and it is the only evidence that
+                    # exists: a normalised signature for a repeated failure, the dependency's name
+                    # for an unreachable one.
+                    evidence = (
+                        "declared dependency unreachable: %s" % args.dependency_missing
+                        if stall == STALL_DEPENDENCY
+                        else "error signature %s repeated to threshold %d"
+                        % (signature, ledger.get("stall_threshold", DEFAULT_REPEATED_ERROR_THRESHOLD))
+                    )
 
     record = {
         "n": len(ledger["iterations"]) + 1,
@@ -304,6 +345,8 @@ def cmd_iterate(args):
         "state_hash": state,
         "dependency_missing": args.dependency_missing,
         "actions": list(args.action),
+        "blocker": blocker,
+        "evidence": evidence,
         "recommended_next": recommended,
         "note": args.note,
     }
@@ -405,13 +448,23 @@ def cmd_close(args):
             file=sys.stderr,
         )
         return EXIT_USAGE
-    if args.outcome == "escalate" and not args.recommended_next:
-        print("escalate: --recommended-next is required", file=sys.stderr)
-        return EXIT_INVALID
+    if args.outcome == "escalate":
+        missing = [
+            f for f in ESCALATE_FIELDS
+            if not (getattr(args, f, None) or "").strip()
+        ]
+        if missing:
+            print(
+                "escalate: %s required" % ", ".join("--" + f.replace("_", "-") for f in missing),
+                file=sys.stderr,
+            )
+            return EXIT_INVALID
     ledger["status"] = "closed"
     ledger["final_outcome"] = args.outcome
     ledger["close_note"] = args.note
     ledger["close_recommended_next"] = args.recommended_next
+    ledger["close_blocker"] = args.blocker
+    ledger["close_evidence"] = args.evidence
     write_ledger(args.root, args.session, ledger)
     return emit(
         args,
@@ -468,6 +521,8 @@ def build_parser():
     iterated.add_argument("--error", help="the iteration's failure text, if it failed")
     iterated.add_argument("--state", help="the iteration's resulting state, for circularity")
     iterated.add_argument("--dependency-missing", help="a declared dependency the iteration could not reach")
+    iterated.add_argument("--blocker", help="what stopped the loop; required for escalate")
+    iterated.add_argument("--evidence", help="the evidence for the blocker; required for escalate")
     iterated.add_argument("--recommended-next", help="required for escalate")
     iterated.add_argument("--note", help="free text recorded with the iteration")
     iterated.set_defaults(func=cmd_iterate)
@@ -480,6 +535,8 @@ def build_parser():
 
     closed = common(subparsers.add_parser("close", help="end the loop with a terminal outcome"))
     closed.add_argument("--outcome", required=True, choices=OUTCOMES)
+    closed.add_argument("--blocker", help="what stopped the loop; required for escalate")
+    closed.add_argument("--evidence", help="the evidence for the blocker; required for escalate")
     closed.add_argument("--recommended-next", help="required for escalate")
     closed.add_argument("--note", help="free text recorded with the close")
     closed.set_defaults(func=cmd_close)

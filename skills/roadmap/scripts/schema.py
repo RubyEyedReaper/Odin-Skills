@@ -245,25 +245,54 @@ def save(path, doc):
     _origin[id(doc)] = (doc, resolved, hashlib.sha256(text.encode("utf-8")).hexdigest())
 
 
+#: The directory names that make a roadmap's location *recognisable* — `<...>/docs/roadmap/`.
+#: A path that ends this way is telling the engine where its project root is; a path that does not
+#: is telling it nothing, and the engine must not guess (harness:RM-0364).
+_LAYOUT_TAIL = ("docs", "roadmap")
+
+
 def paths_for(json_path):
     """Derive every generated path from the canonical json location.
 
-    Project layout  <root>/docs/roadmap/roadmap.json -> <root>/ROADMAP.md
-    Harness layout  <repo>/.claude/docs/roadmap/...  -> beside the json
+    Project layout  <root>/docs/roadmap/roadmap.json          -> <root>/ROADMAP.md
+    Harness layout  <repo>/.claude/docs/roadmap/roadmap.json  -> beside the json
+    Anywhere else   <dir>/roadmap.json                        -> beside the json, root = <dir>
+
+    **Every path returned is inside `root`.** That is the invariant, and the third case is what
+    makes it true. The two-level walk used to run unconditionally, so a roadmap the named layouts
+    do not describe — a test fixture, most of all — had a root two directories above itself and
+    rendered into a directory nobody had named. The suite was green while writing `/tmp/ROADMAP.md`
+    on every run, because the render did succeed; it succeeded outside the tree it was given.
+
+    Recognition is by the directory names the layouts are *made of*, not by depth. Depth is what
+    the old code read, and depth is a property every path has, so it could never answer "is this
+    one of the layouts I know" — only "how far up may I walk", which is a different question with
+    no wrong answer to notice.
     """
     json_abs = os.path.abspath(json_path)
     graph_dir = os.path.dirname(json_abs)
-    root = os.path.dirname(os.path.dirname(graph_dir))
+    parent = os.path.dirname(graph_dir)
+    recognised = (
+        os.path.basename(graph_dir),
+        os.path.basename(parent),
+    ) == (_LAYOUT_TAIL[1], _LAYOUT_TAIL[0])
+    container = os.path.dirname(parent) if recognised else graph_dir
     # A harness roadmap lives one level deeper, under `.claude/`. Its ROADMAP.md stays beside
     # the json, but `root` must still be the repository — every other consumer resolves
     # repo-relative paths against it (file globs, CHANGELOG.md, git). Leaving root at
     # `<repo>/.claude` made `reconcile` glob `.claude/.claude/**` and report every finished
     # item as missing its files, while the CHANGELOG check looked for a file that never exists.
-    if os.path.basename(root) == ".claude":
+    if recognised and os.path.basename(container) == ".claude":
+        root = os.path.dirname(container)
         md = os.path.join(graph_dir, "ROADMAP.md")
-        root = os.path.dirname(root)
-    else:
+    elif recognised:
+        root = container
         md = os.path.join(root, "ROADMAP.md")
+    else:
+        # Unrecognised: the json's own directory is as far up as the caller has authorised. Writing
+        # beside it keeps the rendering findable and keeps every written path under `root`.
+        root = graph_dir
+        md = os.path.join(graph_dir, "ROADMAP.md")
     return {
         "json": json_abs,
         "graph_dir": graph_dir,
@@ -608,4 +637,28 @@ def validate(doc):
                     "%s is done but its dep %s is %s"
                     % (item.get("id"), dep, dep_item.get("status"))
                 )
+
+    # The parent rule, which the skill has always stated in prose — "the parent goes done only
+    # when every child does" — and which nothing read (harness:RM-0373). `validate` is the gate
+    # list's consumer, so a refusal here is what turns the sentence into a rule; a warning would
+    # be a line nobody sees, and a second copy of the predicate in `reconcile` would be a copy
+    # that can drift from this one.
+    #
+    # Closed means `done` **or** `dropped`, matching the dep rule directly above. A dropped child
+    # is a decision that it will not be built, and holding its parent open for it would make
+    # `dropped` unusable — a finding nobody can clear except by un-dropping work is a finding that
+    # gets the check switched off.
+    #
+    # Every violating pair is reported, never the first: a validator that stops at one finding
+    # hides the rest, and a document with many parents would then need one run per violation.
+    for item in items:
+        parent_id = item.get("parent")
+        if not parent_id or item.get("status") in ("done", "dropped"):
+            continue
+        parent_item = by_id.get(parent_id)
+        if parent_item is not None and parent_item.get("status") == "done":
+            errors.append(
+                "%s is done but its child %s is %s"
+                % (parent_id, item.get("id"), item.get("status"))
+            )
     return errors

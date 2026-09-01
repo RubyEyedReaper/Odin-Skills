@@ -141,25 +141,54 @@ def counts(rows):
     return out
 
 
-def band(count, threshold=DEFAULT_THRESHOLD):
-    """The required response for a count — SR-3's ladder, in one place."""
-    if count >= threshold:
-        return "promoted"
-    return "attention" if count >= 2 else "logged"
+PROMOTED_STATUSES = ("promoted", "promoted-rule")
+
+
+def closure(rows, key):
+    """How a key's own rows stand: None (no live rows), or the word they justify.
+
+    THE ONE implementation of "has promotion happened", shared by `band` and `due`. They disagreed
+    for as long as there were two of them (harness:RM-0362): `due` read the rows and `band` read
+    only the count, so `report` printed `promoted` over rows that were all `logged` while `check`
+    on the identical file exited 1 saying promotion was due.
+
+    `wontfix` rows are excluded, exactly as `counts` excludes them — a key whose only unpromoted
+    row is a wontfix would otherwise never read closed.
+    """
+    live = [r for r in rows if r.key == key and r.status != "wontfix"]
+    if not live:
+        return None
+    if not all(r.status in PROMOTED_STATUSES for r in live):
+        return "promotion due"
+    # `promoted-rule` closes a CROSS-OWNER promotion and carries a different obligation from
+    # `promoted`. Collapsing them into one displayed word is this same defect one level down.
+    if all(r.status == "promoted-rule" for r in live):
+        return "promoted-rule"
+    return "promoted"
+
+
+def band(count, threshold=DEFAULT_THRESHOLD, rows=None, key=None):
+    """The required response for a count — SR-3's ladder, in one place.
+
+    The threshold decides whether promotion is OWED; only the rows decide whether it HAPPENED, and
+    the two must never print the same word. Called without `rows`, the answer at or above the
+    threshold is the owed one: an unknown closure is not evidence of closure, and a band that
+    assumes it is how `report` said the work was finished over four `logged` rows.
+    """
+    if count < 2:
+        return "logged"
+    if count < threshold:
+        return "attention"
+    if rows is None or key is None:
+        return "promotion due"
+    return closure(rows, key) or "promotion due"
 
 
 def due(rows, threshold=DEFAULT_THRESHOLD):
     """Keys that have reached the promotion threshold and are not yet fully promoted."""
     tally = counts(rows)
-    out = []
-    for key, n in sorted(tally.items()):
-        if n < threshold:
-            continue
-        if all(r.status in ("promoted", "promoted-rule")
-               for r in rows if r.key == key and r.status != "wontfix"):
-            continue
-        out.append(key)
-    return out
+    return sorted(key for key, n in tally.items()
+                  if n >= threshold and closure(rows, key) == "promotion due")
 
 
 def cross_owner_due(per_owner_rows, threshold=DEFAULT_THRESHOLD, cross_threshold=None):
@@ -444,7 +473,10 @@ def cmd_report(args):
             if args.key and key != args.key:
                 continue
             n = tally[key]
-            print("  %-44s %d  %s" % (key, n, band(n, args.threshold)))
+            # The rows travel with the count, or the band is a function of the threshold alone —
+            # which is how this line printed `promoted` over rows that were all `logged` while
+            # `check` on the same file exited 1 saying promotion was due (harness:RM-0362).
+            print("  %-44s %d  %s" % (key, n, band(n, args.threshold, rows, key)))
             holders = totals.get(key, [])
             if len(holders) > 1:
                 total = sum(count for _, count in holders)
@@ -457,8 +489,12 @@ def cmd_report(args):
                 # demands — a second band computed inline is how one gate starts giving two
                 # answers.
                 if total >= cross and not any(c >= args.threshold for _, c in holders):
+                    # Every owner's rows for this key, so the cross rung reads its own closure
+                    # rather than inferring it from the total — the same correction as the
+                    # per-owner line above, one level up (harness:RM-0362).
+                    cross_rows = [r for rs in all_rows.values() for r in rs]
                     line += " — %s on the cross-owner rung (rule half only)" % band(
-                        total, cross)
+                        total, cross, cross_rows, key)
                 print(line)
             for other in near_duplicates(rows, key):
                 print("      near-duplicate spelling: %s" % other)
