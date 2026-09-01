@@ -17,3 +17,5 @@ in place.
 | ADR | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-distribution-monorepo-and-per-skill-repos.md) | Distribution monorepo plus per-skill repositories | Accepted | 2026-08-17 |
+| [0002](0002-split-licensing-authored-and-forked.md) | Split licensing — authored skills dual-licensed, forks under their upstream | Accepted | 2026-09-01 |
+| [0003](0003-mirror-membership-rule.md) | Membership of the mirror is a rule, never a count | Accepted | 2026-09-01 |
