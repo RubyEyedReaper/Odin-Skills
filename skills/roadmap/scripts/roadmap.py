@@ -581,6 +581,69 @@ def cmd_add(args):
     return 0
 
 
+TERMINAL_STATUSES = ("done", "dropped")
+
+
+def _gh_close_issue(number, reason):
+    """Close one tracker issue with a comment. The default `ISSUE_CLOSER`.
+
+    Kept separate from `cmd_set` so the tests can replace it: a unit suite that called the real
+    `gh` would file traffic against a live tracker and answer differently on every host.
+    """
+    import subprocess
+
+    subprocess.run(
+        ["gh", "issue", "close", str(number), "-c", reason],
+        check=True, capture_output=True, text=True,
+    )
+
+
+ISSUE_CLOSER = _gh_close_issue
+
+
+def _close_linked_issues(item, new_status, slug, item_id):
+    """Close the item's tracker issues, and report — never raise — what could not be closed.
+
+    `roadmap.json` is canonical; the tracker is a mirror of it. Refusing to record a true local
+    fact because a remote service is unreachable inverts that, and would leave an offline session
+    unable to record finished work at all. So every failure prints the exact command to retry
+    rather than aborting the status change.
+
+    The reason text distinguishes `done` from `dropped` deliberately. An issue closed as "fixed"
+    when the item was dropped is a false record, and the tracker is read by people who were not
+    here for the decision.
+    """
+    links = item.get("links") or {}
+    issues = links.get("issues") or []
+    if isinstance(issues, str):
+        issues = [issues]
+    if not issues:
+        return
+
+    qualified = schema_mod.qualify(slug, item_id)
+    if new_status == "done":
+        evidence = (item.get("evidence") or "").strip()
+        where = " at `%s`" % evidence if evidence else ""
+        reason = ("Closed by `%s`%s — the roadmap item reached `done`.\n\n"
+                  "Recorded from the roadmap, which is canonical." % (qualified, where))
+    else:
+        notes = (item.get("notes") or "").strip()
+        why = "\n\n%s" % notes if notes else ""
+        reason = ("Closed because `%s` was **dropped**, not fixed. The work described here is "
+                  "not going to be done.%s" % (qualified, why))
+
+    for number in issues:
+        n = str(number).lstrip("#")
+        try:
+            ISSUE_CLOSER(n, reason)
+        except Exception as exc:  # noqa: BLE001 — every failure mode is reported, none is fatal
+            sys.stderr.write(
+                "[roadmap] could not close issue #%s for %s: %s\n"
+                "[roadmap]   retry: gh issue close %s -c '%s reached %s'\n"
+                % (n, qualified, exc, n, qualified, new_status)
+            )
+
+
 def cmd_set(args):
     path, doc = _load(args)
     # `set harness:RM-0035 …` must work, because that is the string every other command prints.
@@ -610,6 +673,12 @@ def cmd_set(args):
     render_mod.render_all(path)
     slug = schema_mod.slug_of(doc, path)
     print("updated %s" % schema_mod.qualify(slug, args.id))
+    # Reaching a terminal status closes the item's tracker issues, at the moment the fact becomes
+    # true. The gate `.claude/scripts/roadmap-issue-link-check.sh` is the backstop for every path
+    # that bypasses this one — a hand merge, a rebase, another session.
+    now = item.get("status")
+    if previous not in TERMINAL_STATUSES and now in TERMINAL_STATUSES:
+        _close_linked_issues(item, now, slug, args.id)
     if previous != "done" and item.get("status") == "done":
         freed = graph_mod.newly_unblocked(doc, args.id)
         if freed:
