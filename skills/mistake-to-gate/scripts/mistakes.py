@@ -269,6 +269,20 @@ def _closing_commands(key, holders):
     return "\n".join(lines)
 
 
+def is_post_promotion(rows, key):
+    """True when a key's live rows are a MIX: some already `promoted`/`promoted-rule`, some not.
+
+    A key that has never been promoted is all-unpromoted; a key that is fully closed is
+    all-promoted and `closure()` already reports it as such, so it never reaches `due()`. A mix
+    can only happen when promotion landed once and a later occurrence was appended after it —
+    `append_row` never rewrites an existing row, so the promoted rows stay promoted while the new
+    one starts `logged`. That is `mistake-to-gate` section 11's case: the rule already exists and
+    this occurrence is evidence the check meant to catch it missed, not a fresh promotion demand.
+    """
+    live = [r for r in rows if r.key == key and r.status != "wontfix"]
+    return any(r.status in PROMOTED_STATUSES for r in live)
+
+
 def siblings(rows, key):
     """Other keys sharing this key's class — printed so a second spelling is visible on sight."""
     cls = key.split("/", 1)[0]
@@ -414,11 +428,21 @@ def cmd_check(args):
         per_owner_rows[owner] = rows
         for key in due(rows, args.threshold):
             n = counts(rows)[key]
-            findings.append(
-                "%s/%s: promotion due — %r has %d recorded occurrences (threshold %d). "
-                "Run mistake-to-gate: land a mechanical check in this owner's gate list, rule text "
-                "in its CLAUDE.md, then mark every row for the key promoted."
-                % (owner, LOG_NAME, key, n, args.threshold))
+            if is_post_promotion(rows, key):
+                findings.append(
+                    "%s/%s: post-promotion occurrence — %r already has promoted row(s), and a "
+                    "later row landed after them (now %d recorded occurrences, threshold %d). "
+                    "The rule already exists; this is a new incident about the CHECK that missed "
+                    "it (mistake-to-gate section 11), not a repeat promotion demand. Re-key the "
+                    "row if it is actually a different failure mode, or file a finding against "
+                    "the gate that should have caught it."
+                    % (owner, LOG_NAME, key, n, args.threshold))
+            else:
+                findings.append(
+                    "%s/%s: promotion due — %r has %d recorded occurrences (threshold %d). "
+                    "Run mistake-to-gate: land a mechanical check in this owner's gate list, rule "
+                    "text in its CLAUDE.md, then mark every row for the key promoted."
+                    % (owner, LOG_NAME, key, n, args.threshold))
 
     findings.extend(cross_owner_due(per_owner_rows, args.threshold,
                                     getattr(args, "cross_threshold", None)))
