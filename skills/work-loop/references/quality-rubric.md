@@ -1,0 +1,135 @@
+# The quality rubric — what "better" means, before the first iteration
+
+A loop that cannot say what better means will report that it got better. The rubric is the twelfth
+contract field, and it is what makes that claim checkable: a weighted set of dimensions, each naming
+the **command** that produces its number.
+
+`open` refuses a rubric that cannot decide anything. `score` takes one measurement per dimension and
+returns a weighted total, the hard gates breached, and one verdict — in which **a hard-gate failure
+outranks any total, including one that went up**.
+
+## A dimension — eight keys, no more and no fewer
+
+```json
+{
+  "dimension": "gate-integrity",
+  "evidence_command": "bash .claude/scripts/ci-local.sh",
+  "baseline": 2,
+  "target": 0,
+  "weight": 40,
+  "failure_threshold": 0,
+  "direction": "lower-is-better",
+  "hard_gate": true
+}
+```
+
+| Key | Well-formed when | What goes wrong without it |
+|---|---|---|
+| `dimension` | A name unique within the rubric | Two dimensions with one name make the total depend on which was read last |
+| `evidence_command` | Non-empty, and it really produces the number | "Better" is a judgment again, and the loop is back where it started |
+| `baseline` | The number measured **before** the change | Nothing to compare an after against, which is half of what a critic needs |
+| `target` | The number that would score 100, and not equal to `baseline` | A dimension that cannot move scores nothing and measures nothing |
+| `weight` | A positive number | A zero-weight dimension is declared, counts for nothing, and reads as coverage it does not provide |
+| `failure_threshold` | The value on the wrong side of which this dimension fails | The dimension reports and never refuses |
+| `direction` | `higher-is-better` or `lower-is-better`, agreeing with `baseline` → `target` | See below — this is the one key that could have been derived, and deliberately is not |
+| `hard_gate` | `true` or `false` — a boolean, not a truthy string | A truthy string would make every dimension a hard gate, silently |
+
+**Why `direction` is declared rather than derived.** The ordering of `baseline` and `target` already
+implies it, so deriving it would cost one key fewer. It is declared because a swapped pair reads
+perfectly correct on the page and *inverts which side of `failure_threshold` fails*. `open`
+cross-checks the two and refuses a disagreement, which turns a silent inversion into a refusal.
+
+## The arithmetic, stated once
+
+```
+score            = clamp(0, 100, (measured − baseline) ÷ (target − baseline) × 100)
+weighted_total   = Σ(weight × score) ÷ Σ(weight)
+gate_failed      = measured > failure_threshold   (lower-is-better)
+                 | measured < failure_threshold   (higher-is-better)
+verdict          = fail  if any dimension has hard_gate and gate_failed
+                 | pass  otherwise
+```
+
+The formula is direction-agnostic, which is why `direction` earns its place on the *threshold* test
+rather than on the score. Overshooting a target does not score above 100 — a dimension cannot bank
+credit against another one's failure.
+
+**Scoring well and passing the gate are separate questions.** A dimension can score 50 and still be
+over its threshold; folding the two together is exactly how a good total comes to buy a broken gate.
+
+## Hard gates outrank the weighted total
+
+The property the whole rubric exists to protect, and the reason `score` has its own exit code:
+
+| Exit | Means |
+|---|---|
+| 0 | scored, and no hard gate was breached |
+| 1 | the rubric or the measurements are malformed |
+| 2 | there is no ledger for that session |
+| 6 | **scored, and a hard gate was breached** — the total is still printed, and does not buy it |
+
+Distinguishing 6 from 1 is not fussiness. A caller that cannot tell "measured and failed a gate"
+from "malformed rubric" will eventually treat one as the other, and the one it treats as harmless
+is the one that matters. The matrix case that fixes this in place scores one rubric twice: 28.0
+passing, then **90.0 failing** — a strictly higher total with one hard gate breached.
+
+## A measurement that could not be read is a finding, never a zero
+
+`score` refuses a non-numeric measurement rather than coercing it. A rubric that silently scored an
+unreadable channel as its worst value would report a regression nobody caused; as its best, it would
+hide a real one. Both are worse than refusing.
+
+For the same reason `score` refuses a dimension left unmeasured: a total over a subset is a score
+about a **smaller rubric**, reported as though it were this one.
+
+## The engine does not run the evidence commands
+
+It requires each dimension to *declare* one; the caller runs it and passes the number in. Running
+arbitrary shell out of a JSON file under an unattended posture is a different and much larger safety
+question than this field, and it is deliberately not answered here. A later item may add an opt-in
+runner.
+
+## The default dimension set for this repository — DEC-0090
+
+Odin ships **no application source**, so most of the dimensions a general quality rubric reaches for
+have no subject here. Claiming them would be a totality claim, not coverage. Four dimensions
+survived the constraint that every one names a command returning a number or an exit code:
+
+| Dimension | Evidence command | Direction | Weight | Hard gate |
+|---|---|---|---|---|
+| `gate-integrity` | `bash .claude/scripts/ci-local.sh` (its exit code) | lower-is-better | 40 | yes |
+| `regression-matrix-strength` | `ls .claude/tests/*.test.sh \| wc -l` | higher-is-better | 15 | yes |
+| `record-integrity` | `bash .claude/scripts/doc-reference-check.sh` (its exit code) | lower-is-better | 25 | yes |
+| `context-budget` | `bash .claude/scripts/context-budget.sh bytes --component always-on` | lower-is-better | 20 | no |
+
+**Baseline and target are measured at `open` time, not copied from this page.** A number written
+here would be a second copy of a count this repository already derives, and it would be stale by the
+next change that moved it — see `.claude/rules/ci/inventory-claims.md`. Measure, then declare.
+
+`context-budget` is the one optimisation objective: it reports when it is over its threshold and
+does not veto, because a rule file legitimately growing is not a broken gate.
+
+**Three sets were vetoed before scoring**, so this one beat a smaller field — recorded in DEC-0090
+with what would lift each veto. A general eleven-dimension menu and a two-dimension set both failed
+the every-dimension-names-a-command constraint; a per-loop ad-hoc set failed the recorded-on-disk
+constraint, because a rubric re-invented each iteration has no *before* for a critic to compare an
+*after* against.
+
+## What the rubric deliberately does not cover
+
+**A dimension you cannot write a command for belongs in review, and this page says so rather than
+pretending.** A rubric encoding taste produces false positives; a gate people disagree with gets
+disabled, and takes its true positives with it. When a quality that matters has no command, name it
+in the review checklist and leave it out of the rubric — the honest residue is worth more than a
+dimension that looks measured and is not.
+
+## Quick reference
+
+```sh
+cd .claude/skills/work-loop
+python3 -m scripts.loop score --root ../../.. --session "$SID" \
+        --measure gate-integrity=0 \
+        --measure regression-matrix-strength=94 \
+        --measure record-integrity=0 \
+        --measure context-budget=37000 --json
+```

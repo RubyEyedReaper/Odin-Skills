@@ -29,6 +29,7 @@ EXIT_USAGE = 2  # usage error, or a ledger that cannot be read
 EXIT_CLOSED = 3  # refused: this loop has ended
 EXIT_EMPTY = 4  # refused: nothing was examined
 EXIT_REPEAT = 5  # refused: the action is already recorded complete
+EXIT_GATE = 6  # refused: a hard-gate dimension breached its failure threshold
 
 # ---------------------------------------------------------------- vocabulary
 
@@ -50,7 +51,24 @@ CONTRACT_FIELDS = (
     "iteration_limit",
     "timeout_behaviour",
     "escalation_path",
+    "quality_rubric",
 )
+
+RUBRIC_FIELDS = (
+    "dimension",
+    "evidence_command",
+    "baseline",
+    "target",
+    "weight",
+    "failure_threshold",
+    "direction",
+    "hard_gate",
+)
+
+#: Declared, and cross-checked against the baseline -> target ordering rather than derived
+#: from it. Derivation is one key cheaper and silently inverts the failure test when an
+#: author swaps two numbers, which reads correct on the page.
+DIRECTIONS = ("higher-is-better", "lower-is-better")
 
 STALL_REPEATED_ERROR = "repeated-error"
 STALL_CIRCULAR = "circular-state"
@@ -159,6 +177,164 @@ def write_ledger(root, session, ledger):
 # ---------------------------------------------------------------- validation
 
 
+def validate_rubric(raw):
+    """Return (rubric, findings) for the `quality_rubric` field.
+
+    A dimension earns its place only if an iteration can decide it without a judgment
+    call. That is the same bar `success_criteria` has always carried, made mechanical: a
+    dimension names the **command** that produces its number, and a dimension with no
+    command is refused rather than accepted as prose. If you cannot write the command, the
+    dimension belongs in review, and references/quality-rubric.md says so in the open
+    rather than pretending the rubric covers it.
+    """
+    findings = []
+    if not isinstance(raw, list):
+        return None, ["quality_rubric: expected a list of dimensions, got %r" % type(raw).__name__]
+    if not raw:
+        return None, [
+            "quality_rubric: declared empty — a rubric needs at least one dimension, or "
+            "`better` is asserted rather than measured"
+        ]
+
+    rubric, seen = [], set()
+    for index, entry in enumerate(raw):
+        where = "quality_rubric[%d]" % index
+        if not isinstance(entry, dict):
+            findings.append("%s: expected an object carrying the eight declared keys" % where)
+            continue
+
+        name = str(entry.get("dimension") or "").strip()
+        if name:
+            where = "quality_rubric[%s]" % name
+
+        # Shape first. Every check below reads a key by name, so a missing or unknown key
+        # is reported once here rather than as a cascade of consequences.
+        local = []
+        for field in RUBRIC_FIELDS:
+            if field not in entry:
+                local.append(
+                    "%s: %s missing — a dimension declares all eight keys" % (where, field)
+                )
+        for field in sorted(set(entry) - set(RUBRIC_FIELDS)):
+            local.append(
+                "%s: %s is not one of the eight declared keys — an interface that accepts "
+                "unknown keys cannot tell a typo from an extension" % (where, field)
+            )
+        if local:
+            findings.extend(local)
+            continue
+
+        if not name:
+            findings.append("%s: dimension declared empty — a nameless dimension cannot be measured" % where)
+            continue
+        if name in seen:
+            findings.append(
+                "%s: duplicate dimension name — two dimensions with one name make the "
+                "weighted total depend on which was read last" % where
+            )
+            continue
+        seen.add(name)
+
+        if not str(entry["evidence_command"]).strip():
+            local.append(
+                "%s: evidence_command declared empty — a dimension with no command is a "
+                "judgment, and a judgment belongs in review rather than in a rubric" % where
+            )
+        for field in ("baseline", "target", "weight", "failure_threshold"):
+            value = entry[field]
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                local.append("%s: %s must be a number, got %r" % (where, field, value))
+        if not isinstance(entry["hard_gate"], bool):
+            local.append(
+                "%s: hard_gate must be true or false, got %r — a truthy string would make "
+                "every dimension a hard gate" % (where, entry["hard_gate"])
+            )
+        if entry["direction"] not in DIRECTIONS:
+            local.append(
+                "%s: direction must be one of %s, got %r"
+                % (where, " / ".join(DIRECTIONS), entry["direction"])
+            )
+        if local:
+            findings.extend(local)
+            continue
+
+        # Only now are the numbers known to be numbers and the direction known to be one
+        # of the two, so the two relational checks below can be trusted.
+        if entry["weight"] <= 0:
+            findings.append(
+                "%s: weight must be positive — a zero-weight dimension is declared and "
+                "counts for nothing, which reads as coverage it does not provide" % where
+            )
+            continue
+        if entry["target"] == entry["baseline"]:
+            findings.append(
+                "%s: target equals its baseline — a dimension that cannot move scores "
+                "nothing and measures nothing" % where
+            )
+            continue
+        rising = entry["target"] > entry["baseline"]
+        if rising != (entry["direction"] == "higher-is-better"):
+            findings.append(
+                "%s: direction is %r but the target moves the other way (baseline %r -> "
+                "target %r) — a swapped pair reads correct and inverts the failure test"
+                % (where, entry["direction"], entry["baseline"], entry["target"])
+            )
+            continue
+
+        rubric.append(dict(entry))
+
+    return rubric, findings
+
+
+# ---------------------------------------------------------------- scoring
+
+
+def score_dimension(entry, measured):
+    """One dimension's normalised score, and whether it breached its own threshold.
+
+    The two are separate questions on purpose. A dimension can score well and still be
+    over its threshold — that is precisely the case a rubric exists to catch, and folding
+    them together is how a good total comes to buy a broken gate.
+    """
+    baseline = float(entry["baseline"])
+    target = float(entry["target"])
+    raw = (measured - baseline) / (target - baseline) * 100.0
+    score = max(0.0, min(100.0, raw))
+    if entry["direction"] == "lower-is-better":
+        gate_failed = measured > entry["failure_threshold"]
+    else:
+        gate_failed = measured < entry["failure_threshold"]
+    return {
+        "dimension": entry["dimension"],
+        "measured": measured,
+        "score": round(score, 4),
+        "weight": entry["weight"],
+        "hard_gate": entry["hard_gate"],
+        "gate_failed": gate_failed,
+        "failure_threshold": entry["failure_threshold"],
+        "evidence_command": entry["evidence_command"],
+    }
+
+
+def score_rubric(rubric, measurements):
+    """The weighted total, the hard gates breached, and one verdict.
+
+    HARD GATES OUTRANK THE TOTAL, ALWAYS. The total is still reported when a gate fails —
+    a verdict that hid the improvement would be as unreadable as one that accepted it —
+    but no total, however improved, turns `fail` into `pass`.
+    """
+    dimensions = [score_dimension(e, measurements[e["dimension"]]) for e in rubric]
+    total_weight = sum(float(e["weight"]) for e in rubric)
+    weighted = sum(float(d["weight"]) * d["score"] for d in dimensions)
+    failures = [d["dimension"] for d in dimensions if d["hard_gate"] and d["gate_failed"]]
+    return {
+        "dimensions": dimensions,
+        "weighted_total": round(weighted / total_weight, 4) if total_weight else 0.0,
+        "hard_gate_failures": failures,
+        "verdict": "fail" if failures else "pass",
+    }
+
+
 def validate_contract(raw):
     """Return (contract, findings). A finding names the field it is about."""
     findings = []
@@ -167,9 +343,16 @@ def validate_contract(raw):
     contract = {}
     for field in CONTRACT_FIELDS:
         if field not in raw:
-            findings.append("%s: missing — a loop declares all eleven fields before its first iteration" % field)
+            findings.append("%s: missing — a loop declares all twelve fields before its first iteration" % field)
             continue
         value = raw[field]
+        if field == "quality_rubric":
+            rubric, rubric_findings = validate_rubric(value)
+            if rubric_findings:
+                findings.extend(rubric_findings)
+                continue
+            contract[field] = rubric
+            continue
         if field == "iteration_limit":
             if not isinstance(value, int) or isinstance(value, bool) or value < 1:
                 findings.append("iteration_limit: must be a positive integer, got %r" % (value,))
@@ -184,7 +367,7 @@ def validate_contract(raw):
         contract[field] = value
     extra = sorted(set(raw) - set(CONTRACT_FIELDS))
     for field in extra:
-        findings.append("%s: not one of the eleven declared fields" % field)
+        findings.append("%s: not one of the twelve declared fields" % field)
     return contract, findings
 
 
@@ -363,6 +546,81 @@ def cmd_iterate(args):
     return emit(args, record, human)
 
 
+def cmd_score(args):
+    """Score one measurement per declared dimension against the rubric the loop was opened with.
+
+    The engine does NOT run the evidence commands. Running arbitrary shell out of a JSON
+    file under an unattended posture is a different and much larger safety question than
+    this subcommand; what the engine enforces is that every dimension DECLARED a command,
+    and it scores the numbers the caller measured with it.
+
+    A measurement this pass could not read is a finding, never a zero — a rubric that
+    silently scored an unreadable channel as its worst value would report a regression
+    nobody caused, and one that scored it as its best would hide a real one.
+    """
+    ledger = require_ledger(args)
+    if ledger is None:
+        return EXIT_USAGE
+    rubric = ledger["contract"].get("quality_rubric") or []
+    if not rubric:
+        print(
+            "%s: this ledger's contract carries no quality rubric — it was opened before "
+            "the field existed; open a new loop with one" % args.session,
+            file=sys.stderr,
+        )
+        return EXIT_INVALID
+
+    findings = []
+    measurements = {}
+    for raw in args.measure:
+        name, separator, value = raw.partition("=")
+        name = name.strip()
+        if not separator or not name:
+            findings.append("--measure %r: expected <dimension>=<number>" % raw)
+            continue
+        if name in measurements:
+            findings.append(
+                "%s: measured twice — one measurement per dimension, or the score depends "
+                "on which was read last" % name
+            )
+            continue
+        try:
+            measurements[name] = float(value)
+        except ValueError:
+            findings.append(
+                "%s: %r is not a number — a channel that could not be read is a finding, "
+                "never a zero" % (name, value)
+            )
+
+    declared = [entry["dimension"] for entry in rubric]
+    for name in measurements:
+        if name not in declared:
+            findings.append(
+                "%s: not a declared dimension — this rubric declares %s"
+                % (name, ", ".join(declared))
+            )
+    for name in declared:
+        if name not in measurements:
+            findings.append(
+                "%s: declared but not measured — a total over a subset is a score about a "
+                "smaller rubric, reported as though it were this one" % name
+            )
+
+    if findings:
+        for finding in findings:
+            print(finding, file=sys.stderr)
+        return EXIT_INVALID
+
+    result = score_rubric(rubric, measurements)
+    human = "score %s: %.2f weighted" % (result["verdict"], result["weighted_total"])
+    if result["hard_gate_failures"]:
+        human += " — hard gate(s) breached: %s (the total does not buy them)" % ", ".join(
+            result["hard_gate_failures"]
+        )
+    emit(args, result, human)
+    return EXIT_GATE if result["verdict"] == "fail" else EXIT_OK
+
+
 def cmd_status(args):
     ledger = require_ledger(args)
     if ledger is None:
@@ -510,7 +768,7 @@ def build_parser():
         return sub
 
     opened = common(subparsers.add_parser("open", help="declare the contract and open a ledger"))
-    opened.add_argument("--contract", required=True, help="path to the eleven-field contract JSON")
+    opened.add_argument("--contract", required=True, help="path to the twelve-field contract JSON")
     opened.add_argument("--stall-threshold", type=int, default=DEFAULT_REPEATED_ERROR_THRESHOLD)
     opened.add_argument("--force", action="store_true", help="overwrite an existing ledger")
     opened.set_defaults(func=cmd_open)
@@ -526,6 +784,14 @@ def build_parser():
     iterated.add_argument("--recommended-next", help="required for escalate")
     iterated.add_argument("--note", help="free text recorded with the iteration")
     iterated.set_defaults(func=cmd_iterate)
+
+    scored = common(subparsers.add_parser(
+        "score", help="score one measurement per declared rubric dimension"))
+    scored.add_argument(
+        "--measure", action="append", default=[], metavar="DIMENSION=NUMBER",
+        help="the number the dimension's evidence command produced; one per declared dimension",
+    )
+    scored.set_defaults(func=cmd_score)
 
     status = common(subparsers.add_parser("status", help="report the standing verdict"))
     status.set_defaults(func=cmd_status)

@@ -19,8 +19,57 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SESSION = "sess-fixture"
 
 
+#: One well-formed rubric dimension, before overrides. Eight keys, no more and no fewer —
+#: `validate_rubric` refuses an unknown key for the same reason `validate_contract` refuses
+#: an unknown field: an interface that silently accepts extras cannot tell a typo from an
+#: extension.
+def dimension(**overrides) -> dict:
+    entry = {
+        "dimension": "gate-integrity",
+        "evidence_command": "bash .claude/scripts/ci-local.sh",
+        "baseline": 2,
+        "target": 0,
+        "weight": 40,
+        "failure_threshold": 0,
+        "direction": "lower-is-better",
+        "hard_gate": True,
+    }
+    entry.update(overrides)
+    return entry
+
+
+def default_rubric() -> list:
+    """The four-dimension default set recorded as DEC-0090.
+
+    Baselines here are fixture values, not claims about this repository: a real contract
+    measures its own baseline at `open` time. Restating a live count in a fixture is how a
+    fixture comes to assert something about a tree it never read.
+    """
+    return [
+        dimension(),
+        dimension(
+            dimension="regression-matrix-strength",
+            evidence_command="ls .claude/tests/*.test.sh | wc -l",
+            baseline=90, target=100, weight=15, failure_threshold=90,
+            direction="higher-is-better", hard_gate=True,
+        ),
+        dimension(
+            dimension="record-integrity",
+            evidence_command="bash .claude/scripts/doc-reference-check.sh",
+            baseline=1, target=0, weight=25, failure_threshold=0,
+            direction="lower-is-better", hard_gate=True,
+        ),
+        dimension(
+            dimension="context-budget",
+            evidence_command="bash .claude/scripts/context-budget.sh bytes --component always-on",
+            baseline=38000, target=34000, weight=20, failure_threshold=40000,
+            direction="lower-is-better", hard_gate=False,
+        ),
+    ]
+
+
 def valid_contract(**overrides) -> dict:
-    """A contract carrying all eleven declared fields, before overrides are applied."""
+    """A contract carrying all twelve declared fields, before overrides are applied."""
     contract = {
         "purpose": "drive the coverage gate to 80%",
         "owner": "harness",
@@ -33,6 +82,7 @@ def valid_contract(**overrides) -> dict:
         "iteration_limit": 5,
         "timeout_behaviour": "checkpoint and pause after 20 minutes without progress",
         "escalation_path": "capture a roadmap item and end the loop",
+        "quality_rubric": default_rubric(),
     }
     contract.update(overrides)
     return contract

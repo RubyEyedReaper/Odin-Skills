@@ -1,4 +1,4 @@
-# The loop contract — eleven fields, declared before the first iteration
+# The loop contract — twelve fields, declared before the first iteration
 
 A loop with no contract cannot end well: it has no statement of what done looks like, no
 limit, and no way for a later session to tell an unfinished loop from an abandoned one.
@@ -18,6 +18,7 @@ empty — an empty declaration is an undeclared field wearing a key.
 | 9 | `iteration_limit` | A positive integer | The retries predicate cannot fire, and a loop with no ceiling is the thing this skill exists to prevent |
 | 10 | `timeout_behaviour` | What happens when an iteration exceeds its budget | A hung iteration is indistinguishable from a slow one |
 | 11 | `escalation_path` | Where a blocker goes — a roadmap item, an issue, an ADR | `escalate` degenerates into "ask a human", which ADR-0103 rejects |
+| 12 | `quality_rubric` | A non-empty list of weighted dimensions, each naming the command that produces its number — [quality-rubric.md](quality-rubric.md) | "Better" is asserted and never measured, so an iteration that improved something is indistinguishable from one that merely ran |
 
 ## The shape on disk
 
@@ -33,12 +34,43 @@ empty — an empty declaration is an undeclared field wearing a key.
   "dependencies": ["postgres"],
   "iteration_limit": 5,
   "timeout_behaviour": "checkpoint and pause after 20 minutes without progress",
-  "escalation_path": "capture a roadmap item and end the loop"
+  "escalation_path": "capture a roadmap item and end the loop",
+  "quality_rubric": [
+    {
+      "dimension": "coverage",
+      "evidence_command": "bash ci.sh coverage --percent",
+      "baseline": 61,
+      "target": 80,
+      "weight": 70,
+      "failure_threshold": 61,
+      "direction": "higher-is-better",
+      "hard_gate": true
+    },
+    {
+      "dimension": "suite-runtime",
+      "evidence_command": "bash ci.sh --time-seconds",
+      "baseline": 240,
+      "target": 180,
+      "weight": 30,
+      "failure_threshold": 300,
+      "direction": "lower-is-better",
+      "hard_gate": false
+    }
+  ]
 }
 ```
 
-A field the eleven do not name is refused too. The contract is an interface, and an
+A field the twelve do not name is refused too. The contract is an interface, and an
 interface that silently accepts unknown keys cannot tell a typo from an extension.
+
+## The rubric is where "better" stops being a claim
+
+`success_criteria` decides whether the loop is **done**; the rubric decides whether the work got
+**better**, and by how much against what. They are different questions, which is why the rubric is a
+field of its own rather than more prose in criterion 6. A dimension refuses at `open` if it names no
+evidence command, and a hard-gate failure outranks any weighted total — the arithmetic, the eight
+keys and this repository's default dimension set are in
+[quality-rubric.md](quality-rubric.md).
 
 ## Criteria are decidable, or they are prose
 

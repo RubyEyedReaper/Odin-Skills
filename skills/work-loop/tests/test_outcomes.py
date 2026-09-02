@@ -92,21 +92,24 @@ class OneOutcomePerIteration(unittest.TestCase):
 
 
 class TheContract(unittest.TestCase):
-    ELEVEN = (
+    #: Written out rather than imported from the engine. Comparing the engine's tuple to
+    #: itself asserts nothing; this literal is the second opinion, and it is what fails
+    #: when a field is added or dropped without anybody deciding to.
+    TWELVE = (
         "purpose", "owner", "starting_state", "inputs", "expected_outputs",
         "success_criteria", "failure_criteria", "dependencies", "iteration_limit",
-        "timeout_behaviour", "escalation_path",
+        "timeout_behaviour", "escalation_path", "quality_rubric",
     )
 
-    def test_open_records_all_eleven_fields(self):
+    def test_open_records_all_twelve_fields(self):
         with fx.LedgerRoot() as root:
             code, _, _ = fx.open_loop(root)
             self.assertEqual(code, EXIT_OK)
             contract = fx.read_ledger(root)["contract"]
-            self.assertEqual(sorted(contract), sorted(self.ELEVEN))
+            self.assertEqual(sorted(contract), sorted(self.TWELVE))
 
     def test_a_missing_field_refuses_the_open(self):
-        for field in self.ELEVEN:
+        for field in self.TWELVE:
             with self.subTest(field=field), fx.LedgerRoot() as root:
                 contract = fx.valid_contract()
                 del contract[field]

@@ -22,10 +22,29 @@ completed action.
 
 ## The contract
 
-Eleven fields, declared before the first iteration, refused if any is missing or empty:
+Twelve fields, declared before the first iteration, refused if any is missing or empty:
 purpose, owner, starting state, inputs, expected outputs, success criteria, failure
-criteria, dependencies, iteration limit, timeout behaviour, escalation path. Field by
-field, with what goes wrong when each is absent: [loop-contract.md](references/loop-contract.md).
+criteria, dependencies, iteration limit, timeout behaviour, escalation path, quality
+rubric. Field by field, with what goes wrong when each is absent:
+[loop-contract.md](references/loop-contract.md).
+
+## The quality rubric
+
+The twelfth field, and the one that makes "better" checkable rather than asserted. A weighted list
+of dimensions, each naming the **command** that produces its number, plus its baseline, target,
+weight, failure threshold, direction, and whether it is a hard gate.
+
+`open` refuses a dimension with no evidence command — a dimension you cannot write a command for is
+a judgment, and a judgment belongs in review rather than in a rubric. `score` takes one measurement
+per dimension and returns the weighted total, the hard gates breached, and one verdict.
+
+**A hard-gate failure outranks any weighted total, including one that went up.** `score` exits 6 in
+that case — distinct from malformed (1) and from ok (0) — and still prints the improved total, because
+a verdict that hid the improvement would be as unreadable as one that accepted it.
+
+The engine does **not** run the evidence commands: it requires each dimension to declare one, and
+scores the numbers the caller measured. The eight keys, the arithmetic, and this repository's
+default dimension set (DEC-0090): [quality-rubric.md](references/quality-rubric.md).
 
 ## The six outcomes
 
@@ -110,6 +129,8 @@ python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome escal
         --blocker "the deploy credential the contract declares is absent" \
         --evidence "gh auth status exited 1: no token found" \
         --recommended-next "issue a scoped token, then re-open this contract unchanged"
+python3 -m scripts.loop score --root ../../.. --session "$SID" --json \
+        --measure gate-integrity=0 --measure context-budget=37000
 python3 -m scripts.loop resume --root ../../.. --session "$SID" --json
 python3 -m scripts.loop status --root ../../.. --session "$SID"
 python3 -m scripts.loop close  --root ../../.. --session "$SID" --outcome complete
@@ -123,6 +144,7 @@ python3 -m scripts.loop close  --root ../../.. --session "$SID" --outcome comple
 | 3 | refused: this loop has ended |
 | 4 | reported over a ledger with no iterations — nothing was examined |
 | 5 | refused: the action is already recorded complete |
+| 6 | scored, and a hard-gate dimension breached its failure threshold |
 
 `4` is separate from `0` on purpose. A caller that cannot distinguish "no stalls found"
 from "no iterations examined" cannot detect a report that means nothing.
@@ -136,6 +158,8 @@ from "no iterations examined" cannot detect a report that means nothing.
 | Reading the ledger to decide whether to keep going | That is `endless`'s decision, from its own predicates. The ledger says how *this* cycle ended. |
 | Resuming by iteration number | An index survives nothing. Resume on the completed action ids. |
 | A contract with prose success criteria | Nothing can decide `complete`, so the loop runs to its limit and reports `stop`. |
+| A rubric dimension whose evidence is "review says so" | Refused at `open`. Name it in the review checklist and leave it out of the rubric — the honest residue beats a dimension that looks measured. |
+| Reading a high weighted total as permission | The verdict is `fail` while any hard gate is breached, at any total. Exit 6 exists so a caller cannot miss it. |
 | Naming an undeclared dependency at iterate time | Refused as a contract finding — declare it, or the predicate decides over invented state. |
 | Re-running the predicates on read | One ledger, two verdicts, depending on when it was read. `status` reports; it never re-decides. |
 
