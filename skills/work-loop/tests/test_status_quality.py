@@ -221,6 +221,80 @@ class QualityIsOneRecordsQuality(unittest.TestCase):
             self.assertEqual(payload["critic_verdict"], "REVISE")
             self.assertEqual(payload["quality_from"], 1)
 
+    def test_a_reviewed_iteration_is_reported_over_an_older_scored_one(self):
+        """The newest **judged** record wins, not the newest scored one.
+
+        Preferring a scored record over a later reviewed one drops the loop's most recent
+        judgment: a reader sees `rubric pass … (iteration 1)` and concludes nobody reviewed
+        the loop, while iteration 2 carries a REVISE. Reporting a verdict that has been
+        superseded and reporting none at all are both wrong; this is the second.
+        """
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "a", *CLEAN,
+            )
+            brief = fx.brief_for(root, diff="--- a/x\n+++ b/x\n+reviewed\n")
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "b",
+                "--evidence-path", "logs/ci.log", "--critic-brief", brief,
+                "--critic-verdict", "REVISE", "--critic-next", "collapse the two-pass scan",
+                "--decision", "revise",
+            )
+            _, payload, _ = _status(root)
+            self.assertEqual(payload["quality_from"], 2)
+            self.assertEqual(payload["critic_verdict"], "REVISE")
+            self.assertEqual(payload["decision"], "revise")
+            # Iteration 2 was not scored, and the report says so rather than borrowing
+            # iteration 1's pass — one record, whichever record it is.
+            self.assertIsNone(payload["rubric_verdict"])
+            self.assertIsNone(payload["weighted_total"])
+
+    def test_a_critic_verdict_alone_makes_a_record_the_newest_judged_one(self):
+        """One arm of the judged predicate, on its own.
+
+        Both arms present in one fixture is a case that passes with either arm deleted —
+        mutating the predicate found exactly that, so each arm gets a record carrying only it.
+        """
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "a", *CLEAN,
+            )
+            brief = fx.brief_for(root, diff="--- a/x\n+++ b/x\n+verdict only\n")
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "b",
+                "--evidence-path", "logs/ci.log", "--critic-brief", brief,
+                "--critic-verdict", "FAIL", "--critic-next", "name the missing case",
+            )
+            _, payload, _ = _status(root)
+            self.assertEqual(payload["quality_from"], 2)
+            self.assertEqual(payload["critic_verdict"], "FAIL")
+            self.assertIsNone(payload["decision"])
+            self.assertIsNone(payload["rubric_verdict"])
+
+    def test_a_decision_alone_makes_a_record_the_newest_judged_one(self):
+        """The other arm. A decision is a judgment even with nobody's verdict behind it."""
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "a", *CLEAN,
+            )
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "b", "--decision", "revert",
+            )
+            _, payload, _ = _status(root)
+            self.assertEqual(payload["quality_from"], 2)
+            self.assertEqual(payload["decision"], "revert")
+            self.assertIsNone(payload["critic_verdict"])
+            self.assertIsNone(payload["rubric_verdict"])
+
     def test_quality_from_is_null_when_nothing_was_scored_or_reviewed(self):
         with fx.LedgerRoot() as root:
             fx.open_loop(root)

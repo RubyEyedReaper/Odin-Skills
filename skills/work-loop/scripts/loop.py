@@ -872,23 +872,21 @@ def cmd_status(args):
     # the decision from iteration 1 would print exactly that refused pairing — the read path
     # contradicting the write path, with a snapshot that never existed at any moment.
     #
-    # The record is the last one carrying an `evaluation`, falling back to the last carrying a
-    # critic verdict or a decision when nothing was ever scored. `quality_from` names it: a
-    # reader must never have to guess which iteration the quality describes.
+    # The record is the last one that was JUDGED — scored, reviewed, or decided. Preferring a
+    # scored record over a later reviewed one drops the loop's most recent judgment: a reader
+    # sees `rubric pass ... (iteration 1)` and concludes nobody reviewed the loop, while
+    # iteration 2 carries a REVISE. `quality_from` names the record, so a reader never has to
+    # guess which iteration the quality describes.
     #
     # ABSENT IS NOT ZERO. Every key is present and null when nothing scored, rather than
     # defaulted to 0.0: a loop nobody scored must not read as a loop that scored badly, and
     # a number is indistinguishable from a real one once it is printed.
     source = None
     for record in reversed(ledger["iterations"]):
-        if record.get("evaluation"):
+        if (record.get("evaluation") or record.get("critic_verdict")
+                or record.get("decision")):
             source = record
             break
-    else:
-        for record in reversed(ledger["iterations"]):
-            if record.get("critic_verdict") or record.get("decision"):
-                source = record
-                break
     evaluation = (source or {}).get("evaluation") or {}
     quality = {
         "rubric_verdict": evaluation.get("verdict"),

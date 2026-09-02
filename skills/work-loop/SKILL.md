@@ -225,8 +225,9 @@ reader runs to ask about a loop, so it carries five quality keys alongside the c
 **All five come from one record**, and `quality_from` names it. Resolved field by field they would
 compose a snapshot that never existed: `iterate` refuses `--decision retain` while a hard gate is
 breached (exit 7), so a reader taking the verdict from iteration 2 and the decision from iteration 1
-prints exactly the pairing the engine refuses. The record is the last one carrying an evaluation,
-falling back to the last carrying a critic verdict or a decision when nothing was ever scored.
+prints exactly the pairing the engine refuses. The record is the last one that was **judged** —
+scored, reviewed, or decided — because preferring a scored record over a later reviewed one drops
+the loop's most recent judgment.
 
 **Absent is not zero.** Every key is present and `null` when nothing scored — including over an
 empty ledger, where the payload carries them beside its exit 4. A loop nobody scored must not read

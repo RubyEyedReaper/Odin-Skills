@@ -138,7 +138,9 @@ refuses `--decision retain` while a hard gate is breached, so a reader taking th
 iteration 2 and the decision from iteration 1 prints exactly the pairing the writer refuses. The read
 path contradicting the write path is a worse defect than a blank field, because it is not blank.
 
-The record chosen is the last carrying an `evaluation`; with none, the last carrying a critic verdict
-or a decision. With neither, all five are `null` — including over an empty ledger, where the payload
+The record chosen is the last one that was **judged** — scored, reviewed, or decided. Preferring a
+scored record over a later reviewed one would drop the loop's most recent judgment: a reader would
+see `rubric pass … (iteration 1)` and conclude nobody reviewed the loop, while iteration 2 carried a
+REVISE. With no judged record at all, five `null`s — including over an empty ledger, where the payload
 carries them beside its exit 4, so a consumer written against the documented shape does not raise on
 the one path this command exists to keep distinguishable.
