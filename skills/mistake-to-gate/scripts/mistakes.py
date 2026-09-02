@@ -30,6 +30,10 @@ CLASSES = ("input", "precondition", "postcondition", "error-path", "ci-gate", "j
 STATUSES = ("logged", "guarded", "promoted", "promoted-rule", "wontfix")
 DEFAULT_THRESHOLD = 4
 
+#: The sentinel an entry carries in a field whose value is not yet known. Spelled once: a second
+#: copy is a second word for the same state, and an entry using the other one reads as observed.
+PENDING = "pending"
+
 #: Root ledgers that record incidents WITHOUT participating in the recurrence count (DEC-0092).
 #:
 #: A second file able to hold a failure-mode key makes every count above an undercount, silently:
@@ -46,11 +50,34 @@ DEFAULT_THRESHOLD = 4
 #:
 #: ADDING A LEDGER IS A DECLARATION HERE, NEVER A SECOND IMPLEMENTATION. A sibling ledger recording
 #: a different kind of record adds one entry to this dict; the two passes below are already its gate.
+#:
+#: `gates` is optional and per-ledger: a cross-field rule of the form "when field X holds value V,
+#: field Y must hold one of W". A presence check is satisfied by typing a label, so a ledger whose
+#: point is an obligation BETWEEN two fields needs this to be enforced rather than described
+#: (DEC-0094).
 BLOCK_LEDGERS = {
     "CAVEAT.md": {
         "entry_prefix": "C",
         "required": ("Date", "What happened", "Why it happened", "Potential impact",
                      "Recurs when", "Safeguard"),
+    },
+    # A mutation record is OPEN until its actual effect has been observed — the one state
+    # CHANGELOG.md, MISTAKES.md and CAVEAT.md cannot express, since all three are written after
+    # their subject is settled (DEC-0094, ADR-0146). `Actual observed impact` therefore carries the
+    # sentinel `pending` until the observation arrives, and the gate below is #886's Mutation gate
+    # as a predicate: an unobserved mutation may not claim to have been assessed.
+    "MUTATIONS.md": {
+        "entry_prefix": "MU",
+        "required": ("Date", "Original state", "Mutated state", "Cause", "Location",
+                     "Expected impact", "Actual observed impact", "Disposition"),
+        "gates": (
+            {
+                "when": ("Actual observed impact", PENDING),
+                "requires": ("Disposition", ("needs review",)),
+                "why": "the workflow pauses until the mutation is assessed — a disposition claimed "
+                       "over an unobserved effect is a prediction wearing a verdict's label",
+            },
+        ),
     },
 }
 
@@ -231,6 +258,40 @@ def block_entry_errors(text, path, spec):
     return out
 
 
+def field_gate_errors(text, path, spec):
+    """Findings for entries that break a declared cross-field rule.
+
+    A rule reads "when field X holds value V, field Y must hold one of W". Field presence is
+    already covered by `block_entry_errors`; this is the obligation BETWEEN two fields, which a
+    presence check cannot see — an entry can carry every label and still claim a verdict over an
+    effect nobody observed.
+
+    Comparison is case-insensitive and ignores trailing punctuation, because `pending.` and
+    `Pending` are the same state and a gate that disagreed would be read as a typo checker.
+    """
+    out = []
+    for rule in spec.get("gates", ()):
+        when_label, when_value = rule["when"]
+        need_label, need_values = rule["requires"]
+        for entry_id, lineno, fields in block_entries(text, spec["entry_prefix"]):
+            if _norm_field(fields.get(when_label)) != when_value:
+                continue
+            if _norm_field(fields.get(need_label)) in need_values:
+                continue
+            out.append(
+                "%s:%d: entry %s has **%s:** %s, so its **%s:** must be %s — %s"
+                % (path, lineno, entry_id, when_label, when_value, need_label,
+                   " or ".join(repr(v) for v in need_values), rule["why"]))
+    return out
+
+
+def _norm_field(value):
+    """A field's value for comparison: lowercased, stripped of markup and trailing punctuation."""
+    if not value:
+        return ""
+    return value.strip().strip("*`_").strip().rstrip(".;,").strip().lower()
+
+
 #: Why a field is required, printed with the finding. A refusal that only names a missing label
 #: teaches the author to paste the label; naming the obligation is what makes the next entry right.
 _WHY_FIELD = {
@@ -238,6 +299,11 @@ _WHY_FIELD = {
                    "can be keyed on",
     "Safeguard": "recording without converting is the failure this ledger exists to prevent; name "
                  "the hook, check, rule or stated guidance that now refuses it",
+    "Actual observed impact": "this is the field that earns the ledger — a change whose effect "
+                              "nobody looked at is otherwise indistinguishable from one that was "
+                              "checked and behaved. Write `pending` until the observation arrives",
+    "Disposition": "an unassessed mutation is the state this ledger exists to make visible; say "
+                   "`needs review`, `accepted`, `corrected`, `reverted` or `escalated`",
 }
 
 
@@ -255,6 +321,7 @@ def check_block_ledgers(owner_path):
         text = ledger.read_text()
         out.extend(foreign_keyed_rows(text, str(ledger)))
         out.extend(block_entry_errors(text, str(ledger), spec))
+        out.extend(field_gate_errors(text, str(ledger), spec))
     return out
 
 
