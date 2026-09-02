@@ -63,14 +63,16 @@ class TheBriefIsThePacket(unittest.TestCase):
 
     def test_the_packet_carries_no_field_the_builder_supplied(self):
         """Every key is the engine's: the two artifacts, the rubric, the vocabulary, the
-        asks. A `summary` or `rationale` key would be the builder's case for its own work,
-        which is exactly what a critic must not receive."""
+        asks, and what the diff was found to cover. A `summary` or `rationale` key would be
+        the builder's case for its own work, which is exactly what a critic must not
+        receive — `scope` is the engine's own reading of the diff, not the builder's."""
         with fx.LedgerRoot() as root:
             fx.open_loop(root)
             _, packet, _ = _brief(root)
             self.assertEqual(
                 sorted(packet),
-                ["asks", "baseline", "brief_id", "diff", "rubric", "verdicts", "verification"],
+                ["asks", "baseline", "brief_id", "diff", "rubric", "scope", "verdicts",
+                 "verification"],
             )
 
     def test_an_unreadable_diff_is_refused_and_names_the_file(self):

@@ -35,6 +35,7 @@ EXIT_REPEAT = 5  # refused: the action is already recorded complete
 EXIT_GATE = 6  # refused: a hard-gate dimension breached its failure threshold
 EXIT_REGRESSION = 7  # refused: a change retained over a breached hard gate
 EXIT_UNREADABLE = 8  # refused: an input the critic brief needs could not be read
+EXIT_INCOMPLETE = 9  # refused: the packet's diff does not cover the change it declares
 
 # ---------------------------------------------------------------- vocabulary
 
@@ -942,19 +943,157 @@ def cmd_iterate(args):
     return emit(args, record, human)
 
 
-def brief_digest(diff, verification, rubric):
+def brief_digest(diff, verification, rubric, scope=None):
     """A brief's identity: the hash of exactly what the critic will be shown.
 
     Derived from the artifacts rather than assigned, so a verdict carrying this id is a
-    verdict about *this* diff, this verification output and this rubric. Change any of the
-    three and the id changes, which is what makes a re-used brief detectable rather than
-    merely discouraged.
+    verdict about *this* diff, this verification output and this rubric. Change any of them
+    and the id changes, which is what makes a re-used brief detectable rather than merely
+    discouraged.
+
+    The declared scope is hashed alongside them because it is *shown*: the same diff
+    reviewed as the whole change and reviewed as an excerpt are two different packets, and
+    two different packets must not share an id.
     """
     payload = json.dumps(
-        {"diff": diff, "verification": verification, "rubric": rubric},
+        {
+            "diff": diff,
+            "verification": verification,
+            "rubric": rubric,
+            "scope": scope,
+        },
         sort_keys=True,
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def diff_paths(text):
+    """The paths a unified diff touches, sorted and deduplicated.
+
+    Read from the diff the packet already carries — the one side of the comparison the
+    engine always has. A `diff --git` header wins when present; `--- a/` and `+++ b/` lines
+    are the fallback, so a plain unified diff produced by something other than git is read
+    too. `/dev/null` on either side resolves to the surviving path, because a pure deletion
+    and a pure addition each touch exactly one file.
+    """
+    paths = set()
+    for line in text.splitlines():
+        if line.startswith("diff --git "):
+            sides = line[len("diff --git "):].split()
+            if len(sides) == 2:
+                for side in sides:
+                    resolved = _strip_diff_prefix(side)
+                    if resolved:
+                        paths.add(resolved)
+                        break
+        elif line.startswith("+++ ") or line.startswith("--- "):
+            resolved = _strip_diff_prefix(line[4:].split("\t", 1)[0].strip())
+            if resolved:
+                paths.add(resolved)
+    return sorted(paths)
+
+
+def _strip_diff_prefix(side):
+    """`a/x.py` -> `x.py`; `/dev/null` -> None, which is the absent side of the change."""
+    if not side or side == "/dev/null":
+        return None
+    return side[2:] if side[:2] in ("a/", "b/") else side
+
+
+#: A `--stat` body line: the path, then a column of `|` and the change magnitude. The
+#: magnitude is what separates a stat line from an ordinary line containing a pipe.
+STAT_LINE = re.compile(r"^\s*(?P<path>\S.*?)\s+\|\s+(?:\d+|Bin\b)")
+
+#: `git`'s own trailer. It carries a number and no path, so it must not be read as one.
+STAT_SUMMARY = re.compile(r"^\s*\d+ files? changed")
+
+#: A rename inside a path, as `--stat` renders it: `src/{old => new}/x.py`.
+BRACED_RENAME = re.compile(r"\{[^{}]*? => ([^{}]*?)\}")
+
+#: `git show`'s commit header. A caller runs `git show <sha> --stat`, not `git diff --stat`,
+#: so the transcript arrives with a header and a message above the paths — and the first
+#: live run of this check read 19 lines of prose as 19 missing files.
+COMMIT_HEADER = re.compile(
+    r"^(commit [0-9a-f]{7,}\b|Merge:|Author:|AuthorDate:|Commit:|CommitDate:|Date:|Notes:)"
+)
+
+
+def declared_paths(text):
+    """The paths a caller-produced change-scope transcript names, sorted and deduplicated.
+
+    Two transcript shapes are read, because both are things a caller actually runs:
+    `git show <sha> --stat` and `git show <sha> --name-only`. A rename resolves to its
+    destination — that is the path the diff will carry.
+
+    **What is not a path**, in the order the rules matter: `git`'s own commit header, the
+    message body (which `git` indents by four spaces, while a `--stat` path is indented by
+    one and a `--name-only` path by none), the `N files changed` trailer, and — once any
+    stat line has been seen — every line without a stat column. That last rule and the
+    header rule each cover the other's gap: `--name-only` output has no stat lines to crowd
+    the prose out, and a message line could otherwise look like a bare path.
+
+    A `--stat` abbreviation (`.../work-loop/tests/x.py`) is preserved **verbatim**. The
+    parser has no diff to resolve it against, and a guess made here would be invisible to
+    everything downstream; resolving it is the comparison's job, where both sets exist.
+    """
+    lines = [
+        line for line in text.splitlines()
+        if line.strip()
+        and not STAT_SUMMARY.match(line)
+        and not COMMIT_HEADER.match(line)
+        and not line.startswith("    ")
+    ]
+    stat_lines = [line for line in lines if STAT_LINE.match(line)]
+    paths = set()
+    for line in stat_lines or lines:
+        match = STAT_LINE.match(line)
+        candidate = match.group("path") if match else line.strip()
+        candidate = BRACED_RENAME.sub(lambda m: m.group(1), candidate).replace("//", "/")
+        if " => " in candidate:
+            candidate = candidate.split(" => ", 1)[1].strip()
+        candidate = candidate.strip()
+        if candidate:
+            paths.add(candidate)
+    return sorted(paths)
+
+
+def scope_findings(declared, present):
+    """Findings for every declared path the diff does not unambiguously cover.
+
+    Returns `(findings, undeclared)`. A finding is a refusal; `undeclared` is a diff path no
+    declared path claimed, which is recorded rather than refused — a diff covering *more*
+    than its declared scope is not the shape this check exists to catch.
+
+    An abbreviated declared path is resolved by suffix against the diff's paths, and
+    **matching more than one is a refusal**, not an acceptance. Accepting on any hit would
+    turn an abbreviation into a false accept, which is the failure direction this whole
+    check exists to prevent: an ambiguous path is not a path.
+    """
+    findings = []
+    covered = set()
+    for path in declared:
+        if path in present:
+            covered.add(path)
+            continue
+        if path.startswith(".../"):
+            tail = path[len(".../"):]
+            matches = [p for p in present if p == tail or p.endswith("/" + tail)]
+            if len(matches) == 1:
+                covered.add(matches[0])
+                continue
+            if len(matches) > 1:
+                findings.append(
+                    "%s: ambiguous — the transcript abbreviates this path and it matches %d "
+                    "paths in the diff (%s); re-run the scope command with --name-only"
+                    % (path, len(matches), ", ".join(sorted(matches)))
+                )
+                continue
+        findings.append(
+            "%s: declared by the change scope and absent from the diff — the packet covers "
+            "part of the change, and a verdict bound to it would look like a review of all "
+            "of it" % path
+        )
+    return findings, sorted(p for p in present if p not in covered)
 
 
 #: What the brief asks of the critic, in the packet itself rather than in a prompt the
@@ -965,6 +1104,8 @@ BRIEF_ASKS = (
     "Name any regression and any claim the verification output does not support.",
     "Return exactly one verdict from the set, and the single most valuable next improvement.",
     "Say which evidence supports the verdict.",
+    "Read the scope block first: an `unverified` provenance means nothing established that "
+    "this diff is the whole change, so judge only what the diff shows.",
 )
 
 
@@ -980,7 +1121,11 @@ def cmd_brief(args):
         return EXIT_USAGE
 
     texts = {}
-    for label, path in (("diff", args.diff_file), ("verification", args.verification_file)):
+    inputs = [("diff", args.diff_file), ("verification", args.verification_file)]
+    change_scope = getattr(args, "change_scope", None)
+    if change_scope:
+        inputs.append(("change scope", change_scope))
+    for label, path in inputs:
         try:
             with open(path, encoding="utf-8") as handle:
                 texts[label] = handle.read()
@@ -1001,6 +1146,41 @@ def cmd_brief(args):
             )
             return EXIT_UNREADABLE
 
+    # THE COMPLETENESS CHECK. `brief` refused a diff it could not read and one that was
+    # empty; it could not tell a PARTIAL diff from a complete one, and that is the shape a
+    # builder produces by accident (harness:RM-0477). The engine derives nothing here — a
+    # subprocess spawned from inside this module is not a tool call, so it would run
+    # outside every always-on PreToolUse guard (ADR-0143, extended by DEC-0093). The caller
+    # runs the scope command through its own tool path; the engine cross-checks the
+    # transcript, exactly as `--baseline-evidence` already does for a measurement.
+    present = diff_paths(texts["diff"])
+    declared = declared_paths(texts["change scope"]) if change_scope else None
+    if declared is not None and not declared:
+        # A non-empty file that names no path is a caller who passed the wrong file. Read
+        # as "nothing declared" it would silently restore the behaviour this check replaces.
+        print(
+            "brief: the change scope at %s names no paths — a transcript the engine cannot "
+            "read as a path set establishes nothing about the diff's completeness"
+            % change_scope,
+            file=sys.stderr,
+        )
+        return EXIT_INCOMPLETE
+    findings, undeclared = (
+        scope_findings(declared, present) if declared is not None else ([], [])
+    )
+    if findings:
+        for finding in findings:
+            print("brief: %s" % finding, file=sys.stderr)
+        return EXIT_INCOMPLETE
+    scope = {
+        # `unverified` is not `false`: it says nothing was established either way, which is
+        # the honest reading when the caller declared no scope. Absent is not zero.
+        "provenance": "verified" if declared is not None else "unverified",
+        "declared_paths": declared,
+        "diff_paths": present,
+        "undeclared_paths": undeclared,
+    }
+
     rubric = ledger["contract"].get("quality_rubric") or []
     baseline = None
     for previous in reversed(ledger["iterations"]):
@@ -1010,13 +1190,14 @@ def cmd_brief(args):
     else:
         baseline = {e["dimension"]: e["baseline"] for e in rubric}
 
-    digest = brief_digest(texts["diff"], texts["verification"], rubric)
+    digest = brief_digest(texts["diff"], texts["verification"], rubric, scope["declared_paths"])
     packet = {
         "brief_id": digest,
         "rubric": rubric,
         "baseline": baseline,
         "diff": texts["diff"],
         "verification": texts["verification"],
+        "scope": scope,
         "verdicts": list(CRITIC_VERDICTS),
         "asks": list(BRIEF_ASKS),
     }
@@ -1024,9 +1205,9 @@ def cmd_brief(args):
     write_ledger(args.root, args.session, ledger)
     return emit(
         args, packet,
-        "brief %s: %d rubric dimension(s), %d byte diff — hand this to a context that did "
-        "not build the change"
-        % (digest, len(rubric), len(texts["diff"])),
+        "brief %s: %d rubric dimension(s), %d byte diff over %d path(s), scope %s — hand "
+        "this to a context that did not build the change"
+        % (digest, len(rubric), len(texts["diff"]), len(present), scope["provenance"]),
     )
 
 
@@ -1392,6 +1573,11 @@ def build_parser():
     briefed = common(subparsers.add_parser(
         "brief", help="assemble the packet a critic receives, as a single-use brief"))
     briefed.add_argument("--diff-file", required=True, help="the change under review")
+    briefed.add_argument(
+        "--change-scope", metavar="PATH",
+        help="a transcript YOU produced naming the change's paths (git show <sha> --stat, or "
+             "git diff --name-only); the diff is refused unless it covers every path named",
+    )
     briefed.add_argument(
         "--verification-file", required=True, help="the verification output, verbatim")
     briefed.set_defaults(func=cmd_brief)

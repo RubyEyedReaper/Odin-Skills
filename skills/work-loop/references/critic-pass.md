@@ -13,9 +13,13 @@ held by judgment is stated here rather than blurred.**
 ```sh
 cd .claude/skills/work-loop
 
-# 1. The engine assembles the packet and records a single-use brief.
+# 1. The engine assembles the packet and records a single-use brief. Produce the change
+#    scope yourself — the engine runs no git — and hand it over, so the diff is checked
+#    against the change rather than trusted to be it.
+git show "$SHA" --stat > /tmp/scope.txt
 python3 -m scripts.loop brief --root ../../.. --session "$SID" \
         --diff-file /tmp/change.diff \
+        --change-scope /tmp/scope.txt \
         --verification-file /tmp/suite.txt --json
 
 # 2. A context that did not build the change reads the packet and returns a verdict.
@@ -42,6 +46,7 @@ python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome conti
 | `verification` | The verification output, verbatim |
 | `rubric` | The contract's own dimensions — weights, thresholds, hard-gate flags |
 | `baseline` | The previous measured iteration's readings, or the rubric's declared baselines |
+| `scope` | What the diff was found to cover: `provenance` (`verified` / `unverified`), `declared_paths`, `diff_paths`, `undeclared_paths` |
 | `verdicts` | `PASS` `FAIL` `REVISE` `REVERT` `ESCALATE` |
 | `asks` | Compare before versus after; name regressions and unsupported claims; return one verdict and the single most valuable next improvement; say which evidence supports it |
 
@@ -73,15 +78,60 @@ judgment to change N+1 — a stale verdict wearing a fresh timestamp.
 
 An unreadable diff or verification file exits **8**, naming the file. So does an **empty** one — the
 same defect from the other side, because a packet with an empty diff section has the critic return a
-confident verdict about a change it never saw.
+confident verdict about a change it never saw. An unreadable or empty `--change-scope` transcript
+exits 8 for the same reason.
 
 A channel that could not be read is a finding, never a silence.
+
+## `brief` refuses a diff that does not cover the change
+
+Readable and non-empty were the only tests, and **a one-file excerpt of a nine-file commit passes
+both**. That is not a hypothetical: it is what the critic pass's own second use produced. The tests,
+both reference documents, the CHANGELOG and four mirror files were present in the packet only as
+names inside a stat block, and the reference above said the `diff` key holds "the change under
+review, verbatim". The critic noticed and read the commit from the repository — the good outcome,
+and not one a design may rely on.
+
+`--change-scope <path>` takes a transcript **the caller produced** — `git show <sha> --stat`, or
+`git show <sha> --name-only` — and the engine cross-checks it:
+
+| Condition | Exit |
+|---|---|
+| A path the transcript declares is absent from the diff | **9**, naming every one |
+| An abbreviated `.../` path matching more than one diff path | **9** — an ambiguous path is not a path |
+| A transcript that parses to no paths at all | **9** — the caller passed the wrong file |
+| The diff covers every declared path | 0, `scope.provenance: "verified"` |
+| No `--change-scope` at all | 0, `scope.provenance: "unverified"` |
+
+**The engine runs no `git`.** A subprocess spawned inside `loop.py` is not a tool call, so it would
+run outside Layers 1D, 1E and 1G of `.claude/hooks/odin-safety-guard.sh` — a PreToolUse hook.
+ADR-0143 vetoed executing a contract's `evidence_command` for that reason, and DEC-0093 extends the
+veto here: a *fixed* command carrying an operator-supplied revision range is still argv, and
+`git diff --output=<path> <range>` writes an arbitrary file. So the caller runs the scope command
+through its own tool path, where every guard applies, exactly as `--baseline-evidence` already works.
+
+**The flag is optional, and its absence is recorded rather than silent.** `scope.provenance:
+"unverified"` says nothing was established either way, and the packet's asks tell the critic to read
+it first. Requiring the flag would red every existing caller at once — the blast radius ADR-0143
+rejected for the same reason.
 
 ## What this proves, and what it does not
 
 **Mechanical:** no verdict can be recorded that is not bound to a packet the engine assembled from
 the actual diff, the actual verification output and the contract's own rubric — and each such packet
 buys exactly one verdict.
+
+**The binding's subject is the packet, never the change.** `brief_id` proves "this verdict is about
+this packet". It proves "this packet is the change" only as far as the packet's `scope` block says
+it does: with a declared scope, the diff covers every path the transcript named; with
+`provenance: "unverified"`, nothing was established at all. This sentence is the one the reference
+was missing — it described the binding while the packet's *completeness* went unchecked and
+unmentioned, which is how a verdict about a third of a change came to carry an id that reads like a
+review of all of it.
+
+**Also not mechanical:** that the transcript describes the change under review. A caller can hand
+over the stat block of a different commit. Nothing in a non-executing engine closes that, and a
+check that claimed to would be the failure named two paragraphs down.
 
 **Not mechanical, and no gate here claims otherwise:** that a *different context* produced the
 verdict. No predicate over repository state can establish it. A check that claimed to would be worse

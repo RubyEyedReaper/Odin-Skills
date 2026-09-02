@@ -93,15 +93,21 @@ spends it.
 | A verdict with no `--critic-brief` | A verdict written by the builder in the same breath as the work |
 | A brief id the engine never emitted, or a brief when none is pending | Also how a spent brief is caught on second use — a verdict is about one change |
 | A verdict with no `--critic-next` | The critic names the single most valuable next improvement |
-| An unreadable **or empty** diff or verification file | Exit 8, naming the file. A packet with an empty diff has the critic judge a change it never saw |
+| An unreadable **or empty** diff, verification file or change-scope transcript | Exit 8, naming the file. A packet with an empty diff has the critic judge a change it never saw |
+| A diff that does not cover every path `--change-scope` declares | Exit 9. Readable and non-empty were the only tests, and a one-file excerpt of a nine-file commit passes both |
 
 **What this proves and what it does not.** Mechanically: no verdict is recordable that is not bound
-to a packet the engine assembled from the actual artifacts, and each packet buys one verdict. Not
-mechanically — and no gate here claims it — that a *different context* produced the verdict. That
-half is a review criterion: dispatch `adversarial-reviewer` with the packet. Which half is which:
+to a packet the engine assembled from the actual artifacts, and each packet buys one verdict. **The
+binding's subject is the packet, never the change** — it says "this verdict is about this packet",
+and how far the packet *is* the change is exactly what the `scope` block reports. Not mechanically —
+and no gate here claims it — that a *different context* produced the verdict, nor that a declared
+scope describes the change under review. Those halves are review criteria: dispatch
+`adversarial-reviewer` with the packet. Which half is which:
 [critic-pass.md](references/critic-pass.md).
 
-The engine still runs no critic and dispatches nothing. It packages, and it refuses.
+The engine still runs no critic and dispatches nothing — and it derives no diff. It reads the scope
+transcript the caller produced, the same way it reads a rubric's evidence command and never runs one
+(ADR-0143, extended by DEC-0093). It packages, and it refuses.
 
 ## The six outcomes
 
@@ -220,7 +226,8 @@ python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome escal
         --evidence "gh auth status exited 1: no token found" \
         --recommended-next "issue a scoped token, then re-open this contract unchanged"
 python3 -m scripts.loop brief --root ../../.. --session "$SID" --json \
-        --diff-file /tmp/change.diff --verification-file /tmp/suite.txt
+        --diff-file /tmp/change.diff --verification-file /tmp/suite.txt \
+        --change-scope /tmp/scope.txt   # git show <sha> --stat, run by YOU
 python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome continue \
         --action tighten-guard --measure gate-integrity=0 \
         --evidence-path /tmp/ci-local.log --critic-brief "$BRIEF" \
@@ -243,6 +250,7 @@ python3 -m scripts.loop close  --root ../../.. --session "$SID" --outcome comple
 | 6 | scored, and a hard-gate dimension breached its failure threshold |
 | 7 | refused: a change was to be retained over a breached hard gate |
 | 8 | refused: an input the critic brief needs could not be read, or was empty |
+| 9 | refused: the packet's diff does not cover the change its declared scope names |
 
 `4` is separate from `0` on purpose. A caller that cannot distinguish "no stalls found"
 from "no iterations examined" cannot detect a report that means nothing.
@@ -294,6 +302,8 @@ composed-snapshot defect cost.
 | Reading a high weighted total as permission | The verdict is `fail` while any hard gate is breached, at any total. Exit 6 exists so a caller cannot miss it. |
 | Recording a critic verdict the same context produced | Refused — a verdict needs a brief the engine emitted. The verdict belongs to a context that did not build the change. |
 | Re-using one brief across two iterations | Refused. A brief is spent by the iteration that records its verdict; the alternative is change N's judgment on change N+1. |
+| Handing `brief` an excerpt of the change and no `--change-scope` | Accepted, and the packet says `provenance: "unverified"` — which is the honest reading, not an endorsement. Declare the scope and a partial diff is refused instead. |
+| Reading `provenance: "unverified"` as "the diff is complete" | It means nothing was established either way. Absent is not zero, here as everywhere else in this engine. |
 | `--decision retain` after a breached gate | Refused, exit 7. Record `revert`, `revise` or `escalate` — the last carries a blocker and its evidence. |
 | Naming an undeclared dependency at iterate time | Refused as a contract finding — declare it, or the predicate decides over invented state. |
 | Re-running the predicates on read | One ledger, two verdicts, depending on when it was read. `status` reports; it never re-decides. |
