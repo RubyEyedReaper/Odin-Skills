@@ -95,7 +95,11 @@ class StatusReportsQuality(unittest.TestCase):
                 self.assertIsNone(payload[key])
 
     def test_a_blank_pass_after_a_scored_one_does_not_blank_the_report(self):
-        """The last iteration that was *scored* is the one reported, not the last one run."""
+        """The last iteration that was JUDGED is the one reported, not the last one run.
+
+        Here that is the scored one, because iteration 2 carries no evaluation, no verdict
+        and no decision. Scored-ness is not the rule — see the single-arm cases below.
+        """
         with fx.LedgerRoot() as root:
             fx.open_loop(root)
             fx.run_cli(
@@ -202,9 +206,12 @@ class QualityIsOneRecordsQuality(unittest.TestCase):
             self.assertEqual(payload["quality_from"], 2)
 
     def test_an_unscored_ledger_that_was_reviewed_still_names_its_record(self):
-        """No iteration carries an evaluation, but one carries a verdict. The fallback is
-        the last record carrying either, and `quality_from` names it — a reader must never
-        have to guess which iteration the quality describes."""
+        """No iteration carries an evaluation, but one carries a verdict.
+
+        There is no fallback pass: one predicate, one reverse scan, and a verdict makes a
+        record judged exactly as an evaluation does. `quality_from` names it — a reader must
+        never have to guess which iteration the quality describes.
+        """
         with fx.LedgerRoot() as root:
             fx.open_loop(root)
             brief = fx.brief_for(root)

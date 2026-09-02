@@ -216,8 +216,8 @@ reader runs to ask about a loop, so it carries five quality keys alongside the c
 
 | Key | Value |
 |---|---|
-| `rubric_verdict` | `pass` or `fail`, from that record's evaluation |
-| `weighted_total` | the weighted score, `0`–`100` |
+| `rubric_verdict` | `pass` or `fail`, from that record's evaluation — `null` if that record was not scored |
+| `weighted_total` | the weighted score, `0`–`100` — `null` on the same condition |
 | `critic_verdict` | `PASS` `FAIL` `REVISE` `REVERT` `ESCALATE` |
 | `decision` | `retain` `revert` `revise` `escalate` |
 | `quality_from` | the `n` of the iteration all four came from |
@@ -229,9 +229,16 @@ prints exactly the pairing the engine refuses. The record is the last one that w
 scored, reviewed, or decided — because preferring a scored record over a later reviewed one drops
 the loop's most recent judgment.
 
-**Absent is not zero.** Every key is present and `null` when nothing scored — including over an
-empty ledger, where the payload carries them beside its exit 4. A loop nobody scored must not read
-as a loop that scored badly, and a printed `0.0` is indistinguishable from a measured one.
+**Absent is not zero.** Every key is present and `null` when the reported record does not carry it
+— including over an empty ledger, where the payload carries them beside its exit 4. A loop nobody
+scored must not read as a loop that scored badly, and a printed `0.0` is indistinguishable from a
+measured one.
+
+**A `null` does not mean nobody scored.** It means the *reported* record — the newest judged one —
+did not carry that field. A loop scored at iteration 1 and reviewed at iteration 2 reports
+`rubric_verdict: null` with `quality_from: 2`, and the score is still in the ledger. Reading `null`
+as "never scored" is the misreading this section exists to prevent, and it costs what the
+composed-snapshot defect cost.
 
 ## Common mistakes
 
