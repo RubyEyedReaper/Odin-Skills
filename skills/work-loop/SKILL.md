@@ -75,6 +75,29 @@ never what it did not look at.
 Field by field, who writes each one, and the two recorded residues:
 [iteration-record.md](references/iteration-record.md).
 
+## The critic pass
+
+A builder's report of its own work is not evidence. `loop brief` assembles the packet a critic
+receives — the diff, the verification output, the contract's rubric, the baseline, the verdict
+vocabulary and the asks — and records it as a **single-use** brief whose id is the hash of those
+artifacts. `iterate --critic-verdict` then requires `--critic-brief <id>` naming that brief, and
+spends it.
+
+| Refused | Why |
+|---|---|
+| A verdict with no `--critic-brief` | A verdict written by the builder in the same breath as the work |
+| A brief id the engine never emitted, or a brief when none is pending | Also how a spent brief is caught on second use — a verdict is about one change |
+| A verdict with no `--critic-next` | The critic names the single most valuable next improvement |
+| An unreadable **or empty** diff or verification file | Exit 8, naming the file. A packet with an empty diff has the critic judge a change it never saw |
+
+**What this proves and what it does not.** Mechanically: no verdict is recordable that is not bound
+to a packet the engine assembled from the actual artifacts, and each packet buys one verdict. Not
+mechanically — and no gate here claims it — that a *different context* produced the verdict. That
+half is a review criterion: dispatch `adversarial-reviewer` with the packet. Which half is which:
+[critic-pass.md](references/critic-pass.md).
+
+The engine still runs no critic and dispatches nothing. It packages, and it refuses.
+
 ## The six outcomes
 
 Exactly one per iteration. Only `continue` permits another.
@@ -158,9 +181,12 @@ python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome escal
         --blocker "the deploy credential the contract declares is absent" \
         --evidence "gh auth status exited 1: no token found" \
         --recommended-next "issue a scoped token, then re-open this contract unchanged"
+python3 -m scripts.loop brief --root ../../.. --session "$SID" --json \
+        --diff-file /tmp/change.diff --verification-file /tmp/suite.txt
 python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome continue \
         --action tighten-guard --measure gate-integrity=0 \
-        --evidence-path .runtime/logs/ci.log --critic-verdict PASS --decision retain
+        --evidence-path .runtime/logs/ci.log --critic-brief "$BRIEF" \
+        --critic-verdict PASS --critic-next "measure the suite wall clock" --decision retain
 python3 -m scripts.loop score --root ../../.. --session "$SID" --json \
         --measure gate-integrity=0 --measure context-budget=37000
 python3 -m scripts.loop resume --root ../../.. --session "$SID" --json
@@ -178,6 +204,7 @@ python3 -m scripts.loop close  --root ../../.. --session "$SID" --outcome comple
 | 5 | refused: the action is already recorded complete |
 | 6 | scored, and a hard-gate dimension breached its failure threshold |
 | 7 | refused: a change was to be retained over a breached hard gate |
+| 8 | refused: an input the critic brief needs could not be read, or was empty |
 
 `4` is separate from `0` on purpose. A caller that cannot distinguish "no stalls found"
 from "no iterations examined" cannot detect a report that means nothing.
@@ -193,7 +220,8 @@ from "no iterations examined" cannot detect a report that means nothing.
 | A contract with prose success criteria | Nothing can decide `complete`, so the loop runs to its limit and reports `stop`. |
 | A rubric dimension whose evidence is "review says so" | Refused at `open`. Name it in the review checklist and leave it out of the rubric — the honest residue beats a dimension that looks measured. |
 | Reading a high weighted total as permission | The verdict is `fail` while any hard gate is breached, at any total. Exit 6 exists so a caller cannot miss it. |
-| Recording a critic verdict the same context produced | A verdict from the builder is a self-assessment. The verdict belongs to a context that did not build the change. |
+| Recording a critic verdict the same context produced | Refused — a verdict needs a brief the engine emitted. The verdict belongs to a context that did not build the change. |
+| Re-using one brief across two iterations | Refused. A brief is spent by the iteration that records its verdict; the alternative is change N's judgment on change N+1. |
 | `--decision retain` after a breached gate | Refused, exit 7. Record `revert`, `revise` or `escalate` — the last carries a blocker and its evidence. |
 | Naming an undeclared dependency at iterate time | Refused as a contract finding — declare it, or the predicate decides over invented state. |
 | Re-running the predicates on read | One ledger, two verdicts, depending on when it was read. `status` reports; it never re-decides. |

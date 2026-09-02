@@ -99,10 +99,40 @@ class LedgerRoot:
     def __exit__(self, *exc) -> None:
         shutil.rmtree(self.path, ignore_errors=True)
 
+    def write(self, name: str, text: str) -> str:
+        """Write a scratch file inside the throwaway root and return its absolute path.
+
+        Inside the root on purpose: a fixture that wrote to the checkout would make the
+        case's verdict depend on the tree it ran in.
+        """
+        path = os.path.join(self.path, name)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        return path
+
     def ledger_path(self, session: str = SESSION) -> str:
         return os.path.join(
             self.path, ".claude", ".runtime", "work-loop", session + ".json"
         )
+
+
+def brief_for(root, session: str = SESSION, diff: str | None = None) -> str:
+    """Emit a critic brief inside `root` and return its id.
+
+    Shared by the record and critic suites so both bind a verdict the same way; two
+    helpers for one handshake is how they come to disagree about what a brief is.
+    """
+    diff_file = root.write("brief.diff", diff or "--- a/x\n+++ b/x\n+one line\n")
+    ver_file = root.write("brief-verification.txt", "Ran 1 test\n\nOK\n")
+    code, out, err = run_cli(
+        "brief", "--root", root.path, "--session", session,
+        "--diff-file", diff_file, "--verification-file", ver_file, "--json",
+    )
+    if code != 0:
+        raise AssertionError("brief fixture failed (%d): %s" % (code, err))
+    import json as _json
+
+    return _json.loads(out)["brief_id"]
 
 
 def run_cli(*argv) -> tuple[int, str, str]:

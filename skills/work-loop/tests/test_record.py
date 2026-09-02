@@ -123,8 +123,13 @@ class CriticVerdictNeedsEvidence(unittest.TestCase):
     def test_a_complete_record_carries_every_declared_field(self):
         with fx.LedgerRoot() as root:
             fx.open_loop(root)
+            # harness:RM-0469 bound a verdict to a brief the engine emitted, so a COMPLETE
+            # record now includes one. This case was written in wave 2 with an unbound
+            # verdict and is updated here rather than relaxed: the property it asserts —
+            # every declared field round-trips — is unchanged.
+            brief = fx.brief_for(root)
             code, _, err = _iterate(
-                root, *CLEAN,
+                root, *CLEAN, "--critic-brief", brief,
                 "--files-changed", "scripts/loop.py",
                 "--command-run", "python3 -m unittest discover -s tests -t .",
                 "--evidence-path", "logs/suite.txt",
@@ -142,6 +147,7 @@ class CriticVerdictNeedsEvidence(unittest.TestCase):
             self.assertEqual(record["critic_verdict"], "PASS")
             self.assertEqual(record["critic_next"], "measure the suite's wall clock next")
             self.assertEqual(record["decision"], "retain")
+            self.assertEqual(record["critic_brief"], brief)
 
 
 class BaselineIsDerived(unittest.TestCase):
@@ -215,6 +221,13 @@ class BaselineIsDerived(unittest.TestCase):
 class RegressionProtection(unittest.TestCase):
     """Capability 5, made mechanical: a change is not retained over a breached hard gate.
 
+    These cases carry no `--critic-verdict`. They did in wave 2, where it was decoration:
+    the predicate is over the DECISION and the MEASUREMENTS, and a verdict alongside it
+    asserted nothing. harness:RM-0469 made a verdict cost a brief, which turned that
+    decoration into a second refusal firing before the one under test — so it is dropped
+    rather than fed. Narrowing a case to exactly its property is the repair; feeding it a
+    brief would have kept a case that tests two things and reports one.
+
     "Net improvement" is never an excuse for silently breaking core behaviour, so the
     engine refuses the decision rather than warning about it — a warning in an unattended
     run is a line nobody reads.
@@ -226,7 +239,6 @@ class RegressionProtection(unittest.TestCase):
             code, _, err = _iterate(
                 root, *BREACHED,
                 "--evidence-path", "logs/ci.log",
-                "--critic-verdict", "FAIL",
                 "--decision", "retain",
             )
             self.assertEqual(code, EXIT_REGRESSION)
@@ -239,7 +251,6 @@ class RegressionProtection(unittest.TestCase):
             code, _, err = _iterate(
                 root, *BREACHED,
                 "--evidence-path", "logs/ci.log",
-                "--critic-verdict", "REVERT",
                 "--decision", "revert",
             )
             self.assertEqual(code, EXIT_OK, err)
@@ -253,7 +264,6 @@ class RegressionProtection(unittest.TestCase):
             code, _, err = _iterate(
                 root, *CLEAN,
                 "--evidence-path", "logs/ci.log",
-                "--critic-verdict", "PASS",
                 "--decision", "retain",
             )
             self.assertEqual(code, EXIT_OK, err)

@@ -31,6 +31,7 @@ EXIT_EMPTY = 4  # refused: nothing was examined
 EXIT_REPEAT = 5  # refused: the action is already recorded complete
 EXIT_GATE = 6  # refused: a hard-gate dimension breached its failure threshold
 EXIT_REGRESSION = 7  # refused: a change retained over a breached hard gate
+EXIT_UNREADABLE = 8  # refused: an input the critic brief needs could not be read
 
 # ---------------------------------------------------------------- vocabulary
 
@@ -516,6 +517,38 @@ def cmd_iterate(args):
         record_findings.append(
             "--decision %s: not one of %s" % (decision, " / ".join(DECISIONS))
         )
+    critic_brief = (getattr(args, "critic_brief", None) or "").strip() or None
+    pending = (ledger.get("pending_brief") or {}).get("brief_id")
+    if critic_verdict is not None:
+        # THE BINDING. A verdict must name a brief the engine emitted, and each brief is
+        # spent by the iteration that uses it. This does not prove a different CONTEXT
+        # produced the verdict — no predicate over repository state can — but it does mean
+        # no verdict is recordable that was not about a packet the engine assembled from
+        # the actual diff, the actual verification output and the contract's own rubric.
+        if not critic_brief:
+            record_findings.append(
+                "--critic-brief required with --critic-verdict — run `loop brief` and hand "
+                "the packet to a context that did not build the change; a verdict written "
+                "by the builder in the same breath as the work is a self-assessment"
+            )
+        elif pending is None:
+            record_findings.append(
+                "--critic-brief %s: no brief is pending for this session — a brief is spent "
+                "by the iteration that records its verdict, so run `loop brief` again"
+                % critic_brief
+            )
+        elif critic_brief != pending:
+            record_findings.append(
+                "--critic-brief %s: not the brief this engine emitted (%s) — a verdict "
+                "carrying an unknown id is about a packet nobody assembled"
+                % (critic_brief, pending)
+            )
+        if not (args.critic_next or "").strip():
+            record_findings.append(
+                "--critic-next required with --critic-verdict — the critic names the single "
+                "most valuable next improvement, and an obligation nobody enforces is "
+                "indistinguishable from one nobody has"
+            )
     if critic_verdict is not None and not evidence_paths:
         record_findings.append(
             "--evidence-path required with --critic-verdict — a verdict with nothing behind "
@@ -612,6 +645,7 @@ def cmd_iterate(args):
         "evidence_paths": evidence_paths,
         "critic_verdict": critic_verdict,
         "critic_next": args.critic_next,
+        "critic_brief": critic_brief,
         "decision": decision,
         "blocker": blocker,
         "evidence": evidence,
@@ -620,6 +654,8 @@ def cmd_iterate(args):
     }
     ledger["iterations"].append(record)
     ledger["completed_actions"].extend(args.action)
+    if critic_verdict is not None:
+        ledger["pending_brief"] = None
     if outcome in TERMINAL_OUTCOMES:
         ledger["status"] = "closed"
         ledger["final_outcome"] = outcome
@@ -629,6 +665,94 @@ def cmd_iterate(args):
     if stall:
         human += " (stall: %s, reported '%s')" % (stall, args.outcome)
     return emit(args, record, human)
+
+
+def brief_digest(diff, verification, rubric):
+    """A brief's identity: the hash of exactly what the critic will be shown.
+
+    Derived from the artifacts rather than assigned, so a verdict carrying this id is a
+    verdict about *this* diff, this verification output and this rubric. Change any of the
+    three and the id changes, which is what makes a re-used brief detectable rather than
+    merely discouraged.
+    """
+    payload = json.dumps(
+        {"diff": diff, "verification": verification, "rubric": rubric},
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+#: What the brief asks of the critic, in the packet itself rather than in a prompt the
+#: builder writes. A critic that receives the builder's framing is reviewing the framing.
+BRIEF_ASKS = (
+    "Evaluate the diff against the rubric and the baseline, not against the builder's claims.",
+    "Compare before versus after. A verdict about the after alone is not a comparison.",
+    "Name any regression and any claim the verification output does not support.",
+    "Return exactly one verdict from the set, and the single most valuable next improvement.",
+    "Say which evidence supports the verdict.",
+)
+
+
+def cmd_brief(args):
+    """Assemble the packet the critic receives, and record it as a single-use brief.
+
+    The engine runs no critic and dispatches nothing — that boundary is unchanged. It
+    packages the artifacts, and it refuses to record any verdict later that is not bound to
+    a packet it packaged.
+    """
+    ledger = require_ledger(args)
+    if ledger is None:
+        return EXIT_USAGE
+
+    texts = {}
+    for label, path in (("diff", args.diff_file), ("verification", args.verification_file)):
+        try:
+            with open(path, encoding="utf-8") as handle:
+                texts[label] = handle.read()
+        except OSError as exc:
+            # A channel that could not be read is a finding, never a silence: a brief with
+            # an empty diff section would have the critic return a confident verdict about
+            # a change it never saw.
+            print(
+                "brief: cannot read the %s at %s (%s)" % (label, path, exc.strerror),
+                file=sys.stderr,
+            )
+            return EXIT_UNREADABLE
+        if not texts[label].strip():
+            print(
+                "brief: the %s at %s is empty — a critic pass over no change is a verdict "
+                "about nothing" % (label, path),
+                file=sys.stderr,
+            )
+            return EXIT_UNREADABLE
+
+    rubric = ledger["contract"].get("quality_rubric") or []
+    baseline = None
+    for previous in reversed(ledger["iterations"]):
+        if previous.get("measurements"):
+            baseline = previous["measurements"]
+            break
+    else:
+        baseline = {e["dimension"]: e["baseline"] for e in rubric}
+
+    digest = brief_digest(texts["diff"], texts["verification"], rubric)
+    packet = {
+        "brief_id": digest,
+        "rubric": rubric,
+        "baseline": baseline,
+        "diff": texts["diff"],
+        "verification": texts["verification"],
+        "verdicts": list(CRITIC_VERDICTS),
+        "asks": list(BRIEF_ASKS),
+    }
+    ledger["pending_brief"] = {"brief_id": digest}
+    write_ledger(args.root, args.session, ledger)
+    return emit(
+        args, packet,
+        "brief %s: %d rubric dimension(s), %d byte diff — hand this to a context that did "
+        "not build the change"
+        % (digest, len(rubric), len(texts["diff"])),
+    )
 
 
 def parse_measurements(rubric, raw_measures):
@@ -902,11 +1026,22 @@ def build_parser():
         "--critic-next", help="the single most valuable next improvement, in the critic's words",
     )
     iterated.add_argument(
+        "--critic-brief", metavar="BRIEF_ID",
+        help="the id `loop brief` emitted; required with --critic-verdict, and spent by this iteration",
+    )
+    iterated.add_argument(
         "--decision", metavar="DECISION",
         help="retain / revert / revise / escalate — refused as `retain` over a breached hard gate",
     )
     iterated.add_argument("--note", help="free text recorded with the iteration")
     iterated.set_defaults(func=cmd_iterate)
+
+    briefed = common(subparsers.add_parser(
+        "brief", help="assemble the packet a critic receives, as a single-use brief"))
+    briefed.add_argument("--diff-file", required=True, help="the change under review")
+    briefed.add_argument(
+        "--verification-file", required=True, help="the verification output, verbatim")
+    briefed.set_defaults(func=cmd_brief)
 
     scored = common(subparsers.add_parser(
         "score", help="score one measurement per declared rubric dimension"))
