@@ -859,6 +859,26 @@ def cmd_status(args):
         # that cannot tell "nothing found" from "nothing examined" cannot detect the
         # failure this repository has been bitten by most.
         return EXIT_EMPTY
+    # The quality the record carries, surfaced. Read from the LAST iteration that carried
+    # each — a blank pass after a scored one must not blank the report, the same rule the
+    # derived baseline follows, applied to the reader's view.
+    #
+    # ABSENT IS NOT ZERO. Every key is present and null when nothing scored, rather than
+    # defaulted to 0.0: a loop nobody scored must not read as a loop that scored badly, and
+    # a number is indistinguishable from a real one once it is printed.
+    quality = {key: None for key in ("rubric_verdict", "weighted_total", "critic_verdict", "decision")}
+    for record in reversed(ledger["iterations"]):
+        evaluation = record.get("evaluation")
+        if quality["rubric_verdict"] is None and evaluation:
+            quality["rubric_verdict"] = evaluation.get("verdict")
+            quality["weighted_total"] = evaluation.get("weighted_total")
+        if quality["critic_verdict"] is None:
+            quality["critic_verdict"] = record.get("critic_verdict")
+        if quality["decision"] is None:
+            quality["decision"] = record.get("decision")
+        if all(value is not None for value in quality.values()):
+            break
+
     payload = {
         "session": ledger["session"],
         "status": ledger["status"],
@@ -868,12 +888,21 @@ def cmd_status(args):
         "stalls": [it["stall"] for it in ledger["iterations"] if it["stall"]],
         "last_outcome": ledger["iterations"][-1]["outcome"],
     }
-    return emit(
-        args, payload,
-        "%s: %s after %d iteration(s), outcome %s"
-        % (ledger["session"], ledger["status"], len(ledger["iterations"]),
-           ledger["final_outcome"] or ledger["iterations"][-1]["outcome"]),
-    )
+    payload.update(quality)
+
+    human = ("%s: %s after %d iteration(s), outcome %s"
+             % (ledger["session"], ledger["status"], len(ledger["iterations"]),
+                ledger["final_outcome"] or ledger["iterations"][-1]["outcome"]))
+    if quality["rubric_verdict"] is not None:
+        human += " — rubric %s at %.2f weighted" % (
+            quality["rubric_verdict"], quality["weighted_total"])
+    else:
+        human += " — rubric not scored"
+    if quality["critic_verdict"] is not None:
+        human += ", critic %s" % quality["critic_verdict"]
+    if quality["decision"] is not None:
+        human += ", %s" % quality["decision"]
+    return emit(args, payload, human)
 
 
 def cmd_resume(args):
