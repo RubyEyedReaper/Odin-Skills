@@ -298,6 +298,10 @@ and untracked state inside `.claude/skills/` makes the "no local edits" provenan
 unfalsifiable. `.claude/.runtime/` is where per-run state lives (ADR-0045) — and because that
 directory is gitignored, this file is a working artifact and never the record:
 
+```sh
+mkdir -p .claude/.runtime/rules-distill   # where results.json lands, one pass's scratch
+```
+
 - **Timestamp format**: `date -u +%Y-%m-%dT%H:%M:%SZ` (UTC, second precision)
 - **Candidate ID format**: kebab-case derived from the principle (e.g., `llm-output-trust-boundary`)
 

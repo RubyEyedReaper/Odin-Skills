@@ -88,6 +88,10 @@ failure mode this repository has been bitten by most often, and a caller that ca
 outcome. In-flight state only — durable outcomes belong in the ledgers that already exist
 (`CHANGELOG.md`, `roadmap.json`, `MISTAKES.md`), never in a new committed store.
 
+```sh
+mkdir -p .claude/.runtime/workflow-run   # where `run` opens a record, per session
+```
+
 `--dry-run` takes the identical code path and skips only the write, including the retired refusal:
 a dry run of a retired workflow is still refused.
 
