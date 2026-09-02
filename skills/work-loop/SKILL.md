@@ -185,7 +185,7 @@ python3 -m scripts.loop brief --root ../../.. --session "$SID" --json \
         --diff-file /tmp/change.diff --verification-file /tmp/suite.txt
 python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome continue \
         --action tighten-guard --measure gate-integrity=0 \
-        --evidence-path .runtime/logs/ci.log --critic-brief "$BRIEF" \
+        --evidence-path /tmp/ci-local.log --critic-brief "$BRIEF" \
         --critic-verdict PASS --critic-next "measure the suite wall clock" --decision retain
 python3 -m scripts.loop score --root ../../.. --session "$SID" --json \
         --measure gate-integrity=0 --measure context-budget=37000
