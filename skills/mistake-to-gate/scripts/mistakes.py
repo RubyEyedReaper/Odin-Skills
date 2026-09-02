@@ -30,6 +30,35 @@ CLASSES = ("input", "precondition", "postcondition", "error-path", "ci-gate", "j
 STATUSES = ("logged", "guarded", "promoted", "promoted-rule", "wontfix")
 DEFAULT_THRESHOLD = 4
 
+#: Root ledgers that record incidents WITHOUT participating in the recurrence count (DEC-0092).
+#:
+#: A second file able to hold a failure-mode key makes every count above an undercount, silently:
+#: `counts()` reads one file per owner, so a key split two-and-two across two ledgers stands at two
+#: on the ladder while four occurrences sit on disk, and both files look healthy. Reproduced before
+#: this declaration existed — `mistakes-check.sh` exited 0 saying "mistake logs clean" over exactly
+#: that fixture.
+#:
+#: The resolution is not a wider sum but a narrower grammar: these ledgers carry block entries, no
+#: key, and therefore no arithmetic. `check_block_ledgers` enforces both halves — that no row in one
+#: parses as a keyed occurrence, and that every entry carries the two fields that make a caveat a
+#: caveat rather than a war story (the condition under which it recurs, and the safeguard that
+#: closes it).
+#:
+#: ADDING A LEDGER IS A DECLARATION HERE, NEVER A SECOND IMPLEMENTATION. A sibling ledger recording
+#: a different kind of record adds one entry to this dict; the two passes below are already its gate.
+BLOCK_LEDGERS = {
+    "CAVEAT.md": {
+        "entry_prefix": "C",
+        "required": ("Date", "What happened", "Why it happened", "Potential impact",
+                     "Recurs when", "Safeguard"),
+    },
+}
+
+#: `## C-0001 — title`. The id prefix is per-ledger, so the pattern is built per declaration.
+_ENTRY_RE_TEMPLATE = r"^##\s+(%s-\d{4})\b"
+#: `- **Recurs when:** <value>` — the label is captured so a missing field is named, not counted.
+FIELD_RE = re.compile(r"^\s*[-*]\s*\*\*([^:*]+):?\*\*\s*(.*)$")
+
 #: How this script is invoked, for printing runnable commands in its own findings.
 _SELF = ".claude/skills/mistake-to-gate/scripts/mistakes.py"
 LOG_NAME = "MISTAKES.md"
@@ -127,6 +156,106 @@ def parse_log(text, path=""):
     if errors:
         raise GrammarError(errors[0])
     return rows
+
+
+# --- block-entry ledgers ---------------------------------------------------------------------
+
+def foreign_keyed_rows(text, path=""):
+    """Findings for lines in a NON-counting ledger that parse as a keyed occurrence row.
+
+    Deliberately NOT `scan_log`. That parser treats the first pipe line in a file as the column
+    header and skips it, so a lone keyed row pasted into a caveat ledger would be swallowed by the
+    very reader whose blindness is the defect — the split would be invisible to the check written
+    to find it. Every pipe line is read here, and the header line is excluded by the grammar rather
+    than by position: its third cell is the word `key`, which is not `<class>/<slug>`.
+
+    The predicate is the real one — `key_errors`, the same function `_row_errors` uses — so a change
+    to the key grammar moves this pass with it instead of leaving a second copy behind.
+    """
+    out = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = _split_row(line)
+        if len(cells) != 8 or _is_separator(cells):
+            continue
+        if key_errors(cells[2]):
+            continue
+        out.append(
+            "%s:%d: carries a failure-mode key %r — a keyed occurrence outside %s is counted by "
+            "nothing, so the promotion ladder stops firing while both files look healthy "
+            "(DEC-0092). Append the occurrence with `%s append --key %s`, and keep this ledger's "
+            "block entries prose."
+            % (path or "<ledger>", lineno, cells[2], LOG_NAME, _SELF, cells[2]))
+    return out
+
+
+def block_entries(text, prefix):
+    """`[(entry_id, start_line, {label: value})]` for every `## <prefix>-NNNN` section."""
+    head = re.compile(_ENTRY_RE_TEMPLATE % re.escape(prefix))
+    entries = []
+    fenced = False
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        match = head.match(line)
+        if match:
+            entries.append((match.group(1), lineno, {}))
+            continue
+        if not entries:
+            continue
+        field = FIELD_RE.match(line)
+        if field:
+            entries[-1][2][field.group(1).strip()] = field.group(2).strip()
+    return entries
+
+
+def block_entry_errors(text, path, spec):
+    """Findings for entries missing a required field, or carrying one with an empty value.
+
+    An empty value and an absent label are reported the same way on purpose: both leave the
+    obligation unmet, and a ledger that accepted `**Safeguard:**` with nothing after it would let
+    the conversion step be skipped by pressing return.
+    """
+    out = []
+    for entry_id, lineno, fields in block_entries(text, spec["entry_prefix"]):
+        for label in spec["required"]:
+            if fields.get(label):
+                continue
+            out.append(
+                "%s:%d: entry %s has no **%s:** value — %s"
+                % (path, lineno, entry_id, label, _WHY_FIELD.get(label, "the entry shape requires it")))
+    return out
+
+
+#: Why a field is required, printed with the finding. A refusal that only names a missing label
+#: teaches the author to paste the label; naming the obligation is what makes the next entry right.
+_WHY_FIELD = {
+    "Recurs when": "a caveat with no recurrence condition is a war story, not a record something "
+                   "can be keyed on",
+    "Safeguard": "recording without converting is the failure this ledger exists to prevent; name "
+                 "the hook, check, rule or stated guidance that now refuses it",
+}
+
+
+def check_block_ledgers(owner_path):
+    """Both passes over every declared non-counting ledger this owner actually has."""
+    out = []
+    for name, spec in sorted(BLOCK_LEDGERS.items()):
+        ledger = Path(owner_path) / name
+        # Absence is silent, and this is NOT the MISTAKES.md rule one screen up. A missing mistake
+        # log hides a count, so opt-in-by-presence there is a check that disables itself; a caveat
+        # ledger participates in no count, so its absence hides nothing and demanding one from every
+        # project would fail owners who have recorded no caveats.
+        if not ledger.is_file():
+            continue
+        text = ledger.read_text()
+        out.extend(foreign_keyed_rows(text, str(ledger)))
+        out.extend(block_entry_errors(text, str(ledger), spec))
+    return out
 
 
 # --- counting --------------------------------------------------------------------------------
@@ -382,6 +511,13 @@ def set_status(path, key, status, fix=None):
         cells[7] = status
         if fix:
             cells[6] = _escape(fix)
+        # Re-escape on write. `_split_row` turns `\|` into a literal pipe, so emitting the cells raw
+        # gives the row one column per escaped pipe it contained and MISTAKES.md stops parsing —
+        # caused by the command the promotion procedure mandates, on the log that command maintains,
+        # and silent at write time (M-0115). Not `_escape`, which also collapses whitespace: this
+        # writer is rewriting a status, and a rewrite that reformats cells it was not asked to touch
+        # is a second, quieter corruption of the same rows.
+        cells = [c.replace("|", "\\|") for c in cells]
         lines[r.line - 1] = "| %s |\n" % " | ".join(cells)
         changed += 1
     path.write_text("".join(lines))
@@ -421,6 +557,10 @@ def cmd_check(args):
     findings = []
     per_owner_rows = {}
     for owner in included:
+        # Run BEFORE the mistake log is loaded, and independently of whether it loads. A
+        # keyed row sitting in a sibling ledger is an occurrence nothing counts, and an owner
+        # whose MISTAKES.md is missing is exactly the owner most likely to have put it there.
+        findings.extend(check_block_ledgers(owner))
         rows, errors = _load(owner)
         findings.extend(errors)
         if rows is None:
