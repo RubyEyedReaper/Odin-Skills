@@ -30,10 +30,20 @@ EXIT_CLOSED = 3  # refused: this loop has ended
 EXIT_EMPTY = 4  # refused: nothing was examined
 EXIT_REPEAT = 5  # refused: the action is already recorded complete
 EXIT_GATE = 6  # refused: a hard-gate dimension breached its failure threshold
+EXIT_REGRESSION = 7  # refused: a change retained over a breached hard gate
 
 # ---------------------------------------------------------------- vocabulary
 
 OUTCOMES = ("continue", "complete", "revise", "escalate", "pause", "stop")
+
+#: The critic's verdict on a CHANGE, from the five words the gauntlet spec names. Kept
+#: separate from OUTCOMES on purpose: an outcome ends an *iteration* and a verdict judges a
+#: *change*, and `continue` means nothing as a verdict.
+CRITIC_VERDICTS = ("PASS", "FAIL", "REVISE", "REVERT", "ESCALATE")
+
+#: What was done with the change once the verdict was in. `retain` is the one the engine
+#: refuses over a breached hard gate.
+DECISIONS = ("retain", "revert", "revise", "escalate")
 
 #: Only `continue` permits a further iteration. Every other outcome ends the loop —
 #: including `escalate` and `pause`, which end it without ever waiting for a human.
@@ -488,6 +498,72 @@ def cmd_iterate(args):
             )
             return EXIT_INVALID
 
+    # ---- the richer record (harness:RM-0468). Every check below runs BEFORE the first
+    # write: a refusal that still records is not one, and a half-claimed action makes the
+    # next resume skip work nobody did.
+    record_findings = []
+
+    critic_verdict = (getattr(args, "critic_verdict", None) or "").strip() or None
+    decision = (getattr(args, "decision", None) or "").strip() or None
+    evidence_paths = [p for p in (args.evidence_path or []) if str(p).strip()]
+
+    if critic_verdict is not None and critic_verdict not in CRITIC_VERDICTS:
+        record_findings.append(
+            "--critic-verdict %s: not one of %s — a verdict outside the set cannot be "
+            "compared with any other iteration's" % (critic_verdict, " / ".join(CRITIC_VERDICTS))
+        )
+    if decision is not None and decision not in DECISIONS:
+        record_findings.append(
+            "--decision %s: not one of %s" % (decision, " / ".join(DECISIONS))
+        )
+    if critic_verdict is not None and not evidence_paths:
+        record_findings.append(
+            "--evidence-path required with --critic-verdict — a verdict with nothing behind "
+            "it is the self-assessment a critic pass exists to replace"
+        )
+
+    rubric = ledger["contract"].get("quality_rubric") or []
+    measurements = None
+    evaluation = None
+    if args.measure:
+        measurements, measure_findings = parse_measurements(rubric, args.measure)
+        record_findings.extend(measure_findings)
+        if not measure_findings:
+            evaluation = score_rubric(rubric, measurements)
+
+    if record_findings:
+        for finding in record_findings:
+            print(finding, file=sys.stderr)
+        return EXIT_INVALID
+
+    # Capability 5, made mechanical: a change is not retained over a breached hard gate.
+    # Refused rather than warned — a warning in an unattended run is a line nobody reads,
+    # and "net improvement" is never an excuse for silently breaking core behaviour. The
+    # engine refuses what it MEASURED; with no measurements there is no breached gate to
+    # protect against, and inventing one would be a check that could not run passing itself
+    # off as a check that ran and found nothing.
+    if decision == "retain" and evaluation and evaluation["hard_gate_failures"]:
+        print(
+            "retain refused: hard gate(s) breached — %s. Record `revert`, `revise` or "
+            "`escalate`; a higher weighted total (%.2f) does not buy them."
+            % (", ".join(evaluation["hard_gate_failures"]), evaluation["weighted_total"]),
+            file=sys.stderr,
+        )
+        return EXIT_REGRESSION
+
+    # The baseline is the engine's, so it cannot disagree with what was measured: the
+    # previous MEASURED iteration's readings, or the rubric's declared baselines when there
+    # is none. An unmeasured pass must not erase the last real reading, or before-versus-
+    # after silently compares an after against nothing.
+    baseline = None
+    if measurements is not None:
+        for previous in reversed(ledger["iterations"]):
+            if previous.get("measurements"):
+                baseline = previous["measurements"]
+                break
+        else:
+            baseline = {e["dimension"]: e["baseline"] for e in rubric}
+
     signature = error_signature(args.error)
     state = state_hash(args.state)
     stall = None
@@ -528,6 +604,15 @@ def cmd_iterate(args):
         "state_hash": state,
         "dependency_missing": args.dependency_missing,
         "actions": list(args.action),
+        "baseline": baseline,
+        "measurements": measurements,
+        "evaluation": evaluation,
+        "files_changed": list(args.files_changed or []),
+        "commands_run": list(args.command_run or []),
+        "evidence_paths": evidence_paths,
+        "critic_verdict": critic_verdict,
+        "critic_next": args.critic_next,
+        "decision": decision,
         "blocker": blocker,
         "evidence": evidence,
         "recommended_next": recommended,
@@ -546,33 +631,16 @@ def cmd_iterate(args):
     return emit(args, record, human)
 
 
-def cmd_score(args):
-    """Score one measurement per declared dimension against the rubric the loop was opened with.
+def parse_measurements(rubric, raw_measures):
+    """Return (measurements, findings) for a list of `<dimension>=<number>` strings.
 
-    The engine does NOT run the evidence commands. Running arbitrary shell out of a JSON
-    file under an unattended posture is a different and much larger safety question than
-    this subcommand; what the engine enforces is that every dimension DECLARED a command,
-    and it scores the numbers the caller measured with it.
-
-    A measurement this pass could not read is a finding, never a zero — a rubric that
-    silently scored an unreadable channel as its worst value would report a regression
-    nobody caused, and one that scored it as its best would hide a real one.
+    One parser, shared by `score` and `iterate`. Two parsers for one flag shape is how
+    they come to disagree about what counts as a number, and the disagreement shows up as
+    a ledger whose evaluation nobody can reproduce.
     """
-    ledger = require_ledger(args)
-    if ledger is None:
-        return EXIT_USAGE
-    rubric = ledger["contract"].get("quality_rubric") or []
-    if not rubric:
-        print(
-            "%s: this ledger's contract carries no quality rubric — it was opened before "
-            "the field existed; open a new loop with one" % args.session,
-            file=sys.stderr,
-        )
-        return EXIT_INVALID
-
     findings = []
     measurements = {}
-    for raw in args.measure:
+    for raw in raw_measures:
         name, separator, value = raw.partition("=")
         name = name.strip()
         if not separator or not name:
@@ -605,6 +673,34 @@ def cmd_score(args):
                 "%s: declared but not measured — a total over a subset is a score about a "
                 "smaller rubric, reported as though it were this one" % name
             )
+    return measurements, findings
+
+
+def cmd_score(args):
+    """Score one measurement per declared dimension against the rubric the loop was opened with.
+
+    The engine does NOT run the evidence commands. Running arbitrary shell out of a JSON
+    file under an unattended posture is a different and much larger safety question than
+    this subcommand; what the engine enforces is that every dimension DECLARED a command,
+    and it scores the numbers the caller measured with it.
+
+    A measurement this pass could not read is a finding, never a zero — a rubric that
+    silently scored an unreadable channel as its worst value would report a regression
+    nobody caused, and one that scored it as its best would hide a real one.
+    """
+    ledger = require_ledger(args)
+    if ledger is None:
+        return EXIT_USAGE
+    rubric = ledger["contract"].get("quality_rubric") or []
+    if not rubric:
+        print(
+            "%s: this ledger's contract carries no quality rubric — it was opened before "
+            "the field existed; open a new loop with one" % args.session,
+            file=sys.stderr,
+        )
+        return EXIT_INVALID
+
+    measurements, findings = parse_measurements(rubric, args.measure)
 
     if findings:
         for finding in findings:
@@ -782,6 +878,33 @@ def build_parser():
     iterated.add_argument("--blocker", help="what stopped the loop; required for escalate")
     iterated.add_argument("--evidence", help="the evidence for the blocker; required for escalate")
     iterated.add_argument("--recommended-next", help="required for escalate")
+    iterated.add_argument(
+        "--measure", action="append", default=[], metavar="DIMENSION=NUMBER",
+        help="the number a rubric dimension's evidence command produced; the engine scores it",
+    )
+    iterated.add_argument(
+        "--files-changed", action="append", default=[], metavar="PATH",
+        help="a file or artifact this iteration changed",
+    )
+    iterated.add_argument(
+        "--command-run", action="append", default=[], metavar="COMMAND",
+        help="a command this iteration ran, verbatim",
+    )
+    iterated.add_argument(
+        "--evidence-path", action="append", default=[], metavar="PATH",
+        help="where the evidence lives; required with --critic-verdict",
+    )
+    iterated.add_argument(
+        "--critic-verdict", metavar="VERDICT",
+        help="PASS / FAIL / REVISE / REVERT / ESCALATE, from a context that did not build the change",
+    )
+    iterated.add_argument(
+        "--critic-next", help="the single most valuable next improvement, in the critic's words",
+    )
+    iterated.add_argument(
+        "--decision", metavar="DECISION",
+        help="retain / revert / revise / escalate — refused as `retain` over a breached hard gate",
+    )
     iterated.add_argument("--note", help="free text recorded with the iteration")
     iterated.set_defaults(func=cmd_iterate)
 

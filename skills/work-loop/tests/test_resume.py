@@ -106,6 +106,56 @@ class ZeroRepeatedActions(unittest.TestCase):
             self.assertEqual(fx.read_ledger(root)["completed_actions"], plan)
 
 
+class ResumeIgnoresTheCounter(unittest.TestCase):
+    """Resume keys on completed action ids, never on an index — held against the richer record.
+
+    NOT A NEVER-RED TEST BY ACCIDENT. The property is one the engine already had; this case
+    exists so that harness:RM-0468's additions to the record cannot quietly break it. It was
+    written green on purpose, and mutating `cmd_resume` to compute its answer from
+    `len(iterations)` turns it red — which is what makes it load-bearing rather than
+    decorative.
+    """
+
+    def test_resume_reads_action_ids_when_the_counter_is_wrong(self):
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "migrate-db",
+            )
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "pause", "--action", "seed-fixtures",
+            )
+
+            # A session that died mid-iteration leaves a counter that is either one too
+            # high or one too low, with nothing in the ledger to say which. Corrupt it in
+            # both directions at once.
+            ledger = fx.read_ledger(root)
+            ledger["iterations"][0]["n"] = 7
+            ledger["iterations"][1]["n"] = 1
+            with open(root.ledger_path(), "w", encoding="utf-8") as handle:
+                json.dump(ledger, handle)
+
+            code, out, _ = fx.run_cli(
+                "resume", "--root", root.path, "--session", fx.SESSION, "--json"
+            )
+            self.assertEqual(code, EXIT_OK)
+            payload = json.loads(out)
+            self.assertEqual(
+                sorted(payload["completed_actions"]), ["migrate-db", "seed-fixtures"]
+            )
+
+            # And each of them is still refused rather than repeated.
+            for action in ("migrate-db", "seed-fixtures"):
+                code, _, err = fx.run_cli(
+                    "iterate", "--root", root.path, "--session", fx.SESSION,
+                    "--outcome", "continue", "--action", action,
+                )
+                self.assertEqual(code, EXIT_REPEAT)
+                self.assertIn(action, err)
+
+
 class ResumingAPausedLoop(unittest.TestCase):
     """`pause` ends the loop and checkpoints; `resume` is how a later session re-enters."""
 

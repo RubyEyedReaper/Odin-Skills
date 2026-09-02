@@ -46,6 +46,35 @@ The engine does **not** run the evidence commands: it requires each dimension to
 scores the numbers the caller measured. The eight keys, the arithmetic, and this repository's
 default dimension set (DEC-0090): [quality-rubric.md](references/quality-rubric.md).
 
+## The iteration record
+
+What a later reader has instead of the session that wrote it. The engine **derives** what it can and
+**refuses** what it cannot check, because the alternative — more optional fields — is the defect
+itself: one coordinator ledger held 29 iterations whose `note` and `recommended_next`, both already
+optional, were null.
+
+| Derived by the engine | From |
+|---|---|
+| `evaluation` | `score_rubric` over the contract's rubric and this iteration's `--measure` values |
+| `baseline` | the previous **measured** iteration's readings, or the rubric's declared baselines when there is none |
+
+An iteration recorded without `--measure` carries a null evaluation and **does not become the next
+one's baseline** — a blank pass must not erase the last real reading.
+
+| Refused, before anything is written | Exit |
+|---|---|
+| `--critic-verdict` with no `--evidence-path` | 1 |
+| A verdict outside `PASS` `FAIL` `REVISE` `REVERT` `ESCALATE`, or a decision outside `retain` `revert` `revise` `escalate` | 1 |
+| A measurement naming an undeclared dimension, or a declared dimension left unmeasured | 1 |
+| **`--decision retain` over a breached hard gate** | **7** |
+
+The obligation runs one way: evidence with no verdict is an ordinary iteration that collected
+artifacts. And `retain` with **no** measurements is accepted — the engine refuses what it measured,
+never what it did not look at.
+
+Field by field, who writes each one, and the two recorded residues:
+[iteration-record.md](references/iteration-record.md).
+
 ## The six outcomes
 
 Exactly one per iteration. Only `continue` permits another.
@@ -129,6 +158,9 @@ python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome escal
         --blocker "the deploy credential the contract declares is absent" \
         --evidence "gh auth status exited 1: no token found" \
         --recommended-next "issue a scoped token, then re-open this contract unchanged"
+python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome continue \
+        --action tighten-guard --measure gate-integrity=0 \
+        --evidence-path .runtime/logs/ci.log --critic-verdict PASS --decision retain
 python3 -m scripts.loop score --root ../../.. --session "$SID" --json \
         --measure gate-integrity=0 --measure context-budget=37000
 python3 -m scripts.loop resume --root ../../.. --session "$SID" --json
@@ -145,6 +177,7 @@ python3 -m scripts.loop close  --root ../../.. --session "$SID" --outcome comple
 | 4 | reported over a ledger with no iterations — nothing was examined |
 | 5 | refused: the action is already recorded complete |
 | 6 | scored, and a hard-gate dimension breached its failure threshold |
+| 7 | refused: a change was to be retained over a breached hard gate |
 
 `4` is separate from `0` on purpose. A caller that cannot distinguish "no stalls found"
 from "no iterations examined" cannot detect a report that means nothing.
@@ -160,6 +193,8 @@ from "no iterations examined" cannot detect a report that means nothing.
 | A contract with prose success criteria | Nothing can decide `complete`, so the loop runs to its limit and reports `stop`. |
 | A rubric dimension whose evidence is "review says so" | Refused at `open`. Name it in the review checklist and leave it out of the rubric — the honest residue beats a dimension that looks measured. |
 | Reading a high weighted total as permission | The verdict is `fail` while any hard gate is breached, at any total. Exit 6 exists so a caller cannot miss it. |
+| Recording a critic verdict the same context produced | A verdict from the builder is a self-assessment. The verdict belongs to a context that did not build the change. |
+| `--decision retain` after a breached gate | Refused, exit 7. Record `revert`, `revise` or `escalate` — the last carries a blocker and its evidence. |
 | Naming an undeclared dependency at iterate time | Refused as a contract finding — declare it, or the predicate decides over invented state. |
 | Re-running the predicates on read | One ledger, two verdicts, depending on when it was read. `status` reports; it never re-decides. |
 
