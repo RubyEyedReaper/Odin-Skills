@@ -42,9 +42,14 @@ per dimension and returns the weighted total, the hard gates breached, and one v
 that case — distinct from malformed (1) and from ok (0) — and still prints the improved total, because
 a verdict that hid the improvement would be as unreadable as one that accepted it.
 
-The engine does **not** run the evidence commands: it requires each dimension to declare one, and
-scores the numbers the caller measured. The eight keys, the arithmetic, and this repository's
-default dimension set (DEC-0090): [quality-rubric.md](references/quality-rubric.md).
+The engine **reads** the evidence commands and never runs one — executing a contract-supplied string
+from inside the engine was vetoed, because a subprocess there is not a tool call and would sit
+outside every always-on guard (DEC-0091, ADR-0143). `open` refuses a command that cannot parse, one
+whose program resolves nowhere, and one carrying an unresolved placeholder; `--baseline-evidence
+<dimension>=<path>` takes a transcript the **caller** produced, refuses it unless the declared
+baseline appears in it, and records that dimension `measured` rather than `declared`. The eight keys,
+the arithmetic, what a `measured` provenance does and does not prove, and this repository's default
+dimension set (DEC-0090): [quality-rubric.md](references/quality-rubric.md).
 
 ## The iteration record
 
@@ -284,6 +289,8 @@ composed-snapshot defect cost.
 | Reaching for `--force` to re-open after a revise | `--force` discards. `open` re-opens a closed ledger on its own and keeps the predecessor in `epochs[]`; the history is what a revise exists to keep. |
 | A contract with prose success criteria | Nothing can decide `complete`, so the loop runs to its limit and reports `stop`. |
 | A rubric dimension whose evidence is "review says so" | Refused at `open`. Name it in the review checklist and leave it out of the rubric — the honest residue beats a dimension that looks measured. |
+| A command carrying `--root R`, `<session-id>`, or a program that resolves nowhere | Refused at `open`. A command that cannot run as written was never run, and the baseline beside it is a guess wearing a measurement's clothes. |
+| Reading a `declared` baseline as a failed measurement | It is an *unverified* one. Run the command yourself and pass `--baseline-evidence` to promote it; `status` reports how many of the epoch's baselines a transcript backed. |
 | Reading a high weighted total as permission | The verdict is `fail` while any hard gate is breached, at any total. Exit 6 exists so a caller cannot miss it. |
 | Recording a critic verdict the same context produced | Refused — a verdict needs a brief the engine emitted. The verdict belongs to a context that did not build the change. |
 | Re-using one brief across two iterations | Refused. A brief is spent by the iteration that records its verdict; the alternative is change N's judgment on change N+1. |

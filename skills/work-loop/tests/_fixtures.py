@@ -161,15 +161,21 @@ def run_cli(*argv) -> tuple[int, str, str]:
     return code, out.getvalue(), err.getvalue()
 
 
-def open_loop(root: LedgerRoot, session: str = SESSION, **overrides):
-    """`open` with a valid contract, returning the CLI result triple."""
+def open_loop(root: LedgerRoot, session: str = SESSION, extra_argv=None, **overrides):
+    """`open` with a valid contract, returning the CLI result triple.
+
+    `extra_argv` appends flags the case is about — `--baseline-evidence` in particular. It
+    is a list rather than a second keyword per flag so a case can pass the same flag twice,
+    which is how a repeatable flag is actually used.
+    """
     import json
 
     contract_file = os.path.join(root.path, session + "-contract.json")
     with open(contract_file, "w", encoding="utf-8") as handle:
         json.dump(valid_contract(**overrides), handle)
     return run_cli(
-        "open", "--root", root.path, "--session", session, "--contract", contract_file
+        "open", "--root", root.path, "--session", session, "--contract", contract_file,
+        *(extra_argv or []),
     )
 
 

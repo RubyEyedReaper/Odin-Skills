@@ -19,6 +19,8 @@ import hashlib
 import json
 import os
 import re
+import shlex
+import shutil
 import sys
 
 # ---------------------------------------------------------------- exit codes
@@ -189,7 +191,83 @@ def write_ledger(root, session, ledger):
 # ---------------------------------------------------------------- validation
 
 
-def validate_rubric(raw):
+#: A token that means the author never ran this command. Three shapes, each narrow on
+#: purpose: a long flag whose value is a bare one- or two-character uppercase token
+#: (`--root R`, and `'--root','R'` inside a quoted program, which is the shape the defect
+#: was observed in), an angle-bracket `<placeholder>`, and a literal TBD/FIXME/XXX.
+#: Matched against the RAW command text rather than its argv, because the observed
+#: placeholders sat inside a quoted `python3 -c` program where no tokeniser would see them.
+#: `--format JSON` and `--component always-on` deliberately do not match — a detector that
+#: fires on the real population is a false positive, not a gate.
+PLACEHOLDER_RE = re.compile(
+    r"--[a-z][\w-]*['\",\s]+['\"]?[A-Z]{1,2}(?=['\",\s]|$)"
+    r"|<[A-Za-z_][\w ./-]*>"
+    r"|\b(?:TBD|FIXME|XXX)\b"
+)
+
+#: Where one command ends and the next begins, for argv-0 resolution. A pipeline's later
+#: segments are exactly where an unrunnable program hides.
+SEGMENT_RE = re.compile(r"\|\||&&|[|;]")
+
+#: `LC_ALL=C bash x.sh` runs bash, not `LC_ALL=C`.
+ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z_0-9]*=")
+
+
+def command_findings(command, root, where):
+    """Static findings about an evidence command. **Nothing here executes anything.**
+
+    Executing the command — which would make the baseline a measurement by construction —
+    was scored and vetoed in DEC-0091: a subprocess spawned from inside this engine is not
+    a tool call, so it would run outside `odin-safety-guard.sh`'s always-on layers
+    entirely. Routing arbitrary contract-supplied strings around the guards is a worse
+    defect than the one this check closes.
+
+    What is left is what a reader can decide about the string without running it: it parses
+    as a shell command, every segment's program resolves, and it carries no token that says
+    the author never ran it.
+
+    **The stated residue.** The argument an interpreter is handed — the `x.sh` in
+    `bash x.sh` — is NOT checked for existence. `--root` is a ledger root, which is often
+    not a checkout at all (`sample-contract-check.sh` opens every committed sample contract
+    against an empty temporary directory), so a path check there would refuse every honest
+    command in a fixture and teach nobody anything.
+    """
+    findings = []
+    if PLACEHOLDER_RE.search(command):
+        findings.append(
+            "%s: evidence_command carries an unresolved placeholder — a command that cannot "
+            "run as written was never run, and its baseline is a guess wearing a "
+            "measurement's clothes" % where
+        )
+    for segment in SEGMENT_RE.split(command):
+        if not segment.strip():
+            continue
+        try:
+            words = shlex.split(segment)
+        except ValueError as exc:
+            findings.append(
+                "%s: evidence_command cannot be parsed as a shell command (%s) — nothing "
+                "could have run it" % (where, exc)
+            )
+            return findings
+        words = [word for word in words if not ENV_ASSIGN_RE.match(word)]
+        if not words:
+            continue
+        program = words[0]
+        if shutil.which(program):
+            continue
+        candidate = program if os.path.isabs(program) else os.path.join(root, program)
+        if os.path.isfile(candidate):
+            continue
+        findings.append(
+            "%s: evidence_command names %r, which resolves neither on PATH nor as a file "
+            "under the root — a command that cannot start produced no number"
+            % (where, program)
+        )
+    return findings
+
+
+def validate_rubric(raw, root="."):
     """Return (rubric, findings) for the `quality_rubric` field.
 
     A dimension earns its place only if an iteration can decide it without a judgment
@@ -252,6 +330,8 @@ def validate_rubric(raw):
                 "%s: evidence_command declared empty — a dimension with no command is a "
                 "judgment, and a judgment belongs in review rather than in a rubric" % where
             )
+        else:
+            local.extend(command_findings(str(entry["evidence_command"]), root, where))
         for field in ("baseline", "target", "weight", "failure_threshold"):
             value = entry[field]
             if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -347,8 +427,12 @@ def score_rubric(rubric, measurements):
     }
 
 
-def validate_contract(raw):
-    """Return (contract, findings). A finding names the field it is about."""
+def validate_contract(raw, root="."):
+    """Return (contract, findings). A finding names the field it is about.
+
+    `root` reaches only the rubric's static command inspection, which resolves a program
+    named by a relative path. It defaults so every existing caller reads unchanged.
+    """
     findings = []
     if not isinstance(raw, dict):
         return None, ["contract: expected a JSON object"]
@@ -359,7 +443,7 @@ def validate_contract(raw):
             continue
         value = raw[field]
         if field == "quality_rubric":
-            rubric, rubric_findings = validate_rubric(value)
+            rubric, rubric_findings = validate_rubric(value, root)
             if rubric_findings:
                 findings.extend(rubric_findings)
                 continue
@@ -465,6 +549,76 @@ def close_ledger(ledger, outcome, note=None, blocker=None,
 # ---------------------------------------------------------------- subcommands
 
 
+def _baseline_token_re(baseline):
+    """A regex matching the baseline as a standalone number, in either spelling.
+
+    `2` must not be evidenced by a transcript whose only number is `20`, and `38000.0` and
+    `38000` are one reading spelled two ways — a tool prints whichever it prints.
+    """
+    spellings = {repr(baseline), str(baseline)}
+    if isinstance(baseline, float) and baseline.is_integer():
+        spellings.add(str(int(baseline)))
+    elif isinstance(baseline, int):
+        spellings.add("%.1f" % baseline)
+    return re.compile(
+        r"(?<![\d.])(?:%s)(?![\d.])"
+        % "|".join(sorted((re.escape(s) for s in spellings), key=len, reverse=True))
+    )
+
+
+def resolve_baseline_provenance(rubric, pairs):
+    """Return (provenance, findings, unreadable) for the `--baseline-evidence` arguments.
+
+    The engine cannot run the command (DEC-0091), so the strongest claim it can check is
+    this one: the caller ran it through its own tool path — where every always-on guard
+    applies, because that is a real tool call — and handed back the transcript, and the
+    declared baseline appears in it. That converts an omitted measurement into a forged
+    one, which is as far as a non-executing engine honestly reaches. Every dimension with
+    no transcript is recorded `declared`, not silently treated as measured.
+    """
+    provenance = {entry["dimension"]: "declared" for entry in rubric}
+    declared = {entry["dimension"]: entry["baseline"] for entry in rubric}
+    findings, unreadable = [], []
+    for pair in pairs:
+        if "=" not in pair:
+            findings.append(
+                "--baseline-evidence: %r is not dimension=path — the flag names which "
+                "dimension the transcript is evidence for" % pair
+            )
+            continue
+        name, path = pair.split("=", 1)
+        name = name.strip()
+        if name not in declared:
+            findings.append(
+                "--baseline-evidence %s: not a declared dimension — this rubric declares %s"
+                % (name, ", ".join(sorted(declared)) or "nothing")
+            )
+            continue
+        try:
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+        except OSError as exc:
+            unreadable.append(
+                "--baseline-evidence %s: cannot read %s (%s)" % (name, path, exc.strerror)
+            )
+            continue
+        if not text.strip():
+            unreadable.append(
+                "--baseline-evidence %s: %s is empty — a transcript with nothing in it "
+                "evidences nothing" % (name, path)
+            )
+            continue
+        if not _baseline_token_re(declared[name]).search(text):
+            findings.append(
+                "--baseline-evidence %s: the declared baseline %r does not appear in %s — "
+                "a baseline no transcript carries is a guess, and this flag exists to say "
+                "otherwise" % (name, declared[name], path)
+            )
+            continue
+        provenance[name] = "measured"
+    return provenance, findings, unreadable
+
+
 def cmd_open(args):
     existing = read_ledger(args.root, args.session)
     if existing is not None and existing.get("status") == "open" and not args.force:
@@ -491,9 +645,23 @@ def cmd_open(args):
         print("contract: not valid JSON (%s)" % exc, file=sys.stderr)
         return EXIT_INVALID
 
-    contract, findings = validate_contract(raw)
+    contract, findings = validate_contract(raw, args.root)
     if findings:
         for finding in findings:
+            print(finding, file=sys.stderr)
+        return EXIT_INVALID
+
+    # Which baselines a transcript backs, and which are the author's word. Resolved after
+    # the contract validates, because the answer is about the rubric's declared dimensions.
+    provenance, evidence_findings, unreadable = resolve_baseline_provenance(
+        contract["quality_rubric"], args.baseline_evidence or []
+    )
+    if unreadable:
+        for finding in unreadable:
+            print(finding, file=sys.stderr)
+        return EXIT_UNREADABLE
+    if evidence_findings:
+        for finding in evidence_findings:
             print(finding, file=sys.stderr)
         return EXIT_INVALID
 
@@ -531,6 +699,10 @@ def cmd_open(args):
         # revise and `quality_from` keeps naming exactly one record.
         "epoch": len(epochs) + 1,
         "epochs": epochs,
+        # Per epoch by construction: a `revise` says the approach was wrong, so the
+        # predecessor's transcript is not evidence for a successor's baselines, which may
+        # not even be the same numbers.
+        "baseline_provenance": provenance,
         "iterations": iterations,
         "completed_actions": completed,
         "resumed": resumed,
@@ -944,6 +1116,23 @@ def cmd_score(args):
     return EXIT_GATE if result["verdict"] == "fail" else EXIT_OK
 
 
+def baseline_counts(ledger):
+    """How many of this epoch's baselines a transcript backed, for `status`.
+
+    ABSENT IS NOT ZERO, the same discipline the five quality keys carry: a ledger opened
+    before this change carries no provenance at all, and reads `null` — a loop nobody
+    measured must not print as a loop whose baselines were all guesses, which is a claim
+    about a run nobody made.
+    """
+    provenance = ledger.get("baseline_provenance")
+    if not provenance:
+        return {"baselines_measured": None, "baselines_total": None}
+    return {
+        "baselines_measured": sum(1 for v in provenance.values() if v == "measured"),
+        "baselines_total": len(provenance),
+    }
+
+
 def cmd_status(args):
     ledger = require_ledger(args)
     if ledger is None:
@@ -962,6 +1151,7 @@ def cmd_status(args):
             "decision": None,
             "quality_from": None,
         }
+        payload.update(baseline_counts(ledger))
         emit(args, payload, "%s: open, no iterations recorded" % ledger["session"])
         # A report over an empty history is distinguished from a clean one: a caller
         # that cannot tell "nothing found" from "nothing examined" cannot detect the
@@ -1009,6 +1199,7 @@ def cmd_status(args):
         "last_outcome": ledger["iterations"][-1]["outcome"],
     }
     payload.update(quality)
+    payload.update(baseline_counts(ledger))
 
     human = ("%s: %s after %d iteration(s), outcome %s"
              % (ledger["session"], ledger["status"], len(ledger["iterations"]),
@@ -1148,6 +1339,11 @@ def build_parser():
     opened.add_argument("--contract", required=True, help="path to the twelve-field contract JSON")
     opened.add_argument("--stall-threshold", type=int, default=DEFAULT_REPEATED_ERROR_THRESHOLD)
     opened.add_argument("--force", action="store_true", help="overwrite an existing ledger")
+    opened.add_argument(
+        "--baseline-evidence", action="append", default=[], metavar="DIMENSION=PATH",
+        help="a transcript, produced by running that dimension's evidence command through "
+             "your own tool path, in which the declared baseline appears; repeatable",
+    )
     opened.set_defaults(func=cmd_open)
 
     iterated = common(subparsers.add_parser("iterate", help="record one iteration and its outcome"))

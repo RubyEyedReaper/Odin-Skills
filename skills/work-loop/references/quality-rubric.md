@@ -82,12 +82,55 @@ hide a real one. Both are worse than refusing.
 For the same reason `score` refuses a dimension left unmeasured: a total over a subset is a score
 about a **smaller rubric**, reported as though it were this one.
 
-## The engine does not run the evidence commands
+## The engine reads the evidence commands; it never runs one
 
-It requires each dimension to *declare* one; the caller runs it and passes the number in. Running
-arbitrary shell out of a JSON file under an unattended posture is a different and much larger safety
-question than this field, and it is deliberately not answered here. A later item may add an opt-in
-runner.
+Running arbitrary shell out of a JSON file was scored and **vetoed** (DEC-0091, ADR-0143): a
+subprocess spawned from inside `loop.py` is not a tool call, so it would run outside
+`odin-safety-guard.sh`'s always-on layers entirely — outside the database-wipe guard, the
+credential-file guard and the look-before-you-destroy guard. Routing arbitrary contract-supplied
+strings around the guards is a worse defect than the one it would fix. What lifts the veto is
+recorded in the ADR.
+
+**What `open` checks statically**, and refuses as a contract finding:
+
+| Refused | Why |
+|---|---|
+| A command that does not parse as a shell command | An unbalanced quote is a finding now rather than a surprise at measurement time |
+| A program that resolves neither on `PATH` nor as a file under `--root` | A command that cannot start produced no number. Every segment of a pipeline or `&&` chain is checked; an `LC_ALL=C` prefix is not read as the program |
+| An unresolved placeholder | A long flag whose value is a bare one- or two-character uppercase token, an angle-bracket `<placeholder>`, or a literal `TBD`/`FIXME`/`XXX` |
+
+The placeholder pattern reads the **raw command text**, not the argv: the defect it was written for
+carried `'--root','R','--session','S'` inside a quoted `python3 -c` program, where no tokeniser would
+have seen it. It is deliberately narrow — `--format JSON` and `--component always-on` do not match,
+and every evidence command committed in this repository produces zero findings, pinned as a
+negative-control case. A detector that fires on the real population is a false positive, not a gate.
+
+**What is deliberately not checked:** the argument an interpreter is handed. `bash does-not-exist.sh`
+passes, because `bash` resolves. `--root` is a ledger root and frequently not a checkout at all —
+`sample-contract-check.sh` opens every committed sample against an empty temporary directory — so a
+path-existence check there would refuse every honest command in a fixture.
+
+## A baseline says how it was obtained
+
+```sh
+# run the command yourself — a real tool call, so every always-on guard applies
+bash .claude/scripts/ci-local.sh > /tmp/gate.txt 2>&1
+python3 -m scripts.loop open --root ../../.. --session "$SID" --contract contract.json \
+        --baseline-evidence gate-integrity=/tmp/gate.txt
+```
+
+`--baseline-evidence <dimension>=<path>` is repeatable. The declared baseline must appear in the
+transcript as a standalone number — `2` is not evidenced by a file whose only number is `20` — or
+the `open` is refused. An unreadable or empty transcript exits **8**, the code `brief` already spends
+on that shape. Every dimension with no transcript is recorded `declared`, never silently treated as
+measured, and `status` reports `baselines_measured` / `baselines_total`.
+
+**What `measured` proves:** a transcript carrying that number was supplied at open time — an omitted
+measurement becomes a forged one. **What it does not prove:** that the number came from that command.
+No non-executing engine could, and this page says so rather than overclaiming.
+
+A `revise` resets every dimension to `declared`: the predecessor's transcript is not evidence for a
+successor's baselines, which may not even be the same numbers.
 
 ## The default dimension set for this repository — DEC-0090
 
@@ -127,6 +170,8 @@ dimension that looks measured and is not.
 
 ```sh
 cd .claude/skills/work-loop
+python3 -m scripts.loop open --root ../../.. --session "$SID" --contract contract.json \
+        --baseline-evidence gate-integrity=/tmp/gate.txt
 python3 -m scripts.loop score --root ../../.. --session "$SID" \
         --measure gate-integrity=0 \
         --measure regression-matrix-strength=94 \

@@ -23,6 +23,7 @@ from scripts.loop import (
     EXIT_INVALID,
     EXIT_OK,
     RUBRIC_FIELDS,
+    command_findings,
 )
 
 
@@ -287,6 +288,129 @@ class HardGatesOutrankTheTotal(unittest.TestCase):
             )
             self.assertEqual(hard["score"], 50.0)
             self.assertTrue(hard["gate_failed"])
+
+
+class StaticCommandInspection(unittest.TestCase):
+    """`open` reads each evidence command — it never runs one (harness:RM-0476, DEC-0091).
+
+    The defect: the engine tested `evidence_command` for non-emptiness and nothing else, so
+    the first real loop opened under the rubric declared a command carrying the literal
+    placeholders `--root R --session S`, scored 100.0 and passed. Execution at open was
+    scored and vetoed — a subprocess spawned inside this engine is not a tool call, so it
+    would run outside every always-on guard. What is left is everything a reader can decide
+    about the string without running it.
+    """
+
+    #: Every evidence command committed in this repository, as of this change. The negative
+    #: control for all three refusals below: a predicate that fires on the real population
+    #: is a false positive, not a gate, and the way to know is to measure the hit rate
+    #: against the population before adopting it.
+    REAL_COMMANDS = (
+        "bash .claude/scripts/ci-local.sh",
+        "ls .claude/tests/*.test.sh | wc -l",
+        "bash .claude/scripts/doc-reference-check.sh",
+        "bash .claude/scripts/context-budget.sh bytes --component always-on",
+        "bash .claude/scripts/blocker-record-check.sh",
+        "bash .claude/scripts/sample-contract-check.sh",
+    )
+
+    #: The command the defect was observed on, reduced to its shape. The placeholders sit
+    #: inside a quoted python program, so a token-wise scan of the argv would never see
+    #: them — the pattern reads the raw command text for exactly that reason.
+    OBSERVED = (
+        "python3 -c \"import subprocess;"
+        "subprocess.run(['python3','-m','scripts.loop','status',"
+        "'--root','R','--session','S','--json'])\""
+    )
+
+    def test_open_refuses_the_command_the_defect_was_observed_on(self):
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root, quality_rubric=[fx.dimension(evidence_command=self.OBSERVED)]
+            )
+            self.assertEqual(code, EXIT_INVALID)
+            self.assertIn("placeholder", err)
+
+    def test_open_refuses_an_angle_bracket_placeholder(self):
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root,
+                quality_rubric=[fx.dimension(evidence_command="bash run.sh <session-id>")],
+            )
+            self.assertEqual(code, EXIT_INVALID)
+            self.assertIn("placeholder", err)
+
+    def test_open_refuses_a_command_whose_program_does_not_resolve(self):
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root,
+                quality_rubric=[
+                    fx.dimension(evidence_command="this-binary-does-not-exist --wat")
+                ],
+            )
+            self.assertEqual(code, EXIT_INVALID)
+            self.assertIn("this-binary-does-not-exist", err)
+
+    def test_open_refuses_a_command_that_is_not_shell_parseable(self):
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root, quality_rubric=[fx.dimension(evidence_command="bash -c 'unbalanced")]
+            )
+            self.assertEqual(code, EXIT_INVALID)
+            # The engine's own words, not shlex's — a case asserting on a dependency's
+            # message text reds on that dependency's next release.
+            self.assertIn("cannot be parsed as a shell command", err)
+
+    def test_every_segment_of_a_pipeline_is_inspected(self):
+        """A pipeline's later segments are where an unrunnable program hides."""
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root,
+                quality_rubric=[
+                    fx.dimension(evidence_command="ls . | no-such-counter -l")
+                ],
+            )
+            self.assertEqual(code, EXIT_INVALID)
+            self.assertIn("no-such-counter", err)
+
+    def test_an_environment_assignment_prefix_is_not_read_as_the_program(self):
+        with fx.LedgerRoot() as root:
+            code, _, _ = fx.open_loop(
+                root,
+                quality_rubric=[fx.dimension(evidence_command="LC_ALL=C bash script.sh")],
+            )
+            self.assertEqual(code, EXIT_OK)
+
+    def test_the_repositorys_own_evidence_commands_all_pass(self):
+        for command in self.REAL_COMMANDS:
+            with self.subTest(command=command):
+                self.assertEqual(command_findings(command, ".", "d"), [])
+
+    def test_a_flag_taking_an_uppercase_word_is_not_a_placeholder(self):
+        """`--format JSON` reads like a placeholder to a loose pattern and is not one."""
+        self.assertEqual(
+            command_findings("jq --format JSON . file.json", ".", "d"), []
+        )
+
+
+class TheRubricArithmeticCannotDivideByZero(unittest.TestCase):
+    """Pins what this change must not disturb — the brief names both as at risk."""
+
+    def test_a_target_equal_to_its_baseline_is_still_refused(self):
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root, quality_rubric=[fx.dimension(baseline=3, target=3)]
+            )
+            self.assertEqual(code, EXIT_INVALID)
+            self.assertIn("target equals its baseline", err)
+
+    def test_no_dimension_that_survives_validation_has_a_zero_divisor(self):
+        """`score_dimension` divides by target - baseline; open refuses the only way it is 0."""
+        with fx.LedgerRoot() as root:
+            code, _, _ = fx.open_loop(root)
+            self.assertEqual(code, EXIT_OK)
+            for entry in fx.read_ledger(root)["contract"]["quality_rubric"]:
+                self.assertNotEqual(entry["target"], entry["baseline"])
 
 
 class ScoringRefusesWhatItCannotRead(unittest.TestCase):
