@@ -116,8 +116,29 @@ python3 -m scripts.loop iterate --root ../../.. --session "$SID" --outcome conti
         --measure record-integrity=0 --measure context-budget=37000 \
         --files-changed .claude/scripts/some-check.sh \
         --command-run "bash .claude/scripts/ci-local.sh --fast" \
-        --evidence-path .claude/.runtime/logs/ci-fast.log \
+        --evidence-path /tmp/ci-fast.log \
+        --critic-brief "$BRIEF" \
         --critic-verdict PASS \
         --critic-next "measure the suite's wall clock before adding another gate" \
         --decision retain
 ```
+
+`--critic-brief` is not optional here. Wave 3 bound the verdict to a packet the engine assembled
+(`references/critic-pass.md`), and this command is refused without it — the form above without that
+flag was documented for one commit and would never have run.
+
+## Reading it back
+
+`status` surfaces the record's quality: `rubric_verdict`, `weighted_total`, `critic_verdict`,
+`decision`, and `quality_from`.
+
+**All five come from one iteration**, and `quality_from` is its `n`. The alternative — resolving each
+field from the last record that carried it — composes a snapshot that never existed: `iterate`
+refuses `--decision retain` while a hard gate is breached, so a reader taking the rubric verdict from
+iteration 2 and the decision from iteration 1 prints exactly the pairing the writer refuses. The read
+path contradicting the write path is a worse defect than a blank field, because it is not blank.
+
+The record chosen is the last carrying an `evaluation`; with none, the last carrying a critic verdict
+or a decision. With neither, all five are `null` — including over an empty ledger, where the payload
+carries them beside its exit 4, so a consumer written against the documented shape does not raise on
+the one path this command exists to keep distinguishable.

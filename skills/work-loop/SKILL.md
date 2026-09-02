@@ -209,6 +209,29 @@ python3 -m scripts.loop close  --root ../../.. --session "$SID" --outcome comple
 `4` is separate from `0` on purpose. A caller that cannot distinguish "no stalls found"
 from "no iterations examined" cannot detect a report that means nothing.
 
+## What `status` reports about quality
+
+The rubric, the record and the critic verdict are all in the ledger; `status` is the one command a
+reader runs to ask about a loop, so it carries five quality keys alongside the counters:
+
+| Key | Value |
+|---|---|
+| `rubric_verdict` | `pass` or `fail`, from that record's evaluation |
+| `weighted_total` | the weighted score, `0`–`100` |
+| `critic_verdict` | `PASS` `FAIL` `REVISE` `REVERT` `ESCALATE` |
+| `decision` | `retain` `revert` `revise` `escalate` |
+| `quality_from` | the `n` of the iteration all four came from |
+
+**All five come from one record**, and `quality_from` names it. Resolved field by field they would
+compose a snapshot that never existed: `iterate` refuses `--decision retain` while a hard gate is
+breached (exit 7), so a reader taking the verdict from iteration 2 and the decision from iteration 1
+prints exactly the pairing the engine refuses. The record is the last one carrying an evaluation,
+falling back to the last carrying a critic verdict or a decision when nothing was ever scored.
+
+**Absent is not zero.** Every key is present and `null` when nothing scored — including over an
+empty ledger, where the payload carries them beside its exit 4. A loop nobody scored must not read
+as a loop that scored badly, and a printed `0.0` is indistinguishable from a measured one.
+
 ## Common mistakes
 
 | Mistake | What happens |
@@ -225,6 +248,7 @@ from "no iterations examined" cannot detect a report that means nothing.
 | `--decision retain` after a breached gate | Refused, exit 7. Record `revert`, `revise` or `escalate` — the last carries a blocker and its evidence. |
 | Naming an undeclared dependency at iterate time | Refused as a contract finding — declare it, or the predicate decides over invented state. |
 | Re-running the predicates on read | One ledger, two verdicts, depending on when it was read. `status` reports; it never re-decides. |
+| Reading a `status` quality field without `quality_from` | The four describe **one** iteration, not the loop. `quality_from` is which one. |
 
 ## Verifying a change to this skill
 

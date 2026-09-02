@@ -17,7 +17,8 @@ import unittest
 from . import _fixtures as fx
 from scripts.loop import EXIT_OK
 
-QUALITY_KEYS = ("rubric_verdict", "weighted_total", "critic_verdict", "decision")
+QUALITY_KEYS = ("rubric_verdict", "weighted_total", "critic_verdict", "decision",
+                "quality_from")
 
 CLEAN = (
     "--measure", "gate-integrity=0",
@@ -93,9 +94,8 @@ class StatusReportsQuality(unittest.TestCase):
                 self.assertIn(key, payload)
                 self.assertIsNone(payload[key])
 
-    def test_quality_comes_from_the_last_iteration_that_carried_it(self):
-        """A blank pass after a scored one must not blank the report — the same rule the
-        derived baseline follows, applied to the reader's view."""
+    def test_a_blank_pass_after_a_scored_one_does_not_blank_the_report(self):
+        """The last iteration that was *scored* is the one reported, not the last one run."""
         with fx.LedgerRoot() as root:
             fx.open_loop(root)
             fx.run_cli(
@@ -111,6 +111,7 @@ class StatusReportsQuality(unittest.TestCase):
             self.assertEqual(payload["rubric_verdict"], "pass")
             self.assertEqual(payload["weighted_total"], 100.0)
             self.assertEqual(payload["decision"], "retain")
+            self.assertEqual(payload["quality_from"], 1)
 
     def test_the_human_line_names_the_verdict_and_the_total(self):
         with fx.LedgerRoot() as root:
@@ -134,10 +135,101 @@ class StatusReportsQuality(unittest.TestCase):
 
         with fx.LedgerRoot() as root:
             fx.open_loop(root)
-            code, _, _ = fx.run_cli(
+            code, out, _ = fx.run_cli(
                 "status", "--root", root.path, "--session", fx.SESSION, "--json"
             )
             self.assertEqual(code, EXIT_EMPTY)
+            payload = json.loads(out)
+            # The KEY SET, not the code alone. A consumer written against the documented
+            # shape must not raise KeyError on exactly the path this command exists to keep
+            # distinguishable — and asserting only the exit code is what let it.
+            for key in QUALITY_KEYS:
+                self.assertIn(key, payload)
+                self.assertIsNone(payload[key])
+
+
+class QualityIsOneRecordsQuality(unittest.TestCase):
+    """Four fields resolved per-field compose a snapshot that never existed.
+
+    `iterate` refuses `--decision retain` when a hard gate is breached — that pairing is a
+    write-time invariant with an exit code behind it. A reader that takes the rubric verdict
+    from iteration 2 and the decision from iteration 1 prints exactly the pairing the engine
+    refuses, and the reader's contradiction of the writer is the defect, not the display.
+    """
+
+    CRITIC = ("--critic-verdict", "PASS", "--critic-next", "measure the wall clock")
+
+    def test_a_stale_critic_verdict_is_not_pinned_to_a_fresh_rubric_failure(self):
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            brief = fx.brief_for(root)
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "a", *CLEAN,
+                "--evidence-path", "logs/ci.log", "--critic-brief", brief,
+                *self.CRITIC, "--decision", "retain",
+            )
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "b", *BREACHED,
+            )
+            _, payload, _ = _status(root)
+            self.assertEqual(payload["rubric_verdict"], "fail")
+            self.assertEqual(payload["quality_from"], 2)
+            # Iteration 2 was never reviewed and never decided. Saying so is the report.
+            self.assertIsNone(payload["critic_verdict"])
+            self.assertIsNone(payload["decision"])
+
+    def test_the_reverse_orientation_reports_the_later_clean_record(self):
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "a", *BREACHED,
+            )
+            brief = fx.brief_for(root, diff="--- a/x\n+++ b/x\n+later\n")
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "b", *CLEAN,
+                "--evidence-path", "logs/ci.log", "--critic-brief", brief,
+                "--critic-verdict", "REVISE", "--critic-next", "tighten the guard",
+                "--decision", "revise",
+            )
+            _, payload, _ = _status(root)
+            self.assertEqual(payload["rubric_verdict"], "pass")
+            self.assertEqual(payload["critic_verdict"], "REVISE")
+            self.assertEqual(payload["decision"], "revise")
+            self.assertEqual(payload["quality_from"], 2)
+
+    def test_an_unscored_ledger_that_was_reviewed_still_names_its_record(self):
+        """No iteration carries an evaluation, but one carries a verdict. The fallback is
+        the last record carrying either, and `quality_from` names it — a reader must never
+        have to guess which iteration the quality describes."""
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            brief = fx.brief_for(root)
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "a",
+                "--evidence-path", "logs/ci.log", "--critic-brief", brief,
+                "--critic-verdict", "REVISE", "--critic-next", "measure first",
+                "--decision", "revise",
+            )
+            _, payload, _ = _status(root)
+            self.assertIsNone(payload["rubric_verdict"])
+            self.assertIsNone(payload["weighted_total"])
+            self.assertEqual(payload["critic_verdict"], "REVISE")
+            self.assertEqual(payload["quality_from"], 1)
+
+    def test_quality_from_is_null_when_nothing_was_scored_or_reviewed(self):
+        with fx.LedgerRoot() as root:
+            fx.open_loop(root)
+            fx.run_cli(
+                "iterate", "--root", root.path, "--session", fx.SESSION,
+                "--outcome", "continue", "--action", "a",
+            )
+            _, payload, _ = _status(root)
+            self.assertIsNone(payload["quality_from"])
 
 
 if __name__ == "__main__":  # pragma: no cover

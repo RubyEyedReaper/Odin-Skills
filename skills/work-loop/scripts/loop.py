@@ -853,31 +853,50 @@ def cmd_status(args):
             "iterations": 0,
             "completed_actions": [],
             "stalls": [],
+            "rubric_verdict": None,
+            "weighted_total": None,
+            "critic_verdict": None,
+            "decision": None,
+            "quality_from": None,
         }
         emit(args, payload, "%s: open, no iterations recorded" % ledger["session"])
         # A report over an empty history is distinguished from a clean one: a caller
         # that cannot tell "nothing found" from "nothing examined" cannot detect the
         # failure this repository has been bitten by most.
         return EXIT_EMPTY
-    # The quality the record carries, surfaced. Read from the LAST iteration that carried
-    # each — a blank pass after a scored one must not blank the report, the same rule the
-    # derived baseline follows, applied to the reader's view.
+    # The quality the record carries, surfaced — resolved from ONE record, never composed
+    # field by field across several.
+    #
+    # `iterate` refuses `--decision retain` while a hard gate is breached, with an exit code
+    # behind it (EXIT_REGRESSION). A reader that took the rubric verdict from iteration 2 and
+    # the decision from iteration 1 would print exactly that refused pairing — the read path
+    # contradicting the write path, with a snapshot that never existed at any moment.
+    #
+    # The record is the last one carrying an `evaluation`, falling back to the last carrying a
+    # critic verdict or a decision when nothing was ever scored. `quality_from` names it: a
+    # reader must never have to guess which iteration the quality describes.
     #
     # ABSENT IS NOT ZERO. Every key is present and null when nothing scored, rather than
     # defaulted to 0.0: a loop nobody scored must not read as a loop that scored badly, and
     # a number is indistinguishable from a real one once it is printed.
-    quality = {key: None for key in ("rubric_verdict", "weighted_total", "critic_verdict", "decision")}
+    source = None
     for record in reversed(ledger["iterations"]):
-        evaluation = record.get("evaluation")
-        if quality["rubric_verdict"] is None and evaluation:
-            quality["rubric_verdict"] = evaluation.get("verdict")
-            quality["weighted_total"] = evaluation.get("weighted_total")
-        if quality["critic_verdict"] is None:
-            quality["critic_verdict"] = record.get("critic_verdict")
-        if quality["decision"] is None:
-            quality["decision"] = record.get("decision")
-        if all(value is not None for value in quality.values()):
+        if record.get("evaluation"):
+            source = record
             break
+    else:
+        for record in reversed(ledger["iterations"]):
+            if record.get("critic_verdict") or record.get("decision"):
+                source = record
+                break
+    evaluation = (source or {}).get("evaluation") or {}
+    quality = {
+        "rubric_verdict": evaluation.get("verdict"),
+        "weighted_total": evaluation.get("weighted_total"),
+        "critic_verdict": (source or {}).get("critic_verdict"),
+        "decision": (source or {}).get("decision"),
+        "quality_from": (source or {}).get("n"),
+    }
 
     payload = {
         "session": ledger["session"],
@@ -898,6 +917,8 @@ def cmd_status(args):
             quality["rubric_verdict"], quality["weighted_total"])
     else:
         human += " — rubric not scored"
+    if quality["quality_from"] is not None:
+        human += " (iteration %d)" % quality["quality_from"]
     if quality["critic_verdict"] is not None:
         human += ", critic %s" % quality["critic_verdict"]
     if quality["decision"] is not None:
