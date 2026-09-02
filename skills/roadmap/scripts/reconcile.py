@@ -71,6 +71,7 @@ FINDING_KINDS = frozenset({
     "unrecorded-change",
     "unrecorded-change-truncated",
     "evidence-unavailable",
+    "status-lags-evidence",
 })
 
 _ITEM_REF_RE = re.compile(r"\bRM-\d{4}\b")
@@ -88,6 +89,7 @@ def empty_evidence():
         "changelog_truncated": 0,
         "unlinked_issues": [],
         "unlinked_truncated": 0,
+        "landed_evidence": {},
         "channel_status": {},
     }
 
@@ -321,6 +323,25 @@ def analyze(doc, evidence=None, today=None):
                 item.get("id"),
             ))
 
+    # harness:RM-0405. `landed_evidence` only carries ids `gather_evidence` actually checked
+    # (status not already `done`/`dropped`, a non-empty `evidence` sha) — an id absent from it is
+    # silence, not a negative, so this reads the map rather than re-deriving the candidate set.
+    landed_evidence = ev.get("landed_evidence") or {}
+    for item in items:
+        if item.get("status") in ("done", "dropped"):
+            continue
+        if not landed_evidence.get(item.get("id")):
+            continue
+        sha = (item.get("evidence") or "").strip()
+        findings.append(_finding(
+            "status-lags-evidence",
+            "%s is `%s` but its evidence `%s` is already on `origin/main` — a ledger row lagging "
+            "the landing it records" % (item.get("id"), item.get("status"), sha),
+            "confirm, then `/roadmap set %s status=done`" % item.get("id"),
+            False,
+            item.get("id"),
+        ))
+
     for path in sorted(ev.get("untracked_paths", [])):
         if _is_claimed(path, claimed):
             continue
@@ -495,6 +516,37 @@ def owns_tracker(root):
     return os.path.realpath(root) == toplevel, CHANNEL_RAN
 
 
+def _evidence_landed(root, items, base="origin/main"):
+    """`(landed, status)` — which items' `evidence` sha is already an ancestor of `base`.
+
+    harness:RM-0405. Candidates are items not yet `done`/`dropped` carrying a non-empty `evidence`
+    sha — a row already caught up has nothing to report, one with no evidence has nothing to check.
+    `landed` only ever carries keys for candidates actually checked; an id absent from it is
+    silence, not a negative (`analyze` relies on that).
+
+    `--is-ancestor`'s exit code IS the answer (0 landed, non-zero not — including an unknown sha,
+    which is "not landed", not "unavailable"), so this cannot reuse `_run`'s `check=True`. Whether
+    the *channel* ran is decided once, up front, by whether `root` resolves as a repository at all —
+    a bad sha must not turn the whole channel blind, only that one item's answer.
+    """
+    _, status = _run(["git", "-C", root, "rev-parse", "--show-toplevel"], cwd=root)
+    if status != CHANNEL_RAN:
+        return {}, CHANNEL_UNAVAILABLE
+    landed = {}
+    for item in items:
+        if item.get("status") in ("done", "dropped"):
+            continue
+        sha = (item.get("evidence") or "").strip()
+        if not sha:
+            continue
+        result = subprocess.run(
+            ["git", "-C", root, "merge-base", "--is-ancestor", sha, base],
+            capture_output=True, text=True,
+        )
+        landed[item.get("id")] = result.returncode == 0
+    return landed, CHANNEL_RAN
+
+
 def _gh_issues(root):
     """`(issues, status)` — the tracker's issues, and whether the tracker could be reached.
 
@@ -596,8 +648,10 @@ def gather_evidence(json_path, doc, run_git=True, run_gh=True, surface_roots=Non
     ev["md_stale"] = md_is_stale(json_path)
     ev["channel_status"]["git"] = CHANNEL_SKIPPED
     ev["channel_status"]["gh"] = CHANNEL_SKIPPED
+    ev["channel_status"]["evidence"] = CHANNEL_SKIPPED
     if run_git:
         ev["git_touched"], ev["channel_status"]["git"] = _git_touched(root, items)
+        ev["landed_evidence"], ev["channel_status"]["evidence"] = _evidence_landed(root, items)
         # The sweep enumerates from git, so `--no-git` disables it. That is the honest reading of
         # the flag: there is deliberately no filesystem fallback, because a hand-written ignore
         # list would report a different set of paths than git does — and under `--apply-auto` the

@@ -366,6 +366,55 @@ class TestReconcileTrigger(unittest.TestCase):
         self.assertTrue(needs_reconcile(_doc(last_reconcile="2026-07-01"), today=TODAY))
 
 
+class TestEvidenceLagsStatus(unittest.TestCase):
+    """harness:RM-0405 — a ledger row lagging the landing it records.
+
+    An item's `evidence` sha can reach `origin/main` before its own `status` field is flipped to
+    `done` — the campaign observed this for five items across three commits, all lagging their
+    landing by days, with no channel saying so. The channel is `landed_evidence`, a map of item id
+    to whether `gather_evidence` found that item's sha already an ancestor of the base.
+    """
+
+    def test_landed_evidence_on_open_item_is_flagged(self):
+        doc = _doc(_item("RM-0001", status="in-progress", evidence="deadbeef"))
+        ev = _ev(landed_evidence={"RM-0001": True})
+        findings = analyze(doc, ev, today=TODAY)
+        self.assertIn("status-lags-evidence", _kinds(findings))
+
+    def test_names_the_item_and_the_sha(self):
+        doc = _doc(_item("RM-0001", status="in-progress", evidence="deadbeef"))
+        ev = _ev(landed_evidence={"RM-0001": True})
+        finding = [f for f in analyze(doc, ev, today=TODAY)
+                   if f["kind"] == "status-lags-evidence"][0]
+        self.assertIn("RM-0001", finding["message"])
+        self.assertIn("deadbeef", finding["message"])
+
+    def test_never_auto_applies(self):
+        doc = _doc(_item("RM-0001", status="in-progress", evidence="deadbeef"))
+        ev = _ev(landed_evidence={"RM-0001": True})
+        finding = [f for f in analyze(doc, ev, today=TODAY)
+                   if f["kind"] == "status-lags-evidence"][0]
+        self.assertFalse(finding["auto"])
+
+    def test_not_yet_landed_evidence_is_not_flagged(self):
+        doc = _doc(_item("RM-0001", status="in-progress", evidence="deadbeef"))
+        ev = _ev(landed_evidence={"RM-0001": False})
+        self.assertNotIn("status-lags-evidence", _kinds(analyze(doc, ev, today=TODAY)))
+
+    def test_done_item_is_never_flagged_even_if_landed(self):
+        # `status` already caught up — nothing to report, whatever the channel measured.
+        doc = _doc(_item("RM-0001", status="done", completed=TODAY, evidence="deadbeef"))
+        ev = _ev(landed_evidence={"RM-0001": True})
+        self.assertNotIn("status-lags-evidence", _kinds(analyze(doc, ev, today=TODAY)))
+
+    def test_item_absent_from_the_channel_is_not_flagged(self):
+        # The channel only reports items it actually checked; an id it never measured is silence,
+        # not a negative.
+        doc = _doc(_item("RM-0001", status="in-progress", evidence="deadbeef"))
+        ev = _ev(landed_evidence={})
+        self.assertNotIn("status-lags-evidence", _kinds(analyze(doc, ev, today=TODAY)))
+
+
 class TestCleanRoadmap(unittest.TestCase):
     def test_healthy_roadmap_yields_no_findings(self):
         doc = _doc(

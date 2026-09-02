@@ -23,6 +23,7 @@ from scripts.reconcile import (  # noqa: E402
     CHANNEL_SKIPPED,
     CHANNEL_UNAVAILABLE,
     FINDING_KINDS,
+    _evidence_landed,
     analyze,
     empty_evidence,
 )
@@ -103,6 +104,85 @@ class TestChannelStatus(unittest.TestCase):
                          _kinds(analyze(_doc(), ev, today=TODAY)))
 
 
+class TestEvidenceLandedChannel(unittest.TestCase):
+    """harness:RM-0405's gatherer half: `_evidence_landed` against a real repository.
+
+    `--is-ancestor`'s exit code IS the answer (0 landed, 1 not), never a failure the way `_run`'s
+    `check=True` would read it — this is the one channel in the file that cannot reuse `_run`.
+    """
+
+    def _repo(self, tmp):
+        def run(*args):
+            subprocess.run(["git", "-C", tmp] + list(args), check=True,
+                            capture_output=True, text=True)
+        run("init", "--quiet", "--initial-branch=main")
+        run("config", "user.email", "fixture@example.com")
+        run("config", "user.name", "Fixture")
+        (open(os.path.join(tmp, "a.txt"), "w")).write("one\n")
+        run("add", "a.txt")
+        run("commit", "--quiet", "-m", "first")
+        landed_sha = subprocess.run(
+            ["git", "-C", tmp, "rev-parse", "HEAD"], capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        return landed_sha
+
+    def test_a_sha_on_the_base_is_landed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sha = self._repo(tmp)
+            items = [self._item("RM-0001", status="in-progress", evidence=sha)]
+            landed, status = _evidence_landed(tmp, items, base="main")
+        self.assertEqual(status, CHANNEL_RAN)
+        self.assertTrue(landed.get("RM-0001"))
+
+    def test_a_sha_never_committed_is_not_landed_and_the_channel_still_ran(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._repo(tmp)
+            items = [self._item("RM-0001", status="in-progress", evidence="f" * 40)]
+            landed, status = _evidence_landed(tmp, items, base="main")
+        self.assertEqual(status, CHANNEL_RAN)
+        self.assertFalse(landed.get("RM-0001"))
+
+    def test_done_items_are_never_checked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sha = self._repo(tmp)
+            items = [self._item("RM-0001", status="done", completed=TODAY, evidence=sha)]
+            landed, status = _evidence_landed(tmp, items, base="main")
+        self.assertEqual(status, CHANNEL_RAN)
+        self.assertNotIn("RM-0001", landed)
+
+    def test_items_with_no_evidence_are_never_checked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._repo(tmp)
+            items = [self._item("RM-0001", status="in-progress", evidence=None)]
+            landed, status = _evidence_landed(tmp, items, base="main")
+        self.assertEqual(landed, {})
+
+    def test_no_candidates_at_all_still_reports_ran(self):
+        # Nothing to check is not the same as a broken channel — same shape as the disk channel,
+        # which is always `CHANNEL_RAN` because it has no external dependency to fail.
+        with tempfile.TemporaryDirectory() as tmp:
+            self._repo(tmp)
+            landed, status = _evidence_landed(tmp, [], base="main")
+        self.assertEqual((landed, status), ({}, CHANNEL_RAN))
+
+    def test_not_a_repository_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            items = [self._item("RM-0001", status="in-progress", evidence="f" * 40)]
+            landed, status = _evidence_landed(tmp, items, base="main")
+        self.assertEqual(status, CHANNEL_UNAVAILABLE)
+
+    def _item(self, item_id, **kw):
+        base = {
+            "id": item_id, "title": "Item " + item_id, "kind": "feature",
+            "status": "proposed", "tier": "next", "deps": [], "parent": None, "phase": None,
+            "priority": None, "owner_skill": None, "acceptance": [],
+            "links": {"prd": None, "plan": None, "adr": None, "issues": [], "files": []},
+            "created": TODAY, "updated": TODAY, "completed": None, "evidence": None, "notes": "",
+        }
+        base.update(kw)
+        return base
+
+
 class TestGatheredStatus(unittest.TestCase):
     """The gatherer's half: a channel it was told not to run is `skipped`, not `unavailable`."""
 
@@ -156,7 +236,7 @@ class TestFindingKindRegistry(unittest.TestCase):
     def _everything(self):
         doc = _doc(
             self._item("RM-0001", status="in-progress", updated="2026-06-01"),
-            self._item("RM-0002", status="in-progress", links={
+            self._item("RM-0002", status="in-progress", evidence="deadbeef", links={
                 "prd": None, "plan": None, "adr": None, "issues": ["#7"], "files": []}),
             self._item("RM-0003", status="done", completed="2026-07-01", links={
                 "prd": None, "plan": None, "adr": None, "issues": [], "files": ["src/gone/**"]}),
@@ -175,6 +255,7 @@ class TestFindingKindRegistry(unittest.TestCase):
             "changelog_unlinked": ["- **Shipped something** (2026-07-20)"],
             "changelog_truncated": 1,
             "unlinked_truncated": 1,
+            "landed_evidence": {"RM-0002": True},
         })
         ev["channel_status"]["gh"] = CHANNEL_UNAVAILABLE
         return doc, ev

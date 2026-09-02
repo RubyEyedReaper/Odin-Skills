@@ -12,9 +12,18 @@ One worktree per worker, cut from `main`:
 
 ```sh
 git -C "$REPO" fetch origin
-git -C "$REPO" worktree add ../odin-wt-<worker> -b <class>/<topic> origin/main
+git -C "$REPO" worktree add ../odin-wt-<worker> -b <class>/<topic> origin/main \
+  && git -C "$REPO" worktree list --porcelain | grep -qxF "worktree $(cd ../odin-wt-<worker> && pwd)" \
+  || { echo "worktree add did not register ../odin-wt-<worker> — files may exist, the ref does not; do not hand off" >&2; exit 1; }
 cp "$REPO/.claude/settings.local.json" ../odin-wt-<worker>/.claude/settings.local.json
 ```
+
+harness:RM-0417. `worktree add` can leave files checked out with the worktree never registered in
+`$REPO`'s own admin dir — the failure a follow-up `test -f` several lines later cannot see, because
+it only proves files landed, never that git itself knows this directory is a worktree. The
+registration check runs in the **same command**, chained with `&&`/`||`, so an unregistered worktree
+fails loudly here instead of surfacing later as a relay refusal (or, worse, a handoff nobody checked
+against reality).
 
 `settings.local.json` is gitignored and holds this machine's permission allowlist. A worker without
 it stalls on a permission prompt with nobody there to answer.
@@ -26,7 +35,10 @@ test -f ../odin-wt-<worker>/CLAUDE.md && ls ../odin-wt-<worker>/.claude/skills |
 ```
 
 Both must succeed. The relay enforces the same predicate at launch (ADR-0056); checking now turns a
-launch-time refusal into a provisioning step.
+launch-time refusal into a provisioning step. This is a *content* check — CLAUDE.md exists and the
+skills directory is non-empty — layered on top of the *registration* check above, not a replacement
+for it: a worktree can be registered with git and still miss a file checkout step, and either check
+alone misses what the other catches.
 
 Reserve ids for the whole fleet in one pass, then write each worker's allocation into its handoff:
 
