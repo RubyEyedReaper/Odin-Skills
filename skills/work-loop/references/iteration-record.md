@@ -17,6 +17,7 @@ that the engine **derives** everything it can, and **refuses** what it cannot ch
 | Field | Written by | Holds |
 |---|---|---|
 | `n`, `outcome`, `reported_outcome`, `stall` | engine | The iteration's number and how it ended, including a stall-promoted outcome |
+| `epoch` | engine | Which contract the iteration ran under. `n` stays monotonic across a `revise`; `epoch` is what the stall predicates filter on |
 | `error_signature`, `state_hash` | engine | Normalised inputs to the stall predicates |
 | `actions` | author (`--action`) | Stable ids for work performed. **Resume keys on these**, never on `n` |
 | `measurements` | author (`--measure`) | One number per declared rubric dimension |
@@ -30,6 +31,18 @@ that the engine **derives** everything it can, and **refuses** what it cannot ch
 | `decision` | author (`--decision`) | One of `retain` `revert` `revise` `escalate` |
 | `blocker`, `evidence`, `recommended_next` | author, or engine on a stall | The escalate record — all three required, see SKILL.md |
 | `note` | author (`--note`) | Free text. Deliberately still optional, and deliberately not load-bearing |
+
+## `n` is monotonic; `epoch` says which contract
+
+A `revise` ends the loop and a revised contract is opened over the **same** ledger
+(ADR-0140), so one ledger can hold iterations from several contracts. Iterations stay
+cumulative and `n` keeps counting: two records both calling themselves iteration 1 would
+break `quality_from`, which exists precisely so a reader can name the single record a
+verdict came from.
+
+`epoch` is what distinguishes them. It is written by the engine from the ledger's live
+epoch, never passed, and a record from a ledger written before epochs existed reads as
+epoch 1.
 
 ## What the engine derives, and why
 

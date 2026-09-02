@@ -26,7 +26,8 @@ import sys
 EXIT_OK = 0
 EXIT_INVALID = 1  # the contract or the iteration's facts are malformed
 EXIT_USAGE = 2  # usage error, or a ledger that cannot be read
-EXIT_CLOSED = 3  # refused: this loop has ended
+EXIT_CLOSED = 3  # refused: the ledger is not in a state this command acts on
+#                  (iterate/close over a closed ledger; open over a live one)
 EXIT_EMPTY = 4  # refused: nothing was examined
 EXIT_REPEAT = 5  # refused: the action is already recorded complete
 EXIT_GATE = 6  # refused: a hard-gate dimension breached its failure threshold
@@ -386,29 +387,79 @@ def validate_contract(raw):
 
 
 def detect_stall(ledger, signature, state, dependency_missing, threshold):
-    """Run the four predicates over the ledger plus this iteration's reported facts.
+    """Run the four predicates over the CURRENT EPOCH plus this iteration's reported facts.
 
     Order is deliberate and documented: a dependency that is simply gone is reported
     before a repetition that is its symptom.
+
+    Scoped to the epoch because a revised contract is a different approach to the same work,
+    and its history is not the predecessor's. Read across a revision, `circular-state`
+    re-fires on the very state hash that produced the `revise` — wedging the loop a second
+    time in a new way — and `retries-exhausted` reports a fresh contract's first iteration
+    as its last (harness:RM-0478). A ledger written before epochs existed has no `epoch` on
+    either side of this filter and defaults to 1, so a single-contract loop is unaffected.
     """
+    epoch = ledger.get("epoch", 1)
+    history = [it for it in ledger["iterations"] if it.get("epoch", 1) == epoch]
+
     if dependency_missing:
         return STALL_DEPENDENCY
 
     if signature:
         repeats = 1 + sum(
-            1 for it in ledger["iterations"] if it.get("error_signature") == signature
+            1 for it in history if it.get("error_signature") == signature
         )
         if repeats >= threshold:
             return STALL_REPEATED_ERROR
 
     if state:
-        if any(it.get("state_hash") == state for it in ledger["iterations"]):
+        if any(it.get("state_hash") == state for it in history):
             return STALL_CIRCULAR
 
-    if len(ledger["iterations"]) + 1 >= ledger["contract"]["iteration_limit"]:
+    if len(history) + 1 >= ledger["contract"]["iteration_limit"]:
         return STALL_RETRIES
 
     return None
+
+
+# ---------------------------------------------------------------- terminal state
+
+
+#: The two states a ledger is ever in, and the words every refusal message draws from. Two
+#: commands describing one unchanged ledger with two different words is the defect this
+#: vocabulary exists to make impossible, not a symptom of it.
+LEDGER_STATES = ("open", "closed")
+
+
+def state_refusal(session, ledger, detail):
+    """Render every refusal that turns on a ledger's state, in one place.
+
+    The wedge was two commands describing one unchanged ledger in opposite words: `close`
+    said *already closed* while `open` said *already open*, and one of them was a lie
+    whichever way the ledger read. Prose cannot be held to that by review — each message was
+    locally reasonable. So the state clause is generated from `ledger["status"]` rather than
+    written, and every caller supplies only the way forward (harness:RM-0478).
+    """
+    return "%s: ledger is %s — %s" % (session, ledger.get("status", "closed"), detail)
+
+
+def close_ledger(ledger, outcome, note=None, blocker=None,
+                 evidence=None, recommended_next=None):
+    """The ONE writer of terminal state, for both paths that can end a loop.
+
+    `cmd_iterate`'s terminal branch and `cmd_close` wrote overlapping subsets of the same
+    fields in two different shapes, so a reader had to know which path ended the loop before
+    it could read the ledger — and `blocker-record-check.sh`, which reads every ledger, had
+    to know both. A test asserting that two implementations agree is weaker than one
+    implementation both of them call (harness:RM-0478).
+    """
+    ledger["status"] = "closed"
+    ledger["final_outcome"] = outcome
+    ledger["close_note"] = note
+    ledger["close_blocker"] = blocker
+    ledger["close_evidence"] = evidence
+    ledger["close_recommended_next"] = recommended_next
+    return ledger
 
 
 # ---------------------------------------------------------------- subcommands
@@ -416,8 +467,18 @@ def detect_stall(ledger, signature, state, dependency_missing, threshold):
 
 def cmd_open(args):
     existing = read_ledger(args.root, args.session)
-    if existing is not None and not args.force:
-        print("%s: a ledger is already open for this session" % args.session, file=sys.stderr)
+    if existing is not None and existing.get("status") == "open" and not args.force:
+        # STATUS, never existence. Every other command in this engine dispatches on the
+        # ledger's status; `open` was the one that did not, and it was the one that wedged.
+        # A `revise` means the approach is wrong and the contract needs changing — it ends
+        # the loop, and then had nowhere to put the revised contract, while `close` refused
+        # the same ledger for the opposite reason and said so in the opposite words. A
+        # ledger's existence is not its state (harness:RM-0478).
+        print(
+            state_refusal(args.session, existing,
+                          "end it with `close`, or pass --force to discard it"),
+            file=sys.stderr,
+        )
         return EXIT_CLOSED
 
     try:
@@ -436,19 +497,57 @@ def cmd_open(args):
             print(finding, file=sys.stderr)
         return EXIT_INVALID
 
+    # A closed ledger is RE-OPENED, not overwritten. The history is the thing a `revise`
+    # exists to keep, which is why `--force` — whose whole meaning is to discard — was never
+    # the answer to the wedge. `--force` keeps that meaning, for the corrupt ledger nobody
+    # wants; it stops being the only way in.
+    epochs = []
+    iterations = []
+    completed = []
+    resumed = 0
+    if existing is not None and not args.force and existing.get("status") == "closed":
+        epochs = list(existing.get("epochs") or [])
+        epochs.append({
+            "n": len(epochs) + 1,
+            "contract": existing["contract"],
+            "final_outcome": existing["final_outcome"],
+            "iterations": [it["n"] for it in existing["iterations"]],
+            "close_note": existing.get("close_note"),
+            "close_blocker": existing.get("close_blocker"),
+            "close_evidence": existing.get("close_evidence"),
+            "close_recommended_next": existing.get("close_recommended_next"),
+        })
+        iterations = existing["iterations"]
+        completed = existing["completed_actions"]
+        resumed = existing.get("resumed", 0)
+
     ledger = {
         "session": args.session,
         "contract": contract,
         "status": "open",
         "final_outcome": None,
-        "iterations": [],
-        "completed_actions": [],
-        "resumed": 0,
+        # The scalar is which contract is live; the list is every contract that preceded it.
+        # Iterations stay cumulative and carry this number, so `n` is monotonic across a
+        # revise and `quality_from` keeps naming exactly one record.
+        "epoch": len(epochs) + 1,
+        "epochs": epochs,
+        "iterations": iterations,
+        "completed_actions": completed,
+        "resumed": resumed,
         "stall_threshold": args.stall_threshold,
+        # A brief's id hashes the contract's rubric, so one that outlived its contract names
+        # a packet this engine would no longer assemble — exactly what the single-use binding
+        # exists to refuse.
+        "pending_brief": None,
     }
     write_ledger(args.root, args.session, ledger)
-    return emit(args, {"session": args.session, "status": "open", "next_iteration": 1},
-                "loop open: %s (limit %d)" % (args.session, contract["iteration_limit"]))
+    return emit(
+        args,
+        {"session": args.session, "status": "open", "epoch": ledger["epoch"],
+         "next_iteration": len(iterations) + 1},
+        "loop open: %s (epoch %d, limit %d)"
+        % (args.session, ledger["epoch"], contract["iteration_limit"]),
+    )
 
 
 def cmd_iterate(args):
@@ -457,8 +556,11 @@ def cmd_iterate(args):
         return EXIT_USAGE
     if ledger["status"] != "open":
         print(
-            "%s: the loop ended with outcome '%s' — open a new one, or resume a paused one"
-            % (args.session, ledger["final_outcome"]),
+            state_refusal(
+                args.session, ledger,
+                "it ended with outcome '%s'; open a revised contract over it, or resume it "
+                "if it was paused" % ledger["final_outcome"],
+            ),
             file=sys.stderr,
         )
         return EXIT_CLOSED
@@ -630,6 +732,7 @@ def cmd_iterate(args):
 
     record = {
         "n": len(ledger["iterations"]) + 1,
+        "epoch": ledger.get("epoch", 1),
         "reported_outcome": args.outcome,
         "outcome": outcome,
         "stall": stall,
@@ -657,8 +760,8 @@ def cmd_iterate(args):
     if critic_verdict is not None:
         ledger["pending_brief"] = None
     if outcome in TERMINAL_OUTCOMES:
-        ledger["status"] = "closed"
-        ledger["final_outcome"] = outcome
+        close_ledger(ledger, outcome, note=args.note, blocker=blocker,
+                     evidence=evidence, recommended_next=recommended)
     write_ledger(args.root, args.session, ledger)
 
     human = "iteration %d: %s" % (record["n"], outcome)
@@ -932,8 +1035,11 @@ def cmd_resume(args):
     if ledger["status"] == "closed":
         if ledger["final_outcome"] != "pause":
             print(
-                "%s: the loop ended with outcome '%s' — only a paused loop is resumable"
-                % (args.session, ledger["final_outcome"]),
+                state_refusal(
+                    args.session, ledger,
+                    "it ended with outcome '%s', and only a paused loop is resumable; open "
+                    "a revised contract over it instead" % ledger["final_outcome"],
+                ),
                 file=sys.stderr,
             )
             return EXIT_CLOSED
@@ -962,8 +1068,15 @@ def cmd_close(args):
     if ledger is None:
         return EXIT_USAGE
     if ledger["status"] != "open":
+        # Names the state it read, and the way forward from it. The wedge was two commands
+        # describing one unchanged ledger in opposite words: this said `already closed`
+        # while `open` said `already open`, and one of them was a lie either way.
         print(
-            "%s: already closed with outcome '%s'" % (args.session, ledger["final_outcome"]),
+            state_refusal(
+                args.session, ledger,
+                "it ended with outcome '%s'; open a revised contract over it, or resume it "
+                "if it was paused" % ledger["final_outcome"],
+            ),
             file=sys.stderr,
         )
         return EXIT_CLOSED
@@ -985,12 +1098,8 @@ def cmd_close(args):
                 file=sys.stderr,
             )
             return EXIT_INVALID
-    ledger["status"] = "closed"
-    ledger["final_outcome"] = args.outcome
-    ledger["close_note"] = args.note
-    ledger["close_recommended_next"] = args.recommended_next
-    ledger["close_blocker"] = args.blocker
-    ledger["close_evidence"] = args.evidence
+    close_ledger(ledger, args.outcome, note=args.note, blocker=args.blocker,
+                 evidence=args.evidence, recommended_next=args.recommended_next)
     write_ledger(args.root, args.session, ledger)
     return emit(
         args,

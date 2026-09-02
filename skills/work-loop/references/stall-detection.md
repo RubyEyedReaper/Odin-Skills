@@ -52,6 +52,25 @@ it invented at iteration time, and predicate 4 would decide over caller-supplied
 rather than declared state. The refusal is a contract finding, not a stall: the defect is
 in the contract, and it is repaired by declaring the dependency.
 
+## The predicates read the current epoch only
+
+A ledger can hold more than one contract: `revise` ends the loop, and the revised contract
+opens over the same ledger with the predecessor kept in `epochs[]` (ADR-0140). Every
+predicate reads only the iterations tagged with the live `epoch`.
+
+Read across a revision, two of the four wedge the loop a second time:
+
+| Predicate | What it would do across a revision |
+|---|---|
+| `circular-state` | Re-fire on the very state hash that produced the `revise`, forcing the first honest iteration under the new contract straight back to `revise` |
+| `retries-exhausted` | Report a fresh contract's first iteration as its last, on the predecessor's spent limit |
+
+`repeated-error` is scoped for the same reason, one step less sharply: a failure the old
+approach hit twice should not count against an approach designed to avoid it.
+
+A ledger written before epochs existed carries no `epoch` on either side of the filter and
+defaults to 1, so a single-contract loop is unaffected.
+
 ## What is not a stall
 
 | Situation | Why not | What owns it |

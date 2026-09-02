@@ -106,7 +106,7 @@ Exactly one per iteration. Only `continue` permits another.
 |---|---|---|
 | `continue` | The iteration made progress and the contract still holds | Another iteration |
 | `complete` | The success criteria are met | Loop ends |
-| `revise` | The approach is wrong; the contract needs changing | Loop ends; re-open a revised one |
+| `revise` | The approach is wrong; the contract needs changing | Loop ends; `open` a revised contract over the same ledger — the predecessor is kept, see **Contract epochs** |
 | `escalate` | A blocker outside the loop's reach | Loop ends, **blocker + evidence + recommended next action written to the ledger** — all three enforced, see below |
 | `pause` | State is checkpointed for a later session | Loop ends; `resume` re-enters exactly |
 | `stop` | The limit is spent, or the work is abandoned | Loop ends |
@@ -170,6 +170,39 @@ nothing to say which; a recorded set of completed ids has no such ambiguity. `it
 refuses an action already recorded complete, and refuses the whole batch containing one —
 a partial record is a repeat by another name.
 
+## Contract epochs
+
+A `revise` says the approach is wrong, so the loop ends and a **revised contract is opened
+over the same ledger**. `open` decides on the ledger's `status`, never on whether a file is
+there: a closed ledger is re-opened, and its contract, terminal outcome, close record and
+iteration numbers move into `epochs[]`. `iterations` and `completed_actions` carry forward,
+so `resume` re-enters correctly and an action performed before the revision is still refused
+after it.
+
+**`--force` is not how you revise.** Its meaning is *discard* — for a corrupt ledger nobody
+wants — and the history is the one thing a revise exists to keep. It stops being the only
+way in.
+
+| Key | Holds |
+|---|---|
+| `epoch` | which contract is live, counting from 1 |
+| `epochs[]` | every contract that preceded it, with how each one ended |
+| an iteration's `epoch` | which contract it ran under; `n` stays monotonic across a revise |
+
+**The predicates read the current epoch only.** Read across a revision, `circular-state`
+re-fires on the very state hash that produced the `revise` — forcing the first honest
+iteration under the new contract straight back to `revise` — and `retries-exhausted` reports
+a fresh contract's first iteration as its last, on the predecessor's spent limit.
+
+A re-open clears any pending brief: a brief's id hashes the contract's rubric, so one that
+outlived its contract names a packet the engine would no longer assemble.
+
+**The knock-on worth knowing.** `.claude/hooks/odin-task-gate.sh` accepts a work-loop ledger
+as a session's task-list route only at `status: open`. Before ADR-0140 a session whose
+toolset carries no `TaskCreate` lost its `Write`/`Edit` route the moment it recorded a
+`revise` — punished, mid-run, for using the vocabulary correctly. Re-opening restores the
+state the gate asks about.
+
 ## Quick reference
 
 ```sh
@@ -199,7 +232,7 @@ python3 -m scripts.loop close  --root ../../.. --session "$SID" --outcome comple
 | 0 | success |
 | 1 | the contract or the iteration's facts are malformed |
 | 2 | usage error, or a ledger that cannot be read |
-| 3 | refused: this loop has ended |
+| 3 | refused: the ledger is not in a state this command acts on — `iterate`/`close` over a closed one, `open` over a live one |
 | 4 | reported over a ledger with no iterations — nothing was examined |
 | 5 | refused: the action is already recorded complete |
 | 6 | scored, and a hard-gate dimension breached its failure threshold |
@@ -248,6 +281,7 @@ composed-snapshot defect cost.
 | Escalating with a next action and no blocker or evidence | Refused. A stop that names nothing is indistinguishable from giving up, and the reader has no session left to ask. |
 | Reading the ledger to decide whether to keep going | That is `endless`'s decision, from its own predicates. The ledger says how *this* cycle ended. |
 | Resuming by iteration number | An index survives nothing. Resume on the completed action ids. |
+| Reaching for `--force` to re-open after a revise | `--force` discards. `open` re-opens a closed ledger on its own and keeps the predecessor in `epochs[]`; the history is what a revise exists to keep. |
 | A contract with prose success criteria | Nothing can decide `complete`, so the loop runs to its limit and reports `stop`. |
 | A rubric dimension whose evidence is "review says so" | Refused at `open`. Name it in the review checklist and leave it out of the rubric — the honest residue beats a dimension that looks measured. |
 | Reading a high weighted total as permission | The verdict is `fail` while any hard gate is breached, at any total. Exit 6 exists so a caller cannot miss it. |

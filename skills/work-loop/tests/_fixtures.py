@@ -110,10 +110,26 @@ class LedgerRoot:
             handle.write(text)
         return path
 
+    def write_json(self, name: str, payload) -> str:
+        """Write a JSON scratch file inside the throwaway root and return its path."""
+        import json
+
+        return self.write(name, json.dumps(payload))
+
     def ledger_path(self, session: str = SESSION) -> str:
         return os.path.join(
             self.path, ".claude", ".runtime", "work-loop", session + ".json"
         )
+
+    def discard_ledger(self, session: str = SESSION) -> None:
+        """Remove one session's ledger, leaving the runtime directory in place.
+
+        For a case that must drive the SAME session to two different terminal states and
+        compare them. A fresh LedgerRoot per arm would also work and would hide which
+        directory the second arm wrote into.
+        """
+        if os.path.exists(self.ledger_path(session)):
+            os.remove(self.ledger_path(session))
 
 
 def brief_for(root, session: str = SESSION, diff: str | None = None) -> str:
@@ -162,3 +178,17 @@ def read_ledger(root: LedgerRoot, session: str = SESSION) -> dict:
 
     with open(root.ledger_path(session), encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def revised_loop(root: LedgerRoot, session: str = SESSION) -> None:
+    """Drive a ledger to a terminal `revise` — the exact state harness:RM-0478 was filed over.
+
+    Two iterations, the second reporting `revise`, so the ledger ends `closed` with a
+    `final_outcome` of `revise`, two completed actions and two distinct state hashes. Cases
+    that re-open build on this; cases about the wedge itself assert against it.
+    """
+    open_loop(root, session)
+    run_cli("iterate", "--root", root.path, "--session", session,
+            "--outcome", "continue", "--action", "probe", "--state", "s=1")
+    run_cli("iterate", "--root", root.path, "--session", session,
+            "--outcome", "revise", "--action", "rethink", "--state", "s=2")

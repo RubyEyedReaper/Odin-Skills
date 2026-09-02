@@ -87,6 +87,26 @@ the engine. Reaching it fires the retries-exhausted predicate and ends the loop 
 moment it binds is a suggestion, and it will be renegotiated at turn thirty of an
 unattended run, by a context that has forgotten why the number was chosen.
 
+## A revised contract opens over the same ledger
+
+`revise` is the outcome for *this contract is wrong*, and what follows is a **new
+contract, same ledger** — `open` decides on the ledger's `status`, so a closed one is
+re-opened rather than refused (ADR-0140). The predecessor's twelve fields are kept in
+`epochs[]` alongside how it ended, so what was tried is legible later rather than
+overwritten.
+
+Two things this means when declaring the revised contract:
+
+- **The iteration limit starts over.** It is scoped to the epoch, so the predecessor's
+  spent limit does not carry. Declare the limit the new approach needs, not the remainder
+  of the old one.
+- **`starting_state` is now genuinely different**, and is the field most worth rewriting:
+  the loop is resuming with actions already performed, and `completed_actions` carries
+  forward — `iterate` still refuses any of them.
+
+Reaching for `--force` here is the mistake. Its meaning is *discard*, and the history is
+the thing a revise exists to keep.
+
 ## Declaring is not planning
 
 This contract states the *cycle*. What to build, and in what order, belongs to a plan
