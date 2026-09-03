@@ -521,6 +521,60 @@ def _refuse_lost_claim(path, item_id, slug):
         )
 
 
+#: The three answers to "does this evidence name a commit?". `unverifiable` exists because a root
+#: that is not a git repository is a real configuration, and "could not look" is not "looked and
+#: found nothing" — answering `not-a-commit` there would be a claim this tool cannot support.
+EVIDENCE_VERDICTS = ("commit", "not-a-commit", "unverifiable")
+
+
+def evidence_verdict(json_path, value):
+    """`(verdict, detail)` — whether `value` resolves to a commit in the roadmap's repository.
+
+    harness:RM-0471. `--evidence` accepted any string, so an item could go `done` — and, since
+    ADR-0136, close its tracker issue and post a comment — citing a placeholder. The evidence field
+    is the audit trail `campaign status` reads as one of its three channels; a value nothing can
+    resolve produces a row that reads `landed` to a human and is checkable by nothing.
+
+    The predicate is what the field is FOR, not a list of placeholder words. `PENDING`, `TODO` and
+    `TBD` are the ones somebody thought of; the next one nobody thought of is exactly as damaging
+    and would pass a block-list unchanged.
+    """
+    root = os.path.dirname(os.path.abspath(json_path))
+    inside = subprocess.run(["git", "-C", root, "rev-parse", "--git-dir"],
+                            capture_output=True, text=True)
+    if inside.returncode != 0:
+        return ("unverifiable",
+                "evidence `%s` was recorded UNVERIFIED: %s is not inside a git repository, so "
+                "there is nothing to resolve it against. This is not the same as an unresolvable "
+                "value — nothing was checked" % (value, root))
+    found = subprocess.run(
+        ["git", "-C", root, "rev-parse", "--verify", "--quiet", "%s^{commit}" % value],
+        capture_output=True, text=True)
+    if found.returncode != 0:
+        return ("not-a-commit",
+                "evidence `%s` does not resolve to a commit in %s. The evidence field is the audit "
+                "trail — an item recorded `done` against a value nothing can resolve reads as "
+                "landed and can be checked by nobody, and since ADR-0136 it also closes the linked "
+                "issue and comments. Pass the sha the work landed at, after it lands"
+                % (value, root))
+    return ("commit", found.stdout.strip())
+
+
+def _refuse_unresolvable_evidence(path, args):
+    """`1` when the write must not happen, `None` otherwise. Reports the unverifiable case too.
+
+    Shared by `add` and `set` because both accept `--evidence`; a check on one of two writers is a
+    check with a documented way around it.
+    """
+    value = (getattr(args, "evidence", None) or "").strip()
+    if not value:
+        return None
+    verdict, detail = evidence_verdict(path, value)
+    if verdict != "commit":
+        sys.stderr.write("[roadmap] %s\n" % detail)
+    return 1 if verdict == "not-a-commit" else None
+
+
 def _apply_common(values, args, doc=None, path=None):
     mapping = {
         "title": args.title,
@@ -561,6 +615,9 @@ def _apply_links(item, args):
 
 def cmd_add(args):
     path, doc = _load(args)
+    refused = _refuse_unresolvable_evidence(path, args)
+    if refused:
+        return refused
     values = _apply_common({}, args, doc, path)
     values.pop("title", None)
     values.pop("kind", None)
@@ -657,6 +714,11 @@ def cmd_set(args):
     item = schema_mod.find(doc, args.id)
     if item is None:
         _die("no such item: %s" % args.id)
+    # Before the claim check and before any mutation: a refusal that had already moved the status
+    # would leave exactly the row harness:RM-0471 is about, minus the evidence explaining it.
+    refused = _refuse_unresolvable_evidence(path, args)
+    if refused:
+        return refused
     # Claiming is the write that is lost across a rebase, so it is the write that gets checked.
     if args.status == "in-progress" and not getattr(args, "force", False):
         _refuse_lost_claim(path, args.id, schema_mod.slug_of(doc, path))

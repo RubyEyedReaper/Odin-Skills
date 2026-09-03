@@ -14,6 +14,7 @@ justify a broken gate.
 from __future__ import annotations
 
 import json
+import os
 import unittest
 
 from . import _fixtures as fx
@@ -24,6 +25,7 @@ from scripts.loop import (
     EXIT_OK,
     RUBRIC_FIELDS,
     command_findings,
+    validate_rubric,
 )
 
 
@@ -391,6 +393,156 @@ class StaticCommandInspection(unittest.TestCase):
         self.assertEqual(
             command_findings("jq --format JSON . file.json", ".", "d"), []
         )
+
+
+class AHoldTheLineDimension(unittest.TestCase):
+    """harness:RM-0473 — a dimension whose job is to NOT move.
+
+    Found by using the rubric, not by reading it. `validate_rubric` refused a dimension whose
+    `target` equals its `baseline`, on the stated grounds that a dimension that cannot move scores
+    nothing and measures nothing (ADR-0137). That is true of an optimisation objective and false of
+    a hard gate, whose entire job is to not move — so two honest dimensions were unwritable:
+
+        suite-failures     baseline 0, must stay 0
+        record-integrity   baseline 0, must stay 0
+
+    Those are exactly the checks a rubric most wants as hard gates. The workaround reached for first
+    was a fractional target (0 -> 0.0001) to slip past the refusal, which is a lie written into the
+    contract to satisfy a validator.
+
+    `must_not_regress` is DECLARED, never inferred from the numbers coinciding. The same reasoning
+    `DIRECTIONS` carries: a derived flag silently changes what a dimension means when an author
+    mistypes a number, and reads correct on the page.
+    """
+
+    def test_a_declared_hold_the_line_dimension_is_accepted(self):
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root,
+                quality_rubric=[
+                    fx.dimension(
+                        dimension="suite-failures", baseline=0, target=0,
+                        failure_threshold=0, direction="lower-is-better",
+                        hard_gate=True, must_not_regress=True,
+                    )
+                ],
+            )
+            self.assertEqual(code, EXIT_OK, err)
+
+    def test_holding_a_ceiling_is_accepted_too(self):
+        """`higher-is-better` at 100% must stay declarable: the direction cross-check compares
+        baseline to target, and for a line being held they are equal in both directions."""
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root,
+                quality_rubric=[
+                    fx.dimension(
+                        dimension="arm-coverage", baseline=100, target=100,
+                        failure_threshold=100, direction="higher-is-better",
+                        hard_gate=True, must_not_regress=True,
+                    )
+                ],
+            )
+            self.assertEqual(code, EXIT_OK, err)
+
+    def test_a_hold_the_line_dimension_that_names_a_different_target_is_refused(self):
+        """The contradiction case. A dimension claiming to hold a line while naming a target it
+        does not sit at is two declarations disagreeing, and taking either one silently is how a
+        swapped pair gets accepted."""
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root,
+                quality_rubric=[fx.dimension(baseline=2, target=0, must_not_regress=True)],
+            )
+            self.assertEqual(code, EXIT_INVALID)
+            # Asserted on the reason, not on the key name. Before the key existed this case passed
+            # against "must_not_regress is not one of the eight declared keys" — a refusal for a
+            # completely different reason, which is how a case comes to assert nothing.
+            self.assertIn("hold a line", err)
+
+    def test_a_non_boolean_must_not_regress_is_refused(self):
+        with fx.LedgerRoot() as root:
+            code, _, err = fx.open_loop(
+                root,
+                quality_rubric=[fx.dimension(baseline=0, target=0, must_not_regress="yes")],
+            )
+            self.assertEqual(code, EXIT_INVALID)
+            self.assertIn("must be true or false", err)
+
+    def test_a_held_line_scores_100_and_passes(self):
+        with fx.LedgerRoot() as root:
+            fx.open_loop(
+                root,
+                quality_rubric=[
+                    fx.dimension(
+                        dimension="suite-failures", baseline=0, target=0,
+                        failure_threshold=0, direction="lower-is-better",
+                        hard_gate=True, must_not_regress=True,
+                    )
+                ],
+            )
+            code, out, err = _score(root, "suite-failures=0")
+            self.assertEqual(code, EXIT_OK, err)
+            result = json.loads(out)
+            self.assertEqual(result["weighted_total"], 100.0)
+            self.assertEqual(result["verdict"], "pass")
+
+    def test_a_broken_line_scores_zero_and_fails_the_verdict(self):
+        """The whole point. A hold-the-line dimension that moved has failed, and no weighted total
+        turns that into a pass."""
+        with fx.LedgerRoot() as root:
+            fx.open_loop(
+                root,
+                quality_rubric=[
+                    fx.dimension(
+                        dimension="suite-failures", baseline=0, target=0,
+                        failure_threshold=0, direction="lower-is-better",
+                        hard_gate=True, must_not_regress=True,
+                    )
+                ],
+            )
+            code, out, _ = _score(root, "suite-failures=3")
+            result = json.loads(out)
+            self.assertEqual(code, EXIT_GATE)
+            self.assertEqual(result["verdict"], "fail")
+            self.assertEqual(result["hard_gate_failures"], ["suite-failures"])
+            held = result["dimensions"][0]
+            self.assertEqual(held["score"], 0.0)
+
+    def test_the_reference_documents_sample_validates_against_the_engine(self):
+        """`sample-contract-check.sh` validates sample *contracts*; a sample *dimension* is outside
+        what it scans, so the one in quality-rubric.md would rot silently. Driven through the real
+        validator here rather than read — ADR-0141's principle, applied one level down."""
+        import json as _json
+        import re
+
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "references", "quality-rubric.md")
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        samples = [
+            _json.loads(block)
+            for block in re.findall(r"```json\n(\{.*?\})\n```", text, re.S)
+            if '"must_not_regress"' in block
+        ]
+        self.assertEqual(len(samples), 1, "the hold-the-line sample moved or was removed")
+        rubric, findings = validate_rubric(samples, root=".")
+        self.assertEqual(findings, [])
+        self.assertTrue(rubric[0]["must_not_regress"])
+
+    def test_the_fractional_target_workaround_is_no_longer_the_only_way(self):
+        """The evidence that the defect was real was a 0 -> 0.0001 target invented to pass
+        validation. That declaration is still legal — it is a well-formed optimisation objective —
+        so this asserts the honest declaration is available, not that the dishonest one is banned."""
+        with fx.LedgerRoot() as root:
+            code, _, _ = fx.open_loop(
+                root,
+                quality_rubric=[
+                    fx.dimension(baseline=0, target=0, failure_threshold=0,
+                                 must_not_regress=True)
+                ],
+            )
+            self.assertEqual(code, EXIT_OK)
 
 
 class TheRubricArithmeticCannotDivideByZero(unittest.TestCase):

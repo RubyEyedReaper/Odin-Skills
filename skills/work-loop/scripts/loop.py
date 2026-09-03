@@ -80,6 +80,25 @@ RUBRIC_FIELDS = (
     "hard_gate",
 )
 
+#: The one key a dimension may omit, and the reason it is separate from the eight above.
+#:
+#: A hold-the-line dimension sits at its target and its job is to stay there — `suite-failures` at
+#: 0, `record-integrity` at 0. `validate_rubric` refused those, because `target == baseline` means
+#: a dimension that cannot move, which scores nothing for an OPTIMISATION objective (ADR-0137) and
+#: is the entire point of a GATE. The workaround reached for first was a fractional target
+#: (0 -> 0.0001) invented to satisfy the validator, which is a lie written into the contract
+#: (harness:RM-0473).
+#:
+#: Optional rather than a ninth required key, because every rubric already written — in
+#: `references/loop-contract.md`, in the ADRs, in the plans the sample gate reads — declares eight
+#: and would become invalid overnight. Absent means false, which is the behaviour those rubrics
+#: already have.
+#:
+#: DECLARED, never inferred from `baseline == target == failure_threshold` coinciding. That is the
+#: same reasoning `DIRECTIONS` carries one field over: derivation is one key cheaper and silently
+#: changes what a dimension means when an author mistypes a number, which reads correct on the page.
+RUBRIC_OPTIONAL_FIELDS = ("must_not_regress",)
+
 #: Declared, and cross-checked against the baseline -> target ordering rather than derived
 #: from it. Derivation is one key cheaper and silently inverts the failure test when an
 #: author swaps two numbers, which reads correct on the page.
@@ -306,7 +325,7 @@ def validate_rubric(raw, root="."):
                 local.append(
                     "%s: %s missing — a dimension declares all eight keys" % (where, field)
                 )
-        for field in sorted(set(entry) - set(RUBRIC_FIELDS)):
+        for field in sorted(set(entry) - set(RUBRIC_FIELDS) - set(RUBRIC_OPTIONAL_FIELDS)):
             local.append(
                 "%s: %s is not one of the eight declared keys — an interface that accepts "
                 "unknown keys cannot tell a typo from an extension" % (where, field)
@@ -342,6 +361,12 @@ def validate_rubric(raw, root="."):
                 "%s: hard_gate must be true or false, got %r — a truthy string would make "
                 "every dimension a hard gate" % (where, entry["hard_gate"])
             )
+        held = entry.get("must_not_regress", False)
+        if not isinstance(held, bool):
+            local.append(
+                "%s: must_not_regress must be true or false, got %r — a truthy string would "
+                "exempt every dimension from the target check" % (where, held)
+            )
         if entry["direction"] not in DIRECTIONS:
             local.append(
                 "%s: direction must be one of %s, got %r"
@@ -359,10 +384,27 @@ def validate_rubric(raw, root="."):
                 "counts for nothing, which reads as coverage it does not provide" % where
             )
             continue
+        # A held line and an optimisation objective make opposite demands of these two checks, so
+        # the declaration decides which pair applies. `must_not_regress` REQUIRES the equality the
+        # objective refuses, and skips the direction cross-check — for a line being held, baseline
+        # and target are equal whichever direction is better, so comparing them decides nothing.
+        if entry.get("must_not_regress", False):
+            if entry["target"] != entry["baseline"]:
+                findings.append(
+                    "%s: must_not_regress is declared but target %r is not its baseline %r — a "
+                    "dimension cannot both hold a line and be asked to move to a different one, "
+                    "and silently taking either reading is how a swapped pair gets accepted"
+                    % (where, entry["target"], entry["baseline"])
+                )
+                continue
+            rubric.append(dict(entry))
+            continue
         if entry["target"] == entry["baseline"]:
             findings.append(
                 "%s: target equals its baseline — a dimension that cannot move scores "
-                "nothing and measures nothing" % where
+                "nothing and measures nothing. A dimension whose job is to NOT move declares "
+                "`must_not_regress: true` instead of inventing a target it does not have"
+                % where
             )
             continue
         rising = entry["target"] > entry["baseline"]
@@ -391,18 +433,26 @@ def score_dimension(entry, measured):
     """
     baseline = float(entry["baseline"])
     target = float(entry["target"])
-    raw = (measured - baseline) / (target - baseline) * 100.0
-    score = max(0.0, min(100.0, raw))
     if entry["direction"] == "lower-is-better":
         gate_failed = measured > entry["failure_threshold"]
     else:
         gate_failed = measured < entry["failure_threshold"]
+    if entry.get("must_not_regress", False):
+        # Held, or not. There is no interpolation to do — the two ends are the same number, which
+        # is exactly why `validate_rubric` used to refuse this dimension, and why the division
+        # below is never reached for one. The threshold is what decides, so the score follows it
+        # rather than being a second opinion about the same measurement.
+        score = 0.0 if gate_failed else 100.0
+    else:
+        raw = (measured - baseline) / (target - baseline) * 100.0
+        score = max(0.0, min(100.0, raw))
     return {
         "dimension": entry["dimension"],
         "measured": measured,
         "score": round(score, 4),
         "weight": entry["weight"],
         "hard_gate": entry["hard_gate"],
+        "must_not_regress": entry.get("must_not_regress", False),
         "gate_failed": gate_failed,
         "failure_threshold": entry["failure_threshold"],
         "evidence_command": entry["evidence_command"],

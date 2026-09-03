@@ -175,7 +175,11 @@ and the batch is the unit of planning and verification — not the individual it
 4. **Execute.** `executing-plans` for one item; `subagent-driven-development` when the
    wave has genuinely independent items and the plans prove they do not collide.
 5. **Verify, then close.** `verification-before-completion`, then
-   `set RM-XXXX --status done --evidence <sha>` per item.
+   `set RM-XXXX --status done --evidence <sha>` per item. `--evidence` must resolve to a
+   commit in the roadmap's own repository — the engine refuses a value that does not, so
+   close the item **after** the work lands rather than reserving the row with a
+   placeholder (harness:RM-0471). A roadmap outside any repository is the one case that
+   cannot be checked; there the value is recorded with the limit stated on stderr.
 6. **Gap closure.** Where verification fails, do not reopen the plan wholesale: capture
    each gap as its own child item, plan those, re-run step 3. A gap is a scope discovery,
    and scope discoveries belong in the roadmap.

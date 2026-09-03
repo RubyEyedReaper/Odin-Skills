@@ -28,11 +28,43 @@ outranks any total, including one that went up**.
 | `dimension` | A name unique within the rubric | Two dimensions with one name make the total depend on which was read last |
 | `evidence_command` | Non-empty, and it really produces the number | "Better" is a judgment again, and the loop is back where it started |
 | `baseline` | The number measured **before** the change | Nothing to compare an after against, which is half of what a critic needs |
-| `target` | The number that would score 100, and not equal to `baseline` | A dimension that cannot move scores nothing and measures nothing |
+| `target` | The number that would score 100, and not equal to `baseline` unless `must_not_regress` is declared | A dimension that cannot move scores nothing and measures nothing |
 | `weight` | A positive number | A zero-weight dimension is declared, counts for nothing, and reads as coverage it does not provide |
 | `failure_threshold` | The value on the wrong side of which this dimension fails | The dimension reports and never refuses |
 | `direction` | `higher-is-better` or `lower-is-better`, agreeing with `baseline` → `target` | See below — this is the one key that could have been derived, and deliberately is not |
 | `hard_gate` | `true` or `false` — a boolean, not a truthy string | A truthy string would make every dimension a hard gate, silently |
+
+### The ninth key, which is optional: `must_not_regress`
+
+A dimension whose job is to **not move** — `suite-failures` at 0, `record-integrity` at 0 — sits at
+its target already. The `target != baseline` rule above is right for an optimisation objective and
+wrong for a hard gate, so those two honest dimensions were unwritable, and the workaround reached
+for first was a fractional target (`0` → `0.0001`) invented to satisfy the validator
+(harness:RM-0473). That is a lie written into the contract.
+
+```json
+{
+  "dimension": "suite-failures",
+  "evidence_command": "bash .claude/tests/run-all.sh",
+  "baseline": 0,
+  "target": 0,
+  "weight": 30,
+  "failure_threshold": 0,
+  "direction": "lower-is-better",
+  "hard_gate": true,
+  "must_not_regress": true
+}
+```
+
+| Declared `true` | Effect |
+|---|---|
+| `target` | must **equal** `baseline` — a dimension cannot both hold a line and be asked to move to a different one, and the disagreement is refused rather than silently resolved |
+| `direction` | not cross-checked against `baseline` → `target`; for a line being held those are equal whichever direction is better, so the comparison decides nothing. It still decides which side of `failure_threshold` fails |
+| score | `100` while the line holds, `0` once it breaks — there is nothing to interpolate between two ends that are the same number, which is exactly why the old refusal existed |
+
+It is the one key a dimension may omit; absent means `false`, which is what every rubric written
+before it already meant. Declared, never inferred from `baseline`, `target` and `failure_threshold`
+coinciding — for the same reason `direction` is declared, immediately below.
 
 **Why `direction` is declared rather than derived.** The ordering of `baseline` and `target` already
 implies it, so deriving it would cost one key fewer. It is declared because a swapped pair reads
@@ -42,7 +74,8 @@ cross-checks the two and refuses a disagreement, which turns a silent inversion 
 ## The arithmetic, stated once
 
 ```
-score            = clamp(0, 100, (measured − baseline) ÷ (target − baseline) × 100)
+score            = 100 if not gate_failed else 0            (must_not_regress)
+                 | clamp(0, 100, (measured − baseline) ÷ (target − baseline) × 100)
 weighted_total   = Σ(weight × score) ÷ Σ(weight)
 gate_failed      = measured > failure_threshold   (lower-is-better)
                  | measured < failure_threshold   (higher-is-better)
