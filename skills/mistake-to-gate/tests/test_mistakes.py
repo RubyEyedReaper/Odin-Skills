@@ -237,6 +237,47 @@ class Owners(unittest.TestCase):
             mistakes.owners(Path(tempfile.mkdtemp()))
 
 
+class OwnersSubcommand(unittest.TestCase):
+    """`owners` is a projection of `owners()`, not a second enumeration.
+
+    The mistake-log gate has to refuse a duplicate-bearing log for every owner the engine would
+    otherwise COUNT, which means the wrapper needs the same owner set the engine uses. Re-deriving
+    it in shell would be a second implementation whose drift is silent in the direction that
+    matters — a project added later, uncovered, while both halves look healthy. So the shell asks,
+    and these cases assert that what it is told matches what `owners()` returns.
+    """
+
+    def _run(self, *argv):
+        import io
+        from contextlib import redirect_stdout, redirect_stderr
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            rc = mistakes.main(list(argv))
+        return rc, out.getvalue(), err.getvalue()
+
+    def test_it_prints_one_path_per_owner(self):
+        tmp = Owners()._tree("alpha", "beta")
+        rc, out, _ = self._run("owners", str(tmp))
+        self.assertEqual(rc, 0)
+        printed = [Path(line) for line in out.splitlines() if line.strip()]
+        included, _ = mistakes.owners(tmp)
+        self.assertEqual(printed, included)
+
+    def test_a_nested_repository_is_excluded_and_noted_on_stderr(self):
+        tmp = Owners()._tree("alpha", nested=("Nested",))
+        rc, out, err = self._run("owners", str(tmp))
+        self.assertEqual(rc, 0)
+        self.assertNotIn("Nested", out)
+        self.assertIn("Nested", err)
+
+    def test_an_unenumerable_root_exits_non_zero(self):
+        # An enumeration that finds nothing is an error, never "0 owners, clean" — the same
+        # fail-closed rule `check` already follows, and the reason the wrapper can trust the list.
+        rc, out, _ = self._run("owners", str(Path(tempfile.mkdtemp())))
+        self.assertNotEqual(rc, 0)
+        self.assertEqual(out.strip(), "")
+
+
 class Append(unittest.TestCase):
     def _log_path(self, body=None):
         tmp = Path(tempfile.mkdtemp()) / "MISTAKES.md"

@@ -663,6 +663,28 @@ def cmd_check(args):
     return 0
 
 
+def cmd_owners(args):
+    """Print one owner path per line — a PROJECTION of `owners()`, never a second enumeration.
+
+    The gate wrapper has to refuse a duplicate-bearing log for every owner this engine would
+    otherwise count, so it needs exactly this list. Deriving it again in shell would put a second
+    copy of the "beside the CHANGELOG, minus nested repositories" rule in the tree, and its drift
+    would be silent in the one direction that matters: a project added later, counted here and
+    unchecked there, while both halves look healthy.
+
+    Fail-closed is inherited rather than restated — `owners()` raises on an enumeration that finds
+    nothing, `main` turns that into exit 1, and stdout stays empty. A caller that reads an empty
+    list as "no owners, nothing to check" is reading a non-zero exit.
+    """
+    included, skipped = owners(args.root)
+    for s in skipped:
+        print("note: %s is its own repository — it keeps its own %s and its own gate"
+              % (s, LOG_NAME), file=sys.stderr)
+    for owner in included:
+        print(owner)
+    return 0
+
+
 def cmd_report(args):
     try:
         included, skipped = owners(args.root)
@@ -794,6 +816,10 @@ def build_parser():
     c = sub.add_parser("check", help="gate: grammar, owner coverage, promotion-due keys")
     c.add_argument("root", nargs="?", default=".")
     c.set_defaults(func=cmd_check)
+
+    o = sub.add_parser("owners", help="print the owner roots this engine counts, one per line")
+    o.add_argument("root", nargs="?", default=".")
+    o.set_defaults(func=cmd_owners)
 
     r = sub.add_parser("report", help="human/agent view of counts and bands")
     r.add_argument("root", nargs="?", default=".")
