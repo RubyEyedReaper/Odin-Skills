@@ -30,6 +30,7 @@ Rigid skill. The checkpoint decision is not a judgment call; the predicates belo
 | What to work on next, once | `roadmap` alone. A single pick is not a loop |
 | Hand this session forward, one worker | `/relay` |
 | Two or more independent workers | `successor` |
+| A campaign that must re-arm rather than end — drive the whole backlog to exhaustion in batches | `gauntlet` — this skill decides whether to continue; that one computes what is left and which of it goes in the next wave |
 
 Not for: a single task with a defined end (do it), or a loop over work that shares mutable state —
 parallel sessions on one checkout corrupt each other's index (ADR-0054).
@@ -72,8 +73,15 @@ A checkpoint is a **defined state**, not a feeling of being finished. Exactly th
 | Checkpoint | Reached when | Recorded as |
 |---|---|---|
 | **Landed** | The item is on `main` and closed with the landed sha | `roadmap set RM-XXXX --status done --evidence <sha>` |
-| **Hard blocker** | An external dependency refuses: missing credential, failing upstream, rate limit, a decision that spends money or is outward-facing | `roadmap set RM-XXXX --status blocked` + the blocker in one line, and the loop moves to the next item — a blocked item is not a stopped loop |
+| **Hard blocker** | An external dependency refuses: missing credential, failing upstream, rate limit, a decision that spends money or is outward-facing | `work-loop iterate --outcome escalate` with all three of `--blocker`, `--evidence`, `--recommended-next`, plus `roadmap set RM-XXXX --notes "<blocker>"` to leave the trace on the item — then the loop moves to the next item, because a blocked item is not a stopped loop |
 | **Context** | Context past roughly half the ceiling | `/relay` — the successor continues from the handoff |
+
+**`blocked` is not a roadmap status.** The engine's statuses are `proposed`, `ready`, `in-progress`,
+`done`, `dropped`, and `--status` is a fixed choice list — so the command this row prescribed for
+most of its life, `roadmap set RM-XXXX --status blocked`, could not run at all. Blockedness is
+**computed**, from an unmet `deps` edge (the graph's own arithmetic) or from an `escalate` record in
+a `work-loop` ledger (a hard external blocker). `gauntlet frontier` reports the two apart and never
+sums them: collapsing them is how a rate limit gets reported as a dependency and waited on forever.
 
 **Not checkpoints.** In-scope work left undone by choice; a plan written but not executed; a branch
 green but unpushed; "this deserves its own session later". Each of those is the loop handing work

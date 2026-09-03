@@ -20,6 +20,7 @@ what order**, and **whether it may be declared finished.** Everything else alrea
 | One bounded cycle and its ledger | `work-loop` | A campaign's unit is an item, not an iteration. A loop asks whether to run again; a campaign asks whether it is done. |
 | Deciding what residue to delete at the end | `tidy` | Close-out hands residue over as a list. It never deletes. |
 | Whether to keep going at all | `endless` | Continuation doctrine. This skill says whether a campaign may close, never whether to start another. |
+| The loop *across* campaigns — what is left over roadmap, tracker and manifests at once, and which of it goes in the next wave | `gauntlet` | This skill answers about **one** campaign's declared items. A gauntlet re-arms: it recomputes the frontier after a close and pins the next batch. `close` is what it calls to ask whether this batch may end. |
 
 ## The stance
 
