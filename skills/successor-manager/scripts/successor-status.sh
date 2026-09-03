@@ -10,7 +10,9 @@
 #      together at 2026-08-19T00:22Z went on rendering as ordinary for eight hours (M-0014,
 #      ADR-0072). Exit 2 from the health gate means every session is dead whatever the registry
 #      says. Exit 3 means the registry is unreadable and no verdict may be claimed for anything.
-#   2. BRANCH MOVEMENT. `git ls-remote` for the published sha, and the tip's own commit date.
+#   2. BRANCH MOVEMENT. `git ls-remote` for the published sha, and the branch's own AUTHOR dates.
+#      Never the committer date: a rebase rewrites it, this repository rebases constantly, and a
+#      stalled worker whose branch someone else rebased read `live` forever (DEC-0095, ADR-0148).
 #   3. LANDEDNESS BY CONTENT, via bl_classify. Never `git merge-base --is-ancestor`: this
 #      repository lands by rebase merge, which rewrites every sha, and ancestry answered
 #      "not merged" for 56 of 110 branches that had in fact landed (ADR-0093).
@@ -253,7 +255,24 @@ for f in "${rows[@]}"; do
     ref="$(resolve_ref "$branch")"
     if [ -n "$ref" ]; then
       landedness="$(bl_classify "$ROOT" "$ref" "$BASE")"
-      progress="$(git -C "$ROOT" log -1 --format=%ct "$ref" 2>/dev/null)"
+      # THE AUTHOR DATE, NOT THE COMMITTER DATE (DEC-0095, ADR-0148). This is asking "has this
+      # worker made progress recently", and a rebase is not progress by the worker: it preserves
+      # the author date and rewrites the committer date. Under the committer date a stalled worker
+      # whose branch ANYBODY ELSE rebases read `live` and could never reach `stalled` -- the
+      # verdict engine defeated by a third party's action, on the one question it exists to answer.
+      # Measured on origin/harness/campaign-endless 2026-09-03: the two fields 10781s apart, from
+      # an integration step and no work at all. The window here is 1800s, so that single rebase is
+      # six times the window.
+      #
+      # The MAXIMUM over the branch's own commits, not the tip's alone: the tip's author date is
+      # not reliably the newest on a branch (41 of 399 adjacent pairs on origin/main are out of
+      # author-date order, largest inversion 3.1 days = 149x this window), and a cherry-picked
+      # commit carries an author date from wherever it came from. An empty `$BASE..$ref` is not an
+      # error -- a branch with no commits of its own is handled by the `no-commits` arm below --
+      # so it falls back to the tip's author date, and a value that is not a number still falls
+      # back to `launched_at` exactly as before.
+      progress="$(git -C "$ROOT" log --format=%at "$BASE..$ref" 2>/dev/null | sort -n | tail -1)"
+      case "$progress" in ''|*[!0-9]*) progress="$(git -C "$ROOT" log -1 --format=%at "$ref" 2>/dev/null)" ;; esac
       case "$progress" in ''|*[!0-9]*) progress="$launched_at" ;; esac
 
       # NO WORK YET IS NOT WORK THAT LANDED. A branch whose content is entirely in the base is
