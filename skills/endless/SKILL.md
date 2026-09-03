@@ -31,6 +31,7 @@ Rigid skill. The checkpoint decision is not a judgment call; the predicates belo
 | Hand this session forward, one worker | `/relay` |
 | Two or more independent workers | `successor` |
 | A campaign that must re-arm rather than end — drive the whole backlog to exhaustion in batches | `gauntlet` — this skill decides whether to continue; that one computes what is left and which of it goes in the next wave |
+| A new task displaced the work in flight and the return must not depend on memory | `off-topic` — its *checkpoint* is a committed debt, not a decision point; this skill's checkpoints decide whether to continue at all |
 
 Not for: a single task with a defined end (do it), or a loop over work that shares mutable state —
 parallel sessions on one checkout corrupt each other's index (ADR-0054).

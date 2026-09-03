@@ -20,6 +20,7 @@ metadata:
 | Deciding a plan is spent | the contract | CLAUDE.md item 8: a plan is spent once its work is in living docs or code **and recorded in `CHANGELOG.md`**. This skill reads that record; it does not form the judgement. |
 | Sweeping session-keyed runtime state | `runtime-retention.sh` | Those classes are swept mechanically on a schedule. A class nobody declared is swept by nothing — a declaration bug, not a tidy decision. |
 | Deciding what to work on next | `roadmap` | Removing spent material is not planning. |
+| An open checkpoint under `.claude/docs/off-topic/` | `off-topic` | It looks like residue and is an outstanding obligation. Closing one is a *return* — the file is deleted by the commit that resumes the work, never by a sweep. Always `refuse`. |
 
 ## When to use
 

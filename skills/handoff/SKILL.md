@@ -50,6 +50,9 @@ One paragraph: what was being built, and the last thing that landed.
 
 Uncommitted edits, an open PR, a running gate — with paths, not contents.
 
+An open checkpoint under `.claude/docs/off-topic/` is in flight too — name it and its resume
+condition here (`off-topic`), or the successor inherits the branch without the debt attached to it.
+
 ## Next actions
 
 1. The imperative first move, the same one as `next_action`.

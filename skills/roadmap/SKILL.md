@@ -195,6 +195,11 @@ claimed, `links.plan` says what to read, and `waves` says what came next. On a f
 session, run `waves`, open the linked plan, continue. Use `/relay` to hand a session off.
 Nothing else needs persisting, and a fourth state file is one more thing that can lie.
 
+The one thing not in those fields is the **displacement relation** — that this item was
+interrupted *by* another and a return is owed once that one finishes; two items at `in-progress`
+read identically to ordinary parallel work. `off-topic` records that relation and nothing else
+(DEC-0108).
+
 ## Bootstrapping must add starter surfaces
 
 Project docs omit what the author wasn't thinking about. `--surface-sweep [PROFILE]` adds a

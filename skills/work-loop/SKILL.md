@@ -18,6 +18,7 @@ completed action.
 | Executing a written implementation plan | `executing-plans` | The plan is the sequence. A Loop is a cycle with a limit. |
 | Recurring wall-clock scheduling | Not this skill, at all | Nothing here schedules, triggers, or wakes anything. |
 | What to work on next | `roadmap` | A Loop is *how* a bounded piece of work is run, never *which* work is next. |
+| Recording that a mid-run task displaced work, and what condition means the return is owed | `off-topic` | `pause` ends this cycle; a displacement suspends work inside a run that is still live, and often in a session that opened no contract at all. |
 | A reusable chain of skills and its lifecycle | `workflows` | A chain is emitted once, in order. A Loop iterates. |
 
 ## The contract
