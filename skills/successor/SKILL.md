@@ -153,3 +153,4 @@ registered keeps Layer 1F's concurrency guard armed against the main checkout (A
 | Operational facts learned the hard way | `references/fleet-runbook.md` § Pinned facts |
 | Why sessions and not subagents | `.claude/docs/adr/0059-successor-skill.md` |
 | One successor, no fleet | `/relay`, `.claude/commands/relay.md` |
+| What a worker reports back, and what its terminal carries instead | `s2s` — a send reports on the send (ADR-0162) |

@@ -134,5 +134,6 @@ removes nothing.
 | What the manifest holds, field by field | [campaign-record.md](references/campaign-record.md) |
 | Delegating one worker, and integrating it | `successor` |
 | Is that worker stalled, dead, or landed | `successor-manager` |
+| What a worker sends back, and why a queued message is not a delivered one | `s2s` (ADR-0162) |
 | Why status is computed and never stored | `.claude/docs/adr/0113-a-campaign-manifest-stores-the-plan-not-the-status.md` |
 | Why landedness is content, never ancestry | `.claude/docs/adr/0093-branch-landedness-is-a-question-about-content.md` |
