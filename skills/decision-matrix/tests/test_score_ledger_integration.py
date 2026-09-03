@@ -391,8 +391,12 @@ class TestRecordedIdSurvivesACollision(unittest.TestCase):
             self.assertEqual(written_id, "DEC-0002")
             self.assertIn(f"| {written_id} |", readme)
             self.assertIn(written, readme)
-            # The row for the id this run did NOT write must not have been invented.
-            self.assertNotIn("| DEC-0001 |", readme)
+            # The other session's record is on disk, so it HAS a row — the index is
+            # rendered from every record, and reflecting one is not inventing one
+            # (harness:RM-0224). What must not happen is this run's row landing under
+            # the other session's id: DEC-0001's row links the other session's file.
+            self.assertIn("DEC-0001-claimed-by-another-session.md", readme)
+            self.assertNotIn(f"| DEC-0001 | {written}", readme)
 
 
 class TestRunSignatureIsKeywordOnly(unittest.TestCase):

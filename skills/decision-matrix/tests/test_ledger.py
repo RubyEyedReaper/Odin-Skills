@@ -444,24 +444,37 @@ class TestVetoSectionInRecord(unittest.TestCase):
 class TestUpdateReadmeIndex(unittest.TestCase):
 
     def test_creates_readme_with_header_if_missing(self):
+        """The title comes from the RECORD, never from the caller (harness:RM-0224).
+
+        The arguments this function still takes are ignored: the index is rendered from
+        every record's frontmatter, so a caller cannot tell it a row that the ledger does
+        not already say. Being told a row is what let the index and the records disagree
+        (issue #244) — a hand-written record never made the call.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
             decisions_dir.mkdir()
             dec_path = decisions_dir / "DEC-0001-pick-a-cache.md"
-            dec_path.write_text("# stub")
-            update_readme_index("DEC-0001", "Pick a cache", dec_path, decisions_dir, winner="redis")
+            dec_path.write_text(
+                "---\ndec_id: DEC-0001\ngoal: Pick a cache\nwinner: redis\n---\n# body",
+                encoding="utf-8",
+            )
+            update_readme_index("DEC-0001", "ignored", dec_path, decisions_dir, winner="ignored")
             readme = decisions_dir / "README.md"
             self.assertTrue(readme.exists())
             content = readme.read_text()
-            self.assertIn("DEC-0001", content)
-            self.assertIn("Pick a cache", content)
+            self.assertIn("| DEC-0001 | Pick a cache | redis |", content)
+            self.assertNotIn("ignored", content)
 
     def test_upserts_without_duplicating_existing_row(self):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
             decisions_dir.mkdir()
             dec_path = decisions_dir / "DEC-0001-pick-a-cache.md"
-            dec_path.write_text("# stub")
+            dec_path.write_text(
+                "---\ndec_id: DEC-0001\ngoal: Pick a cache\nwinner: redis\n---\n# body",
+                encoding="utf-8",
+            )
             update_readme_index("DEC-0001", "Pick a cache", dec_path, decisions_dir, winner="redis")
             update_readme_index("DEC-0001", "Pick a cache", dec_path, decisions_dir, winner="redis")
             readme = decisions_dir / "README.md"
@@ -474,18 +487,26 @@ class TestUpdateReadmeIndex(unittest.TestCase):
             decisions_dir = Path(tmp) / "decisions"
             decisions_dir.mkdir()
             p1 = decisions_dir / "DEC-0001-first.md"
-            p1.write_text("# stub")
+            p1.write_text("---\ndec_id: DEC-0001\ngoal: First Decision\nwinner: redis\n---\n",
+                          encoding="utf-8")
             p2 = decisions_dir / "DEC-0002-second.md"
-            p2.write_text("# stub")
+            p2.write_text("---\ndec_id: DEC-0002\ngoal: Second Decision\nwinner: memcached\n---\n",
+                          encoding="utf-8")
             update_readme_index("DEC-0001", "First Decision", p1, decisions_dir, winner="redis")
             update_readme_index("DEC-0002", "Second Decision", p2, decisions_dir, winner="memcached")
             content = (decisions_dir / "README.md").read_text()
             self.assertIn("DEC-0001", content)
             self.assertIn("DEC-0002", content)
 
-    def test_new_row_lands_inside_the_table_not_after_trailing_prose(self):
-        """The shipped README ends with an HTML comment; a row appended past it
-        would sit outside the table and stop rendering as a row."""
+    def test_a_row_lands_inside_the_table_and_the_trailer_stays_below_it(self):
+        """A row outside the table is not a row under GFM.
+
+        The hazard this case was written for — an append walking past a trailing HTML
+        comment — cannot occur any more: the whole file is generated, so the trailer is
+        placed rather than stepped over, and a hand-edited file is caught by the checker
+        rather than appended to. The invariant survives the mechanism: every row sits in
+        the contiguous block the header separator opens, and prose sits below it.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
             decisions_dir.mkdir()
@@ -495,16 +516,18 @@ class TestUpdateReadmeIndex(unittest.TestCase):
                 "| DEC | Title | Winner | Record |\n"
                 "|---|---|---|---|\n"
                 "\n"
-                "<!-- New DEC rows are appended above by ledger.py -->\n"
+                "<!-- a hand-written index, which the render replaces outright -->\n"
             )
             dec_path = decisions_dir / "DEC-0001-pick.md"
-            dec_path.write_text("# stub")
+            dec_path.write_text("---\ndec_id: DEC-0001\ngoal: Pick\nwinner: redis\n---\n",
+                                encoding="utf-8")
             update_readme_index("DEC-0001", "Pick", dec_path, decisions_dir, winner="redis")
             lines = (decisions_dir / "README.md").read_text().splitlines()
             row_index = next(i for i, l in enumerate(lines) if l.startswith("| DEC-0001 |"))
-            comment_index = next(i for i, l in enumerate(lines) if l.startswith("<!--"))
-            self.assertLess(row_index, comment_index)
-            self.assertTrue(lines[row_index - 1].startswith("|"))
+            sep_index = next(i for i, l in enumerate(lines) if l.startswith("|--"))
+            self.assertGreater(row_index, sep_index)
+            self.assertTrue(all(lines[i].startswith("|") for i in range(sep_index, row_index + 1)))
+            self.assertTrue(any(l.startswith(">") for l in lines[row_index + 1:]))
 
     def test_creates_decisions_dir_if_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -573,15 +596,19 @@ class TestWriteDecRecordReturnsResolvedId(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp)
             holder = decisions_dir / "DEC-0001-claimed.md"
-            holder.write_text("x", encoding="utf-8")
+            holder.write_text("---\ndec_id: DEC-0001\ngoal: Claimed first\nwinner: first\n---\n",
+                              encoding="utf-8")
             update_readme_index("DEC-0001", "Claimed first", holder, decisions_dir, winner="first")
 
             path, resolved_id = write_dec_record("DEC-0001", _spec(), _result(), decisions_dir)
             update_readme_index(resolved_id, "Second decision", path, decisions_dir, winner="redis")
 
             readme = (decisions_dir / "README.md").read_text(encoding="utf-8")
-            self.assertIn("| DEC-0001 | Claimed first |", readme)
-            self.assertIn("| DEC-0002 | Second decision |", readme)
+            # Each row's text comes from its own record, so the second write cannot
+            # overwrite the holder's row even when it walks in holding the holder's id.
+            self.assertIn("| DEC-0001 | Claimed first | first |", readme)
+            self.assertIn("| DEC-0002 |", readme)
+            self.assertIn("DEC-0002-", readme)
 
 
 if __name__ == "__main__":

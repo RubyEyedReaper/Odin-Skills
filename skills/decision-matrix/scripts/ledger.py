@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+from scripts.ledgers import render_to
 from scripts.validate import constraint_violations
 
 _DEC_FILENAME_RE = re.compile(r"^DEC-(\d{4})-")
@@ -334,77 +335,25 @@ def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path)
     return path, resolved_dec_id
 
 
-def _table_end(lines: list) -> int:
-    """Index just past the last row of the index table the header separator opens.
-
-    Not "after the last line starting with `|`". A blank line inside a GFM table ends
-    it: every pipe-prefixed line after the gap renders as a paragraph, not a row. The
-    naive rule inserts new rows into that orphan, so one stray blank line quietly
-    converts the ledger index into a wreck that grows with every subsequent record —
-    which is exactly what happened to the harness ledger between DEC-0015 and DEC-0019.
-
-    Falls back to end-of-file only when there is no table at all.
-    """
-    sep = next(
-        (i for i, line in enumerate(lines) if line.lstrip().startswith("|--")),
-        None,
-    )
-    if sep is None:
-        last = max(
-            (i for i, line in enumerate(lines) if line.lstrip().startswith("|")),
-            default=None,
-        )
-        return len(lines) if last is None else last + 1
-
-    end = sep + 1
-    while end < len(lines) and lines[end].lstrip().startswith("|"):
-        end += 1
-    return end
-
-
 def update_readme_index(dec_id: str, title: str, path: Path, decisions_dir: Path, winner: str = None) -> None:
-    """Upsert a row for dec_id in decisions_dir/README.md (create with header if missing).
+    """Rewrite the ledger's index from every record in it. The arguments are ignored.
 
-    Does not duplicate an existing dec_id row — re-running for the same dec_id is a no-op
-    on the table contents (idempotent upsert).
+    WHY THE ARGUMENTS ARE IGNORED (harness:RM-0224). This function used to append one row at
+    the end of the index table, which is where every other branch's row also went — so two
+    campaign branches each recording a decision conflicted on rebase, by construction, on
+    every pair. The index is now derived from the records: `ledgers.render_to` reads each
+    `DEC-*.md`'s frontmatter, which already carries `dec_id`, `goal` and `winner`, so there
+    is nothing a caller can tell it that the ledger does not already say.
+
+    The signature survives because callers and their tests spell it, and because being told
+    a row is exactly what let the index disagree with the records in the first place (issue
+    #244): a record written by hand never called this, and the row it should have added was
+    never noticed missing. A renderer cannot have that failure.
+
+    Kept and not deleted: `projects/Odin-Skills/skills/decision-matrix/` mirrors this file and
+    is checked for drift by a gate this change must not break.
     """
-    decisions_dir = Path(decisions_dir)
-    decisions_dir.mkdir(parents=True, exist_ok=True)
-    readme_path = decisions_dir / "README.md"
-
-    header_lines = [
-        "# Decision Ledger",
-        "",
-        "| DEC | Title | Winner | Record |",
-        "|---|---|---|---|",
-    ]
-
-    try:
-        rel_path = Path(path).relative_to(decisions_dir)
-    except ValueError:
-        rel_path = Path(path).name
-    link = f"[{Path(path).name}]({rel_path})"
-    new_row = f"| {dec_id} | {title} | {winner or '—'} | {link} |"
-
-    if readme_path.exists():
-        lines = readme_path.read_text(encoding="utf-8").splitlines()
-    else:
-        lines = list(header_lines)
-
-    # Find existing row for this dec_id (rows look like "| DEC-0001 | ... |").
-    row_prefix = f"| {dec_id} |"
-    existing_index = None
-    for i, line in enumerate(lines):
-        if line.startswith(row_prefix):
-            existing_index = i
-            break
-
-    if existing_index is not None:
-        lines[existing_index] = new_row
-    else:
-        lines.insert(_table_end(lines), new_row)
-
-    readme_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    render_to(Path(decisions_dir))
 
 
 def promote_to_adr_hint(result: dict) -> bool:

@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ledgers import check_ledger, discover_ledgers, _index_rows
+from scripts.ledgers import check_ledger, discover_ledgers, render_to, _index_rows
 
 
 def write_record(ledger: Path, number: str, dec_id: str = None) -> Path:
@@ -24,6 +24,17 @@ def write_record(ledger: Path, number: str, dec_id: str = None) -> Path:
         encoding="utf-8",
     )
     return path
+
+
+def render_ledger(ledger: Path) -> Path:
+    """The index as the engine writes it — the only shape a healthy ledger has.
+
+    `write_index` below stays for the cases that need an index the renderer would never
+    produce. A passing case must not use it, or these tests assert that a hand-written
+    index is acceptable, which is what the gate stopped accepting (harness:RM-0224).
+    """
+    ledger.mkdir(parents=True, exist_ok=True)
+    return render_to(ledger)
 
 
 def write_index(ledger: Path, *numbers: str) -> Path:
@@ -85,7 +96,7 @@ class TestCheckLedger(unittest.TestCase):
             ledger = Path(tmp) / "decisions"
             write_record(ledger, "0001")
             write_record(ledger, "0002")
-            write_index(ledger, "0001", "0002")
+            render_ledger(ledger)
             self.assertEqual(check_ledger(ledger), [])
 
     def test_record_without_a_row_fails(self):
@@ -95,8 +106,11 @@ class TestCheckLedger(unittest.TestCase):
             write_record(ledger, "0002")
             write_index(ledger, "0001")
             failures = check_ledger(ledger)
-            self.assertEqual(len(failures), 1)
-            self.assertIn("DEC-0002", failures[0])
+            # Two failures, not one: the record has no row, AND the index no longer matches
+            # what the records render. Both are true and each is worth naming — a reader who
+            # sees only "no row" reaches for the row rather than for the renderer.
+            self.assertTrue(any("DEC-0002" in f and "no row" in f for f in failures), failures)
+            self.assertTrue(any("stale or hand-edited" in f for f in failures), failures)
 
     def test_dec_id_disagreeing_with_the_filename_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -147,7 +161,7 @@ class TestCheckLedger(unittest.TestCase):
             ledger = Path(tmp) / "decisions"
             write_record(ledger, "0027")
             write_record(ledger, "0028")
-            write_index(ledger, "0027", "0028")
+            render_ledger(ledger)
             self.assertEqual(check_ledger(ledger), [])
 
     def test_numbering_gaps_are_not_a_failure(self):
@@ -157,7 +171,7 @@ class TestCheckLedger(unittest.TestCase):
             ledger = Path(tmp) / "decisions"
             for n in ("0001", "0004", "0009"):
                 write_record(ledger, n)
-            write_index(ledger, "0001", "0004", "0009")
+            render_ledger(ledger)
             self.assertEqual(check_ledger(ledger), [])
 
     def test_html_artifacts_are_ignored(self):
@@ -165,7 +179,7 @@ class TestCheckLedger(unittest.TestCase):
             ledger = Path(tmp) / "decisions"
             write_record(ledger, "0001")
             (ledger / "DEC-0001-fixture.html").write_text("<html></html>", encoding="utf-8")
-            write_index(ledger, "0001")
+            render_ledger(ledger)
             self.assertEqual(check_ledger(ledger), [])
 
     def test_records_with_no_readme_fail_once(self):
