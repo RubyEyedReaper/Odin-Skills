@@ -19,6 +19,14 @@ resolve itself — not because the campaign around it is important. Before the d
 `odin-relay.sh` passed no `--model` at all and every worker silently inherited Opus: 4,915 sessions
 over 29 days, $4,419, and exactly $0.00 of it Sonnet.
 
+**A non-default tier now states why, and `odin-relay.sh` refuses one that does not.** Write
+`model_reason:` beside it, naming what about *this worker's own work* needs that tier. The rule was
+already here and was being ignored by copying: measured 2026-09-03, **74 of 200 handoffs in one
+workspace declared `model: opus` and not one declared sonnet or haiku** — the field was propagating
+from brief to brief, not being chosen. Omit `model:` entirely for the default and no reason is
+needed; `--model` on the command line is unguarded, because typing a flag is an act somebody is
+watching. Cases: `.claude/tests/relay.test.sh`.
+
 ---
 
 ```markdown
@@ -30,6 +38,7 @@ active_branch: <the branch THIS worker owns>
 plan_file: <path the worker will write its plan to, or null>
 next_action: <one imperative line — the worker's first move>
 model: <omit for sonnet; opus only when this worker's own work is deep reasoning>
+model_reason: <required whenever `model:` is not sonnet — what about THIS worker needs it>
 ---
 
 # Successor brief — Workstream <id>: <one-line title>
