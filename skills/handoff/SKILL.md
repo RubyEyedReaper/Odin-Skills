@@ -166,6 +166,7 @@ one of them — a channel answering is not the same as the question being answer
 | `claude agents --json` | the id set the daemon currently holds, and each session's cwd | liveness. The registry outlives the daemon that served it, so a dead session goes on rendering as `blocked` (M-0014). |
 | `claude logs <id>` | what the successor's screen showed, once the escapes are stripped | that anything readable was returned at all — this channel exits 0 whatever it emits — and never what landed. |
 | `git ls-remote --heads origin '<class>/*'` | that a branch exists at some sha, and when its tip last moved | that the work landed. Movement and ancestry are questions about shas; landedness is a question about content, and ancestry answered wrong for 56 of 110 branches (ADR-0093). |
+| `SendMessage` to or from a peer — the **outbound** channel, and the only one here the coordinator writes rather than reads | that a message was queued, and that the send call returned | that it was read, or ever will be. Every send is held for the recipient user's approval; two expired undelivered while each returned `success:true` (M-0125). Name a durable path the reader can pull and make the message a pointer to it — `s2s` owns that bar. |
 
 `claude logs` is the channel that reports success while delivering nothing readable. Measured
 2026-09-01 against session `ccf3304f`: `rc=0`, 65627 bytes, **6568 escape sequences** — cursor
