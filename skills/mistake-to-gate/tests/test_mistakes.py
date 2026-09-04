@@ -324,6 +324,51 @@ class Append(unittest.TestCase):
         self.assertIn("a", rows[0].context)
 
 
+class SetStatus(unittest.TestCase):
+    """set_status is the promote path's writer. Its only escaped-pipe coverage before this class
+    was Append's (append_row) — a different function, sharing nothing but the grammar. M-0115's
+    fix lives in set_status's own re-escape line; this proves it, against set_status itself."""
+
+    def _log_path(self, body):
+        tmp = Path(tempfile.mkdtemp()) / "MISTAKES.md"
+        tmp.write_text(body)
+        return tmp
+
+    def test_round_trips_a_row_with_an_escaped_pipe_through_set_status(self):
+        # The cell as it sits on disk today: an escaped pipe in free text (M-0115's shape —
+        # a quoted shell idiom like `2>/dev/null \| true`, collapsed here to the minimal case).
+        escaped_row = (
+            "M-0001", "2026-08-15", "input/x", "input",
+            r"a \| b", "`a.py:1`", "a guard", "logged",
+        )
+        p = self._log_path(log(escaped_row))
+        before = mistakes.parse_log(p.read_text())[0]
+
+        changed = mistakes.set_status(p, key="input/x", status="guarded")
+        self.assertEqual(changed, 1)
+
+        after_text = p.read_text()
+        # The defect's own symptom: a dropped re-escape turns one cell into two columns, and
+        # parse_log raises before any field comparison runs — this is what makes the case RED
+        # against the mutation, not just an unequal-string failure.
+        after = mistakes.parse_log(after_text)
+        self.assertEqual(len(after), 1)
+        after = after[0]
+
+        self.assertEqual(after.status, "guarded")
+        self.assertNotEqual(after.status, before.status)
+        self.assertEqual(after.id, before.id)
+        self.assertEqual(after.date, before.date)
+        self.assertEqual(after.key, before.key)
+        self.assertEqual(after.cls, before.cls)
+        self.assertEqual(after.context, before.context)
+        self.assertEqual(after.context, "a | b")
+        self.assertEqual(after.artifact, before.artifact)
+        self.assertEqual(after.fix, before.fix)
+        # And the raw form on disk stays a single escaped cell, not a corrupted split.
+        self.assertIn(r"a \| b", after_text)
+
+
 class BandAgreesWithCheck(unittest.TestCase):
     """harness:RM-0362 — one file, two readings, and the one a human reads first said the work
     was finished.
