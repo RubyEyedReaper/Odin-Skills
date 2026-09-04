@@ -236,6 +236,9 @@ deletes.
   pretending otherwise is how a green pipeline comes to mean nothing.
 - **Not a place for taste.** If competent people could disagree about a finding, it belongs in
   review.
+- **Not the first question.** Before writing a new gate, `consistency` asks which existing gate or
+  library already answers this predicate — a second gate over a covered predicate is the failure
+  key `ci-gate/policy-copied-into-a-second-place`, committed by the change meant to prevent it.
 
 ## Checklist
 

@@ -17,6 +17,7 @@ overdeveloped?** Everything adjacent already has an owner. Route there instead.
 | Critiquing a plan before code exists | `plan-adversary` agent | There is no diff to review. Severity tables and style checks do not apply |
 | Interface polish — spacing, states, hierarchy | `impeccable` | Design judgment, not structural judgment |
 | Removing dead code and duplication after the fact | `refactor-cleaner` agent | That is remediation. This skill reports; it never deletes |
+| Asking what already solved this, before the code was written | `consistency` | That is the precondition, not the review. A diff reimplementing something the tree already has is overdevelopment this skill can only find afterwards |
 
 Two of those are honest de-escalations. If the diff is small, human-written and uncontroversial,
 `code-reviewer` is the correct answer and this skill is overkill — which is the same mistake this

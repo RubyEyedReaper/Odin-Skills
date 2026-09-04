@@ -27,6 +27,7 @@ Three questions, in this order. Skipping the first is how a session automates it
 | Retrying a command until it goes green | `verification-loop` | A retry loop needs no record and no approval. |
 | Finding waste already present — context, caches, orphaned sessions | `leek` | Diagnosis of an existing leak. This skill is consulted before a new artifact exists. |
 | Writing the skill, script or rule the automation turns out to need | `skill-creator`, `writing-skills`, `rules-distill` | Those author the artifact once this skill has said which one, at which level. |
+| Whether something in this tree already does it, before any of the six verdicts are reached | `consistency` | A verdict of *automate* over a job an existing script already does is a second implementation, and this skill never asks that question. |
 
 ## The six verdicts
 
