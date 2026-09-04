@@ -564,7 +564,16 @@ def append_row(path, key, context, artifact, fix, date=None, status="logged"):
 
 
 def set_status(path, key, status, fix=None):
-    """Mark every row for a key — the closing step of a promotion. Returns the number changed."""
+    """Mark every row for a key — the closing step of a promotion. Returns the number changed.
+
+    A row already `guarded` carries fix text an earlier, individually-run `set_status --status
+    guarded` wrote for that one occurrence. A bulk `--fix` here overwrites it with one shared
+    sentence unconditionally, which is exactly how two distinct guarded provenances collapse into
+    one (harness:RM-0393) — the promotion's own closing step destroying the record it closes.
+    This WARNS to stderr rather than refusing: the acceptance this implements asks for a warning,
+    and a refusal would need an override flag on every legitimate promotion whose rows already
+    share one fix text, which is the ordinary case.
+    """
     path = Path(path)
     if status not in STATUSES:
         raise GrammarError("status %r is not one of %s" % (status, ", ".join(STATUSES)))
@@ -577,7 +586,18 @@ def set_status(path, key, status, fix=None):
         cells = _split_row(lines[r.line - 1])
         cells[7] = status
         if fix:
-            cells[6] = _escape(fix)
+            new_fix = _escape(fix)
+            # Compare in the SAME representation the write uses (`_escape`'s pipe-escaping and
+            # whitespace-collapsing applied to both sides) — comparing the parsed, already-
+            # unescaped `r.fix` against the escaped `new_fix` would false-positive on every row
+            # whose only difference is formatting `_escape` itself already normalises away.
+            if r.status == "guarded" and r.fix and _escape(r.fix) != new_fix:
+                print(
+                    "WARN: %s:%d: %s is already guarded with its own fix text (%r) — --fix "
+                    "%r overwrites it, destroying per-row provenance (mistake-to-gate section "
+                    "11). Omit --fix to keep it, or promote this row's key by itself."
+                    % (path, r.line, r.id, r.fix, fix), file=sys.stderr)
+            cells[6] = new_fix
         # Re-escape on write. `_split_row` turns `\|` into a literal pipe, so emitting the cells raw
         # gives the row one column per escaped pipe it contained and MISTAKES.md stops parsing —
         # caused by the command the promotion procedure mandates, on the log that command maintains,

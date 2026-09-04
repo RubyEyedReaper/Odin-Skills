@@ -189,6 +189,19 @@ the key keeps re-triggering the gate until somebody deletes the gate**.
    the proof the promotion is complete — the same "assert behaviour, never source" rule applied to
    your own closing step.
 
+   **What `--fix` overwrites.** This command rewrites the fix cell of **every** row for the key
+   whose status is not already the target — including a row already `guarded`, which carries fix
+   text an earlier, individual `set_status --status guarded` wrote for that one occurrence
+   (harness:RM-0393). A key whose rows were each guarded separately, with genuinely distinct fix
+   text, loses that distinction the moment this command runs — one shared sentence replaces all of
+   them, and the log's own header forbids hand-editing a promoted row to recover it. The engine
+   warns to stderr when it is about to do this (a row already `guarded`, non-empty existing fix
+   text, an incoming `--fix` that differs); it does not refuse, so read the warning before trusting
+   the "marked N row(s)" line that follows it. **Omitting `--fix` is always safe**: it marks every
+   row's status and leaves every row's fix text exactly as it was. Pass `--fix` only when every row
+   for the key should end up sharing that one sentence — which is the ordinary case for a key whose
+   rows were never individually guarded, and not the case for one that was.
+
 ### When the count is spread across owners
 
 A key can reach the threshold **across** owners without reaching it in any one — three rows in the
