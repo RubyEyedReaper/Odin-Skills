@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/lib/git-env.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/lib/git-env.sh"
 #
 # successor-status.sh — what is true of each delegated session, from evidence.
 #

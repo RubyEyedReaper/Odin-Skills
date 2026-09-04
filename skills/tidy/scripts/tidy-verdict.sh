@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/lib/git-env.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/lib/git-env.sh"
 #
 # tidy-verdict.sh — decide what may be done with one path that has outlived its purpose.
 #
