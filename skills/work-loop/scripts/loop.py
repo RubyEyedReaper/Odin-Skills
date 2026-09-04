@@ -15,6 +15,7 @@ nothing is inferred from the working directory.
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -578,6 +579,12 @@ def state_refusal(session, ledger, detail):
     return "%s: ledger is %s — %s" % (session, ledger.get("status", "closed"), detail)
 
 
+def now_iso():
+    """Second-precision UTC, `Z`-suffixed. Engine-derived like `state_hash` and `baseline`
+    — never caller-supplied, so a resumed session cannot backdate or skip a record."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def close_ledger(ledger, outcome, note=None, blocker=None,
                  evidence=None, recommended_next=None):
     """The ONE writer of terminal state, for both paths that can end a loop.
@@ -745,6 +752,12 @@ def cmd_open(args):
         "contract": contract,
         "status": "open",
         "final_outcome": None,
+        # The moment THIS epoch came alive — the source protocol's `state.json.timestamp`,
+        # mapped rather than duplicated: work-loop keeps no separate mutable "current"
+        # timestamp field, because a per-iteration one already exists and the last
+        # iteration's IS the current one (DEC-0118). This one fact an iteration cannot
+        # supply: a contract with zero iterations still opened at a real moment.
+        "opened_at": now_iso(),
         # The scalar is which contract is live; the list is every contract that preceded it.
         # Iterations stay cumulative and carry this number, so `n` is monotonic across a
         # revise and `quality_from` keeps naming exactly one record.
@@ -955,6 +968,7 @@ def cmd_iterate(args):
 
     record = {
         "n": len(ledger["iterations"]) + 1,
+        "timestamp": now_iso(),
         "epoch": ledger.get("epoch", 1),
         "reported_outcome": args.outcome,
         "outcome": outcome,
@@ -1381,6 +1395,7 @@ def cmd_status(args):
             "critic_verdict": None,
             "decision": None,
             "quality_from": None,
+            "last_timestamp": None,
         }
         payload.update(baseline_counts(ledger))
         emit(args, payload, "%s: open, no iterations recorded" % ledger["session"])
@@ -1428,6 +1443,7 @@ def cmd_status(args):
         "completed_actions": ledger["completed_actions"],
         "stalls": [it["stall"] for it in ledger["iterations"] if it["stall"]],
         "last_outcome": ledger["iterations"][-1]["outcome"],
+        "last_timestamp": ledger["iterations"][-1].get("timestamp"),
     }
     payload.update(quality)
     payload.update(baseline_counts(ledger))
