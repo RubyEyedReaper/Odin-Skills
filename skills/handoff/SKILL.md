@@ -66,6 +66,9 @@ What is unresolved, and what blocks what. Decide, record, continue — never sto
 ## Authorization scope
 
 edit only: <paths this successor owns>
+Append-only ledgers (`CHANGELOG.md`, `MISTAKES.md`, `FORKS.md`) default **in** — one successor
+works alone here, with no sibling to contend for them; if this successor's own change belongs in
+one, write it without asking (DEC-0121, decision-authority.md's "conventional default" row).
 
 ## Suggested skills
 

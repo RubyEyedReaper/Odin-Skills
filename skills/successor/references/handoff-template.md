@@ -66,6 +66,10 @@ Parallel workers reading the same ledger allocate the same next number and both 
 
 ## Authorization scope
 Edit only: <explicit paths>. Everything else belongs to a sibling worker or the coordinator.
+Append-only ledgers (`CHANGELOG.md`, `MISTAKES.md`, `FORKS.md`) default **out** of that list —
+several workers touch them concurrently in one wave, and a rebase-merge conflict on one has
+already landed with its markers intact. Name one explicitly in `edit only:` when this worker's own
+change belongs in it (DEC-0121).
 <Named prohibitions: never merge, never force-push, never open a PR, never close an issue,
 never edit generated files.>
 
