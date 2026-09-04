@@ -32,6 +32,7 @@ Rigid skill. The checkpoint decision is not a judgment call; the predicates belo
 | Two or more independent workers | `successor` |
 | A campaign that must re-arm rather than end — drive the whole backlog to exhaustion in batches | `gauntlet` — this skill decides whether to continue; that one computes what is left and which of it goes in the next wave |
 | A new task displaced the work in flight and the return must not depend on memory | `off-topic` — its *checkpoint* is a committed debt, not a decision point; this skill's checkpoints decide whether to continue at all |
+| A defect surfaced mid-iteration that is outside the item in hand | `out-of-scope` — it scores fix-now against defer and records the deferral; this skill decides whether the loop continues, never what happens to a finding inside one |
 
 Not for: a single task with a defined end (do it), or a loop over work that shares mutable state —
 parallel sessions on one checkout corrupt each other's index (ADR-0054).

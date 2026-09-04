@@ -30,6 +30,10 @@ gates with observable predicates below, not suggestions.
 **Not** for: how to build one item (`superplan`; `blueprint` for multi-PR), phase
 narrative (`PLAN.md`), or vocabulary (`CONTEXT.md`, owned by `domain-modeling`).
 
+Capturing a defect found mid-run is this skill's job; **whether capturing it is the right answer at
+all** is `out-of-scope`'s — it scores fixing it now against routing it here, and an item captured
+from a deferral is named by the record that deferred it.
+
 ## Storage
 
 | Scope | Canonical | Generated |

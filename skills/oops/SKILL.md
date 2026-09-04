@@ -26,6 +26,10 @@ is wrong by the second change.
 `systematic-debugging` / `diagnosing-bugs` first. OOPS starts once the cause is known — you cannot
 guard a mechanism you have not identified.
 
+**When the incident is outside the work in hand**, the guard still belongs here; what is decided
+elsewhere is whether it lands in this run or is routed and left — `out-of-scope` scores that, and a
+deferral it records names the item or issue the guard now waits on.
+
 ## The procedure
 
 ### 1. Name the incident — 1–3 sentences, with its artifact
