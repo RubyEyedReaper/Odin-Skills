@@ -24,6 +24,12 @@ import re
 import subprocess
 import sys
 
+# Ambient GIT_DIR (a hook, `git rebase -x`) overrides `-C`'s directory-based discovery
+# entirely (harness:RM-0317/RM-0318) — scrub it from every git subprocess this file starts.
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "scripts", "lib"))
+from git_env import scrubbed_env  # noqa: E402
+
 from . import graph as graph_mod
 from . import prioritize as prioritize_mod
 from . import render as render_mod
