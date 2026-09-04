@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/lib/git-env.sh"
 #
 # tidy-verdict.sh — decide what may be done with one path that has outlived its purpose.
 #
@@ -86,7 +88,7 @@ fi
 if [ ! -e "$abs" ]; then
   # Not a path. A branch, then — or nothing at all.
   ref="${target#refs/heads/}"
-  if git -C "$root" rev-parse --verify --quiet "refs/heads/$ref" >/dev/null 2>&1; then
+  if ge_git -C "$root" rev-parse --verify --quiet "refs/heads/$ref" >/dev/null 2>&1; then
     emit refuse "'$ref' is a branch, and branch deletion is permanently nobody's verdict to give (ADR-0093): the error is asymmetric and force-push is blocked, so a wrongly deleted branch has no reflex that restores it. Landedness can be computed; it is not authorization."
     exit "$EX_REFUSE"
   fi
@@ -139,7 +141,7 @@ fi
 # code from the apply proves nothing about the apply.
 # ---------------------------------------------------------------------------
 recipe() { # recipe <flag>
-  if git -C "$root" ls-files --error-unmatch -- "$rel" >/dev/null 2>&1; then
+  if ge_git -C "$root" ls-files --error-unmatch -- "$rel" >/dev/null 2>&1; then
     printf 'git -C %s rm -r %s -- %s' "$root" "$1" "$rel"
   else
     printf 'git -C %s clean -d %s -- %s' "$root" "$1" "$rel"

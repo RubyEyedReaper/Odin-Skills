@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/lib/git-env.sh"
 #
 # successor-status.sh — what is true of each delegated session, from evidence.
 #
@@ -117,7 +119,7 @@ esac
 [ -n "$ROOT" ] || die_usage "--root was empty, and git reads an empty -C as the current repository" \
                             "name the repository: --root /path/to/checkout"
 [ -d "$ROOT" ] || die_usage "--root is not a directory: $ROOT" "name an existing checkout"
-if ! git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+if ! ge_git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   die_usage "--root is not a git repository: $ROOT" "name a checkout, or the worktree the fleet pushes from"
 fi
 
@@ -179,7 +181,7 @@ NOW=$(date +%s)
 resolve_ref() {  # resolve_ref <branch> -> the local ref that can be read, or ""
   local b="$1" r
   for r in "refs/remotes/origin/$b" "refs/heads/$b"; do
-    if git -C "$ROOT" rev-parse --verify --quiet "${r}^{commit}" >/dev/null 2>&1; then
+    if ge_git -C "$ROOT" rev-parse --verify --quiet "${r}^{commit}" >/dev/null 2>&1; then
       printf '%s' "$r"; return 0
     fi
   done
@@ -238,7 +240,7 @@ for f in "${rows[@]}"; do
     # gets a kinder verdict than the daemon's absence allows.
     verdict=failed; moved="?"; landedness="not-consulted"
   else
-    if remote_line="$(git -C "$ROOT" ls-remote --heads origin "$branch" 2>/dev/null)"; then
+    if remote_line="$(ge_git -C "$ROOT" ls-remote --heads origin "$branch" 2>/dev/null)"; then
       remote_sha="${remote_line%%$'\t'*}"
     else
       remote_sha="?"
@@ -271,8 +273,8 @@ for f in "${rows[@]}"; do
       # error -- a branch with no commits of its own is handled by the `no-commits` arm below --
       # so it falls back to the tip's author date, and a value that is not a number still falls
       # back to `launched_at` exactly as before.
-      progress="$(git -C "$ROOT" log --format=%at "$BASE..$ref" 2>/dev/null | sort -n | tail -1)"
-      case "$progress" in ''|*[!0-9]*) progress="$(git -C "$ROOT" log -1 --format=%at "$ref" 2>/dev/null)" ;; esac
+      progress="$(ge_git -C "$ROOT" log --format=%at "$BASE..$ref" 2>/dev/null | sort -n | tail -1)"
+      case "$progress" in ''|*[!0-9]*) progress="$(ge_git -C "$ROOT" log -1 --format=%at "$ref" 2>/dev/null)" ;; esac
       case "$progress" in ''|*[!0-9]*) progress="$launched_at" ;; esac
 
       # NO WORK YET IS NOT WORK THAT LANDED. A branch whose content is entirely in the base is
@@ -289,7 +291,7 @@ for f in "${rows[@]}"; do
       # this probe could not obtain is not zero: that is `undetermined`, fail closed, exactly as the
       # unreadable-remote arm below already does.
       if [ "$landedness" = "landed" ]; then
-        if ahead="$(git -C "$ROOT" rev-list --count "$BASE..$ref" 2>/dev/null)" \
+        if ahead="$(ge_git -C "$ROOT" rev-list --count "$BASE..$ref" 2>/dev/null)" \
            && [ -n "$ahead" ] && [ -z "${ahead//[0-9]/}" ]; then
           [ "$ahead" -eq 0 ] && landedness="no-commits"
         else
