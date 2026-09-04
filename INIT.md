@@ -14,8 +14,11 @@ small read-only repository per skill, so a user can take a single skill without 
 
 It exists because the harness vendors far more skills than it authors. Redistributing all of them
 would republish third-party work Odin has never touched; redistributing none of them would strand the
-work Odin *is* the author or maintainer of. This repository is exactly the second set: seven skills
-authored here and ten forked from upstream and substantially modified.
+work Odin *is* the author or maintainer of. This repository is exactly the second set, defined as a
+rule rather than a count ([`docs/adr/0003`](docs/adr/0003-mirror-membership-rule.md)): every skill
+Odin authored, or forked from upstream and substantially modified. `skills/` on disk is where that
+rule is materialised — see `docs/PROVENANCE.md` for the enumeration and `ls skills/` for the count on
+any given day.
 
 Nothing is developed in this project. It packages, licenses, validates and publishes what the harness
 produces.

@@ -161,6 +161,24 @@ r="$(fixture no-provenance-row)"
 printf '# Provenance\n\n| `alpha` | odin-authored |\n' > "$r/docs/PROVENANCE.md"
 expect_fail "skill absent from PROVENANCE" "not documented in docs/PROVENANCE.md" "$r"
 
+# --- check 11: PROVENANCE.md headings carry no standing count ---------------
+r="$(fixture provenance-heading-count)"
+printf '# Provenance\n\n## Odin-authored (9)\n\n| `alpha` | odin-authored |\n\n## Forks (10)\n\n| `beta` | fork |\n' \
+  > "$r/docs/PROVENANCE.md"
+expect_fail "PROVENANCE heading carries a standing count" "standing count" "$r"
+
+# a dated measurement in prose (not a heading) is not a standing count
+r="$(fixture provenance-dated-measurement)"
+printf '# Provenance\n\nMirrors 27 of 122 (measured 2026-09-04).\n\n| `alpha` | odin-authored |\n| `beta` | fork |\n' \
+  > "$r/docs/PROVENANCE.md"
+expect_pass "PROVENANCE dated prose measurement passes" "$r"
+
+# a heading date, e.g. "### Decision — ... (2026-08-17)", is not a bare-integer count
+r="$(fixture provenance-heading-date)"
+printf '# Provenance\n\n### Decision — something (2026-08-17)\n\n| `alpha` | odin-authored |\n| `beta` | fork |\n' \
+  > "$r/docs/PROVENANCE.md"
+expect_pass "PROVENANCE heading with a date passes" "$r"
+
 # --- check 8: dangling symlinks ---------------------------------------------
 r="$(fixture dangling-symlink)"
 ln -s ../../nowhere/data "$r/skills/alpha/data"

@@ -2,14 +2,15 @@
 
 Every skill in this repository is either **authored for Odin** (no upstream exists) or a **fork**
 (a real upstream exists and Odin's copy diverges from it). Nothing else ships here: the Odin harness
-also vendors 83 third-party skills it has never modified, and redistributing those is not this
-repository's job. (83 = the harness's 102 skill directories minus the 19 mirrored here; measured
-2026-08-26, not inherited.)
+also vendors third-party skills it has never modified, and redistributing those is not this
+repository's job. (95 = the harness's 122 skill directories minus the 27 mirrored here; measured
+2026-09-04, not inherited — a count here is a dated measurement, never a standing fact; see
+[`adr/0003`](adr/0003-mirror-membership-rule.md).)
 
 `scripts/validate-skills.sh` cross-checks this table against `skills/` and
 `.claude-plugin/plugin.json`, so a skill added without a row here fails CI.
 
-## Odin-authored (9)
+## Odin-authored
 
 Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 
@@ -33,7 +34,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `superplan` | Multi-agent deep planning — planner + architect + adversarial reviewer in parallel, synthesized into one approved plan |
 | `tidy` | A verdict per path over spent material — it decides and never acts, performs no discovery of its own, and permanently refuses to give a delete verdict for a branch |
 
-## Forks (10)
+## Forks
 
 Each keeps its upstream license, shipped as `LICENSE` inside the skill directory, with the local
 delta stated in that directory's `UPSTREAM.md`. One upstream published no LICENSE file at all

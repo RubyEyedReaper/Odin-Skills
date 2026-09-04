@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # validate-skills.sh — the gate for this repository.
 #
-# Ten checks, each one a mistake that is otherwise silent until an installer
+# Eleven checks, each one a mistake that is otherwise silent until an installer
 # hits it: a skill whose frontmatter name does not match its directory is simply
 # never invocable, a manifest that has drifted from disk installs nothing, a
 # fork missing its upstream LICENSE is a license violation rather than a typo,
@@ -219,6 +219,22 @@ else
     [[ -n "$line" ]] || continue
     fail "${line#FAIL: }"
   done < <(bash "$DOC_LINKS" --root "$ROOT" | grep '^FAIL: ')
+fi
+
+# ---------------------------------------------------------------------------
+# Check 11: PROVENANCE.md headings carry no standing count
+#
+# A heading count (`## Odin-authored (9)`) is a second source of truth for what
+# the table under it already states, and drifts the moment a skill is added
+# without the heading being hand-edited — see docs/adr/0003-mirror-membership-rule.md.
+# Matches a heading ending in a bare parenthesized integer only, so a heading
+# carrying a date (`(2026-08-17)`) or other non-digit parenthetical is unaffected.
+# ---------------------------------------------------------------------------
+if [[ -f "$PROVENANCE" ]]; then
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    fail "docs/PROVENANCE.md heading carries a standing count: $line"
+  done < <(grep -nE '^#{1,6} .*\([0-9]+\)[[:space:]]*$' "$PROVENANCE" | cut -d: -f2-)
 fi
 
 # ---------------------------------------------------------------------------
