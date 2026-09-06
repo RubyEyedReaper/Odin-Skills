@@ -30,6 +30,7 @@ added later must not renumber the fields already there.
 | `model` | the tier the session was launched on | A measured $0.00 Sonnet share across 4,915 successor sessions was an absent flag, not a preference, and absent flags fail silently and forever (ADR-0097, landed in PR #487). A launch tier nobody records is one nobody notices reverting. |
 | `launched_at` | unix seconds at launch | The staleness fallback when a branch has no commits yet, so a worker in its first minutes is not read as stalled. |
 | `launch_sha` | the base sha the branch was cut from | Branch **movement** is this sha against the published one. Without it, "has this worker done anything" has no answer that does not involve trusting the worker. |
+| `deliverable` | one glob pattern naming an artifact this session is expected to commit. **The row's one repeatable key** — write a line per pattern | A branch that MOVED and LANDED nothing is `live` or `stalled`, and neither says whether the thing the session was dispatched to produce ever reached a commit. Two sweep workers reached `done` having committed only a plan doc and had to be re-run; a third's complete deliverable was found by reading the branch by hand (`harness:RM-0505`). Optional: a row without it is reported `undeclared` and nothing is claimed about it. |
 | `liveness` | which channel reports this row's liveness — `branch` (the default when absent) or `session` | An observation role's branch carries a **record**, not a deliverable, so movement is the wrong channel for it and the row read `stalled` permanently once the window passed. Declared rather than inferred from the role's name: a worker called `monitor-adjacent` would inherit a guess. |
 
 ## `session_id` is required, and an unrecognised `liveness` is not the default
@@ -87,6 +88,10 @@ mkdir -p "$reg"
   printf 'model\t%s\n'       "$model"
   printf 'launched_at\t%s\n' "$(date +%s)"
   printf 'launch_sha\t%s\n'  "$(git -C "$wt" rev-parse origin/main)"
+  # One line per expected artifact — the only key written more than once, so this is a LOOP, not a
+  # single printf over a multi-value string. Omitting it leaves the row `undeclared` to the
+  # deliverable check, which says so rather than passing it silently.
+  for pattern in "${deliverables[@]}"; do printf 'deliverable\t%s\n' "$pattern"; done
   # Only for a role whose branch carries a record rather than a deliverable. Omit it otherwise —
   # absent is `branch`, and every row written before this field existed keeps its meaning.
   # printf 'liveness\tsession\n'
@@ -98,6 +103,32 @@ nothing, and the probe reports that rather than inventing an id from the filenam
 
 Written at launch, in the same breath as the launch. A row recorded afterwards is a row that is
 missing for exactly as long as it takes something to go wrong.
+
+## `deliverable` — one pattern per line, and why it is not space-separated
+
+Every other key on the row is single-valued and read with a first-match lookup. `deliverable` is
+read with an all-matches lookup instead, so a session expected to produce three artifacts carries
+three lines:
+
+```
+deliverable	.claude/scripts/thing.sh
+deliverable	.claude/tests/thing.test.sh
+deliverable	.claude/docs/adr/*-thing.md
+```
+
+The space-separated-on-one-line form was written first, with a refusal for a pattern containing
+whitespace — and the refusal was unreachable, because the split ran before it and turned
+`a path with spaces.sh` into four patterns that each matched nothing. The check would then have
+reported the session `unshipped` against a declaration nobody could have satisfied. A format that
+cannot express a path is worse than one that is slightly more verbose.
+
+Patterns are globs matched against `git ls-tree -r --name-only` on the branch, and `*` crosses `/`
+deliberately: a declaration is a coarse statement about where the work lands, so
+`.claude/tests/*.test.sh` matches however deeply the path is nested.
+
+**Presence, not correctness.** A stub file at a declared path satisfies the check. It answers
+whether the artifact reached a commit, which is the question the register can answer from evidence;
+whether the artifact is any good is a review.
 
 Reading the rows back, and what each verdict obliges you to do, is
 [escalation-paths.md](escalation-paths.md).

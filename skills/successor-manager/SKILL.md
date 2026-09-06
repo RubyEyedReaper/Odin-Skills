@@ -74,7 +74,8 @@ answer is not a caveat on the verdict — it is the whole reason the next signal
 | `bl_classify` (`.claude/scripts/lib/branch-landedness.sh`) | whether the branch's content is in the base | *why* a branch is unlanded, and it withholds a verdict outright when the commits pair only partly (`undetermined`). |
 | `claude logs <id>` — not one of the three | what a session's screen showed | anything, unless the escapes are stripped first: it exits 0 while returning a screen recording (harness:RM-0340). `handoff` § 3 carries the filter; this skill orders signals and does not restate it. |
 
-The registry's **id set** is the fourth reading, and its bound is the sharpest of all — see below.
+**The deliverable is a separate channel**, asked after these three rather than among them, because
+its input is optional where theirs are not — see below.
 
 The registry's **id set** is consulted, and nothing else from it. Membership is the daemon's account
 of who exists, and step 1 has just proved that account current; the per-session field describing how
@@ -93,6 +94,48 @@ a session feels is the subject talking.
 **`undetermined` is mandatory, not a fallback for laziness.** It is the honest answer when a
 channel could not look, and a classifier without it invents a verdict silently — which is the
 failure the whole ordering exists to prevent.
+
+## The fourth channel — did the deliverable reach a commit?
+
+The three signals above ask whether the daemon is alive, whether the branch **moved**, and whether
+its content **landed**. None of them asks what the branch **contains**, so a session that pushed a
+plan doc and left its deliverable uncommitted in a worktree reads `live`, at exit 0. Measured on a
+fixture register: two sweep workers in one batch reached `done` having committed only a plan doc and
+had to be re-run, and a third's complete deliverable was found by reading the branch by hand
+(`harness:RM-0505`).
+
+```sh
+bash .claude/skills/successor-manager/scripts/successor-deliverable.sh
+bash .claude/skills/successor-manager/scripts/successor-deliverable.sh --json
+bash .claude/skills/successor-manager/scripts/successor-deliverable.sh --session <id>
+```
+
+Its subject is the row's `deliverable` lines — one glob pattern each, matched against
+`git ls-tree -r --name-only` on the branch. What the field is and how to write it:
+[ownership-register.md](references/ownership-register.md) § `deliverable`.
+
+| State | The evidence said |
+|---|---|
+| `shipped` | every declared pattern matched a path on the branch |
+| `unshipped` | the branch moved, has been quiet past the window, and a declared path is missing |
+| `pending` | declared paths missing, but the branch is still moving — a session mid-flight |
+| `no-commits` | the branch has no commits of its own; `successor-status.sh` owns that row |
+| `undeclared` | the row declares no deliverable, so nothing is claimed about it |
+| `undetermined` | an input could not be read; the DETAIL column names which |
+
+Exit codes: `0` every classified row shipped, pending or no-commits; `1` findings; `3` nothing could
+be classified, or a row is undetermined; `64` usage. **3 outranks 1** — exit 1 asserts something
+about the rows it did not flag, and one unreadable row makes that assertion unsupportable.
+
+Two properties worth knowing before acting on it. **`pending` is the near miss kept clean**: a
+session in its first minutes has pushed a plan doc and nothing else, which is byte-identical to the
+defect, and the only observable separating *working toward it* from *finished and forgot* is that
+the branch stopped moving. **It answers presence, not correctness** — a stub file at a declared path
+satisfies it.
+
+**Nothing writes the field yet.** Launch belongs to `successor`, so against today's register this
+reports exit 3 — *no row declares a deliverable* — which is the honest answer and is non-zero.
+Matrix: `.claude/tests/successor-deliverable.test.sh`.
 
 ## The probe
 
@@ -127,6 +170,7 @@ is declared.
 | "I could not read the registry, so nothing is wrong" | "I looked and found nothing" and "I could not look" are different answers. That is exit 3. |
 | "It is stalled, so relaunch it" | The same handoff produces the same stall. Amend it — and read § Stalled before re-running anything. |
 | "Resume from where the transcript stops" | A transcript records what was attempted, not what landed, and a relaunched session has none. |
+| "The branch moved, so the work is happening" | Movement is a question about shas. A branch carrying a plan doc and nothing else has moved exactly as convincingly as one carrying the deliverable — ask the fourth channel. |
 | "The row can go, the session is gone" | A gone session with an unlanded branch is the `failed` finding. Retiring the row deletes the evidence for it. |
 | "It is expensive, so it is stuck" | Burning without progressing is its own pathology, and it is not `stalled`. See the burn seam. |
 | "The message was sent, so the worker was told" | A send reports on the send. The fourth channel is the one that reports success and drops the message: nothing on the receiving side is ever wrong to look at, because nothing arrived. Confirm from the worker's own next action — a branch, a commit, a reply — never from the send's exit. |
