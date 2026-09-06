@@ -54,7 +54,11 @@ for i in "${!files[@]}"; do
   line_count=$(wc -l < "$file" | tr -d ' ')
   # `paths:` in frontmatter is what makes a rule conditional; without it the file is always-on and
   # costs context on every turn of every session. The distiller must see the tier to decide one.
-  tier=$(head -5 "$file" | grep -q '^paths:' && echo scoped || echo always-on)
+  # Captured, not piped. `head -5 … | grep -q` under pipefail reports `always-on` for a scoped
+  # file whenever grep exits before head has finished writing (CAVEAT.md C-0005,
+  # harness:RM-0506) — a silent misclassification of the tier the distiller decides on.
+  head5=$(head -5 "$file")
+  tier=$(grep -q '^paths:' <<< "$head5" && echo scoped || echo always-on)
 
   jq -n \
     --arg path "$rel_path" \
