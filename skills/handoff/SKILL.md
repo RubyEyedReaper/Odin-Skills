@@ -40,6 +40,8 @@ mem_class: operational
 active_branch: harness/agent-token-discipline
 plan_file: .claude/docs/plans/<name>.md
 next_action: Run harness-audit, then open the PR
+worktree: <absolute path to the worktree>
+hop: 1
 ---
 
 ## Where the work stopped
@@ -75,15 +77,52 @@ one, write it without asking (DEC-0121, decision-authority.md's "conventional de
 `roadmap` · `test-driven-development` · the skills that own this work.
 ```
 
-All six frontmatter fields are required; write `null` only where the value genuinely does not
-exist. `mem_class` uses the vocabulary of `.claude/docs/odin-memory-standards.md` — read the
+The first six frontmatter fields are required; write `null` only where the value genuinely does
+not exist. `worktree:` and `hop:` are optional — omit `worktree:` when the successor runs where you
+are, and `hop:` for a chain's first handoff — and both are described under *The launch directory*
+and *The chain has a ceiling* below.
+
+**No trailing comments on a frontmatter line.** The relay's reader is shell builtins, not a YAML
+parser: it takes the whole rest of the line as the value, so `hop: 1  # first handoff` is a hop
+number that reads `1  # first handoff` and is refused. Put the note in prose, as this one is. `mem_class` uses the vocabulary of `.claude/docs/odin-memory-standards.md` — read the
 current value from `.claude/.runtime/active-mem-class` rather than guessing it.
 
-Three of these are **refused** by `.claude/scripts/odin-relay.sh` rather than warned about, because
-the session that would read a warning is the one about to be cleared: a `project_id` that names the
-project (ADR-0038), a `## Suggested skills` section that names skills (ADR-0056), and every roadmap
-id written qualified — `harness:RM-0034`, never `RM-0034`, since ids are per-roadmap counters and a
-successor has no memory of which roadmap was open (ADR-0050). Ids inside fenced blocks are exempt.
+Several of these are **refused** by `.claude/scripts/odin-relay.sh` rather than warned about,
+because the session that would read a warning is the one about to be cleared: a `project_id` that
+names the project (ADR-0038), a `## Suggested skills` section that names skills (ADR-0056), every
+roadmap id written qualified — `harness:RM-0034`, never `RM-0034`, since ids are per-roadmap
+counters and a successor has no memory of which roadmap was open (ADR-0050) — a declared worktree
+that is not the directory being launched in (harness:RM-0566), and a `hop:` at the chain ceiling
+(harness:RM-0434). Ids inside fenced blocks are exempt.
+
+### The launch directory
+
+**A handoff for a successor in another worktree declares that worktree, and the launch names it.**
+A successor starts in the relay's working directory, and getting that wrong is quiet: every `git`
+call in a generated brief carries `git -C <worktree>`, so commits and pushes land correctly while
+the session's own reads, its hooks and `odin-plan-gate.sh`'s plan search all follow the wrong tree.
+Roster rows from earlier campaign batches show workers running in the coordinator's checkout with
+briefs that named a worktree, and nothing said so.
+
+Declare it in `worktree:`, or in a body line of the form ``Your worktree: `<absolute path>` ``. The
+relay refuses the launch unless that directory is the one it is standing in, and its message names
+`--cwd` as the repair. A handoff that declares no worktree relays from anywhere, as every handoff
+written before the field did.
+
+### The chain has a ceiling
+
+`hop:` is how many relays produced this handoff. Absent means hop 0 — a chain's first handoff. The
+relay refuses at `ODIN_RELAY_HOP_MAX` (default 8) and names the hop it stopped at, because a chain
+that long is usually a loop that cannot finish rather than work nearly done: every hop pays a fresh
+context window to re-read what the last one already knew.
+
+**The count only advances if each successor writes it.** The relay states the number in the seed —
+"you are hop N" — and a successor writing a handoff of its own declares `hop: N` in that document's
+frontmatter. A reader resolves its predecessor by arithmetic, its own hop minus one, rather than by
+holding a path to a document that may already have been swept: handoffs live under gitignored
+`.claude/.runtime/`, and a chain crosses worktrees that cannot see each other's runtime directories.
+Nothing mechanically forces the increment — a parent cannot verify a document its child has not
+written yet — so an omitted `hop:` restarts the chain and its bound stops meaning anything.
 
 The six-element quality bar the body must clear — assigned task and desired outcome, current
 context, open questions and risks, authorization scope, suggested skills, standing invariants — is
@@ -114,6 +153,9 @@ not paste raw tool output. Redact anything sensitive.
 ```sh
 bash .claude/scripts/odin-relay.sh --handoff <path> --name "<short title>" --dry-run
 bash .claude/scripts/odin-relay.sh --handoff <path> --name "<short title>"
+
+# for a successor that belongs in another worktree — the directory it starts in, named:
+bash .claude/scripts/odin-relay.sh --cwd <worktree> --handoff <path> --name "<short title>"
 ```
 
 Dry-run first — it prints the command and launches nothing, and it is where a refused handoff
@@ -121,9 +163,9 @@ surfaces while there is still a session to fix it in.
 
 The successor is a **separate OS-level session**: its own context window, its own harness, its own
 lifetime, reachable through `claude agents` / `attach` / `logs` / `stop`. Not a subagent — a
-subagent dies with the turn and cannot push a branch. It starts in the current working directory
-with this repo's settings, hooks and guards, and connects to claude.ai on its own; passing
-`--remote-control` would be cargo cult.
+subagent dies with the turn and cannot push a branch. It starts in `--cwd`, or in the current
+working directory, with this repo's settings, hooks and guards, and connects to claude.ai on its
+own; passing `--remote-control` would be cargo cult.
 
 Pass an **absolute** handoff path when the successor will run in another worktree — handoffs live
 under gitignored `.claude/.runtime/`, which a relative path cannot reach from there.
