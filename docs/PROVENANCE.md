@@ -38,6 +38,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `gauntlet` | An endless campaign that re-arms instead of ending — a frozen batch so a verdict can be computed, and a frontier recomputed at read time |
 | `leek` | Leak and hygiene diagnosis across context, tokens, memory, cache, sessions and isolation — it files findings and never cleans up |
 | `mutations` | Records a change whose real effect nobody has checked, with the expected impact written BEFORE the observation and `pending` until one exists |
+| `odin-skill-manager` | Where a skill came from and what may be done to it — a class derived on every run from four inputs, mirror membership, upstream freshness and publication; an undetermined answer refuses rather than guessing |
 | `off-topic` | A committed checkpoint for work displaced mid-run — the displacement edge and the resume condition, never a copy of state another file owns |
 | `out-of-scope` | Fix it now or file it — six weighted dimensions through the decision-matrix engine, where a near-tie defers and a deferral carries its own score |
 | `revive` | Brings a stopped fleet back with no human present — a committed manifest holding the assignment and a not-before instant, five preconditions checked in order |

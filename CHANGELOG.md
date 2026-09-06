@@ -10,6 +10,12 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`odin-skill-manager`** — the skill that owns where a skill came from and what may be done to
+  it: classification, mirror membership, packaging, upstream freshness, refresh and publication.
+  Authoring a skill body stays with `skill-creator` and `writing-skills`; this is the half that
+  decides what a refresh may overwrite. Odin-authored, so it belongs here by the membership rule
+  in [`adr/0003`](docs/adr/0003-mirror-membership-rule.md).
+
 - **Eleven members the mirror was missing** — `caveat`, `consistency`, `factory`, `gauntlet`,
   `leek`, `mutations`, `off-topic`, `out-of-scope`, `revive`, `s2s` and `status`. Every one is a
   skill the harness authored or forked, so every one belonged here by the membership rule in
