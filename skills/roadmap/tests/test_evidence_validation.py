@@ -91,7 +91,7 @@ class EvidenceValidationTest(unittest.TestCase):
         # The closer is a seam: a test that called the real `gh` would file network traffic against
         # a live tracker from a unit suite (`ci-gate/fixture-reads-ambient-state`).
         self._prev_closer = roadmap_mod.ISSUE_CLOSER
-        roadmap_mod.ISSUE_CLOSER = lambda number, reason: self.closed.append(number)
+        roadmap_mod.ISSUE_CLOSER = lambda number, reason, cwd: self.closed.append(number)
         self.addCleanup(self._restore)
 
     def _restore(self):

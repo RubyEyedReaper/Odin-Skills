@@ -82,7 +82,7 @@ class IssueClosureTest(unittest.TestCase):
             doc = json.load(fh)
         return rc, doc
 
-    def _closer(self, number, reason):
+    def _closer(self, number, reason, cwd):
         self.calls.append((number, reason))
 
     def test_done_closes_each_linked_issue_once(self):
@@ -127,7 +127,7 @@ class IssueClosureTest(unittest.TestCase):
         self.assertEqual(self.calls, [])
 
     def test_status_is_written_even_when_the_closer_fails(self):
-        def boom(number, reason):
+        def boom(number, reason, cwd):
             self.calls.append((number, reason))
             raise RuntimeError("no network")
 
@@ -142,3 +142,80 @@ class IssueClosureTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IssueClosureTargetTest(unittest.TestCase):
+    """The closure must name the repository it acts on, never infer it.
+
+    The incident (2026-09-06, M-00XX): closing two items in `projects/KinNest`'s roadmap from a
+    shell sitting in `.claude/skills/roadmap` posted both closure comments onto **Odin's** tracker.
+    `gh` resolves its repository from the working directory, the engine passed neither `-R` nor a
+    `cwd`, and the process's directory happened to be a different repository. Nothing errored: the
+    numbers existed in both trackers.
+
+    The two read-only `gh` calls in this codebase (`reconcile._gh_issues`, `gauntlet`) already pass
+    `cwd=root`. This is the one state-changing call, and it was the one that did not.
+
+    `common/security.md` § *Name the Target, Don't Infer It* states the rule, and
+    `odin-safety-guard.sh` Layer 1C enforces it — but only for commands issued through the Bash
+    tool. A `subprocess.run(["gh", ...])` inside an engine never reaches that hook, so this
+    property has to be held here.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.calls = []
+
+    def test_closer_is_told_the_roadmap_s_own_root(self):
+        path = _roadmap(self.tmp, [_item("RM-0001", "in-progress", ["705"])])
+        args = _Args(path, "RM-0001", "done")
+
+        def closer(number, reason, cwd):
+            self.calls.append((number, cwd))
+
+        prev = roadmap_mod.ISSUE_CLOSER
+        roadmap_mod.ISSUE_CLOSER = closer
+        try:
+            rc = roadmap_mod.cmd_set(args)
+        finally:
+            roadmap_mod.ISSUE_CLOSER = prev
+
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(self.calls), 1)
+        number, cwd = self.calls[0]
+        self.assertEqual(number, "705")
+        # The root the roadmap belongs to, not os.getcwd(). Compared by realpath because
+        # tempfile hands out /tmp paths that are symlinks on some hosts.
+        self.assertEqual(os.path.realpath(cwd), os.path.realpath(self.tmp))
+        self.assertNotEqual(os.path.realpath(cwd), os.path.realpath(os.getcwd()))
+
+    def test_gh_close_issue_anchors_the_subprocess_to_that_directory(self):
+        """The default closer must hand the directory to `gh`, not merely accept it.
+
+        A signature that takes `cwd` and drops it is the same defect with a passing unit test.
+        """
+        import subprocess
+
+        seen = {}
+
+        def fake_run(argv, **kwargs):
+            seen["argv"] = argv
+            seen["cwd"] = kwargs.get("cwd")
+
+            class _R(object):
+                returncode = 0
+                stdout = ""
+                stderr = ""
+
+            return _R()
+
+        prev = subprocess.run
+        subprocess.run = fake_run
+        try:
+            roadmap_mod._gh_close_issue("705", "because", self.tmp)
+        finally:
+            subprocess.run = prev
+
+        self.assertEqual(seen["cwd"], self.tmp)
+        self.assertEqual(seen["argv"][:3], ["gh", "issue", "close"])

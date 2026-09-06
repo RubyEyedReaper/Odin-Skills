@@ -647,24 +647,30 @@ def cmd_add(args):
 TERMINAL_STATUSES = ("done", "dropped")
 
 
-def _gh_close_issue(number, reason):
-    """Close one tracker issue with a comment. The default `ISSUE_CLOSER`.
+def _gh_close_issue(number, reason, cwd):
+    """Close one tracker issue with a comment, **in the roadmap's own repository**.
 
     Kept separate from `cmd_set` so the tests can replace it: a unit suite that called the real
     `gh` would file traffic against a live tracker and answer differently on every host.
+
+    `cwd` is not optional and is not inferred. `gh` resolves its repository from the working
+    directory, so without it this closes an issue in whatever repository the caller's shell
+    happens to be sitting in — and on 2026-09-06 it did exactly that, posting two KinNest closure
+    comments onto Odin's tracker from a shell in `.claude/skills/roadmap`. Nothing errored: those
+    numbers existed in both trackers. `common/security.md` § *Name the Target, Don't Infer It*.
     """
     import subprocess
 
     subprocess.run(
         ["gh", "issue", "close", str(number), "-c", reason],
-        check=True, capture_output=True, text=True,
+        cwd=cwd, check=True, capture_output=True, text=True,
     )
 
 
 ISSUE_CLOSER = _gh_close_issue
 
 
-def _close_linked_issues(item, new_status, slug, item_id):
+def _close_linked_issues(item, new_status, slug, item_id, root):
     """Close the item's tracker issues, and report — never raise — what could not be closed.
 
     `roadmap.json` is canonical; the tracker is a mirror of it. Refusing to record a true local
@@ -698,11 +704,16 @@ def _close_linked_issues(item, new_status, slug, item_id):
     for number in issues:
         n = str(number).lstrip("#")
         try:
-            ISSUE_CLOSER(n, reason)
+            ISSUE_CLOSER(n, reason, root)
+        except TypeError:
+            # A wrong-arity closer is a programming error, not a remote failure. Swallowing it
+            # would report "closed" while nothing was called — which is how the 2026-09-06
+            # incident stayed silent for two items in a row.
+            raise
         except Exception as exc:  # noqa: BLE001 — every failure mode is reported, none is fatal
             sys.stderr.write(
                 "[roadmap] could not close issue #%s for %s: %s\n"
-                "[roadmap]   retry: gh issue close %s -c '%s reached %s'\n"
+                "[roadmap]   retry: gh issue close %s -R <owner/name> -c '%s reached %s'\n"
                 % (n, qualified, exc, n, qualified, new_status)
             )
 
@@ -746,7 +757,9 @@ def cmd_set(args):
     # that bypasses this one — a hand merge, a rebase, another session.
     now = item.get("status")
     if previous not in TERMINAL_STATUSES and now in TERMINAL_STATUSES:
-        _close_linked_issues(item, now, slug, args.id)
+        # The roadmap's own root, never the process's. See `_gh_close_issue`.
+        _close_linked_issues(item, now, slug, args.id,
+                             schema_mod.paths_for(path)["root"])
     if previous != "done" and item.get("status") == "done":
         freed = graph_mod.newly_unblocked(doc, args.id)
         if freed:
