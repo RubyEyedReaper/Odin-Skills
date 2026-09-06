@@ -1,0 +1,60 @@
+{
+  "goal": "Fix now, or defer: pre-push declares PRE_PUSH_BUDGET_MS a hard constraint, computes elapsed_ms, prints both, and compares nothing (harness:RM-0519, issue 952)",
+  "reversibility": "two-way",
+  "decisions_dir": ".claude/docs/decisions",
+  "constraints": [
+    {
+      "id": "authorized-to-fix",
+      "description": "The session that found it is permitted to edit .claude/scripts/pre-push and .claude/tests/pre-push-set.test.sh",
+      "lifted_by": "A coordinator widening the authorization scope, or the next session starting without a bar on those two files"
+    }
+  ],
+  "options": [
+    {
+      "id": "fix-now",
+      "label": "Fix it in this run",
+      "description": "Compare elapsed_ms to PRE_PUSH_BUDGET_MS at the point both are already in hand and report the overrun naming both numbers; add the matrix case that drives the hook past the budget with a stub gate, seen RED first",
+      "constraint_results": {"authorized-to-fix": true}
+    },
+    {
+      "id": "defer",
+      "label": "Record it and route it to its owner",
+      "description": "Capture harness:RM-0519 with acceptance criteria and link issue 952; record the deferral",
+      "constraint_results": {"authorized-to-fix": true}
+    }
+  ],
+  "criteria": [
+    {"id": "next-session-cost", "label": "Cost to the next session or agent", "weight": 25, "direction": "lower-is-better", "description": "Every push in this repository runs the hook; a worker inherits the unenforced budget by default, without going looking"},
+    {"id": "silence", "label": "Residual silence", "weight": 20, "direction": "lower-is-better", "description": "The hook prints elapsed_ms beside the budget and passes; three observed runs at 42028ms, 39690ms and 52959ms against 30000ms failed nobody"},
+    {"id": "contamination", "label": "Contamination of later work", "weight": 20, "direction": "lower-is-better", "description": "The declared per-gate cost table is verified for its own arithmetic while the observed total runs 32-76 percent over it, so every later gate added to the set is sized against a number nobody re-measures"},
+    {"id": "this-session-cost", "label": "Cost to the run in hand", "weight": 15, "direction": "lower-is-better", "description": "A comparison at the point both numbers are already computed, plus one matrix case driving a stub gate past the budget"},
+    {"id": "scope-integrity", "label": "Scope integrity", "weight": 12, "direction": "higher-is-better", "description": "The finding surfaced while capturing pre-push measurements, not while working on the hook"},
+    {"id": "reversibility", "label": "Reversibility of the option", "weight": 8, "direction": "higher-is-better", "description": "The repair reports rather than fails, so a wrong threshold costs a printed line and not a blocked push"}
+  ],
+  "scorers": [
+    {
+      "id": "odin",
+      "label": "Odin worker, harness:RM-0525",
+      "scores": {
+        "fix-now": {
+          "next-session-cost": {"value": 5, "confidence": 0.9},
+          "silence": {"value": 0, "confidence": 0.95},
+          "contamination": {"value": 5, "confidence": 0.9},
+          "this-session-cost": {"value": 45, "confidence": 0.8},
+          "scope-integrity": {"value": 30, "confidence": 0.85},
+          "reversibility": {"value": 85, "confidence": 0.9}
+        },
+        "defer": {
+          "next-session-cost": {"value": 70, "confidence": 0.9},
+          "silence": {"value": 95, "confidence": 0.95},
+          "contamination": {"value": 60, "confidence": 0.85},
+          "this-session-cost": {"value": 5, "confidence": 0.9},
+          "scope-integrity": {"value": 95, "confidence": 0.9},
+          "reversibility": {"value": 55, "confidence": 0.8}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum"],
+  "tie_threshold": 5
+}

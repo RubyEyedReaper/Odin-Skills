@@ -1,0 +1,60 @@
+{
+  "goal": "Fix <finding> now, or defer it: <one line naming the finding and the work it is outside of>",
+  "reversibility": "two-way",
+  "decisions_dir": ".claude/docs/decisions",
+  "constraints": [
+    {
+      "id": "authorized-to-fix",
+      "description": "This session is permitted to edit the files the fix would touch",
+      "lifted_by": "<the event that grants it — a coordinator widening the authorization scope, the sibling worker who owns the file landing, the next session starting without that bar>"
+    }
+  ],
+  "options": [
+    {
+      "id": "fix-now",
+      "label": "Fix it in this run",
+      "description": "<the smallest change that removes the finding, named>",
+      "constraint_results": {"authorized-to-fix": true}
+    },
+    {
+      "id": "defer",
+      "label": "Record it and route it to its owner",
+      "description": "A roadmap item or a tracker row, captured through its own skill, plus a record in .claude/docs/out-of-scope/",
+      "constraint_results": {"authorized-to-fix": true}
+    }
+  ],
+  "criteria": [
+    {"id": "next-session-cost", "label": "Cost to the next session or agent", "weight": 25, "direction": "lower-is-better", "description": "What the next worker pays under this option: hitting it by default, re-establishing the context that found it, or nothing"},
+    {"id": "silence", "label": "Residual silence", "weight": 20, "direction": "lower-is-better", "description": "How quietly the finding fails under this option. A clean verdict it cannot support scores at the top; a loud crash scores low"},
+    {"id": "contamination", "label": "Contamination of later work", "weight": 20, "direction": "lower-is-better", "description": "Does other work land on the bad foundation while this option holds"},
+    {"id": "this-session-cost", "label": "Cost to the run in hand", "weight": 15, "direction": "lower-is-better", "description": "The edit, its tests, its review, and the interruption to the work that found it"},
+    {"id": "scope-integrity", "label": "Scope integrity", "weight": 12, "direction": "higher-is-better", "description": "Does the option keep the declared scope meaning what it says (CLAUDE.md item 8)"},
+    {"id": "reversibility", "label": "Reversibility of the option", "weight": 8, "direction": "higher-is-better", "description": "How cheap it is to have been wrong about this option and change course"}
+  ],
+  "scorers": [
+    {
+      "id": "odin",
+      "label": "<the session making the call>",
+      "scores": {
+        "fix-now": {
+          "next-session-cost": {"value": 0, "confidence": 0.9},
+          "silence": {"value": 0, "confidence": 0.9},
+          "contamination": {"value": 0, "confidence": 0.9},
+          "this-session-cost": {"value": 0, "confidence": 0.8},
+          "scope-integrity": {"value": 0, "confidence": 0.9},
+          "reversibility": {"value": 0, "confidence": 0.85}
+        },
+        "defer": {
+          "next-session-cost": {"value": 0, "confidence": 0.9},
+          "silence": {"value": 0, "confidence": 0.9},
+          "contamination": {"value": 0, "confidence": 0.9},
+          "this-session-cost": {"value": 0, "confidence": 0.8},
+          "scope-integrity": {"value": 0, "confidence": 0.9},
+          "reversibility": {"value": 0, "confidence": 0.85}
+        }
+      }
+    }
+  ],
+  "methods": ["weighted-sum"],
+  "tie_threshold": 5
+}

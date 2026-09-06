@@ -39,6 +39,7 @@ mattpocock/skills
 affaan-m/ECC
 pbakaus/impeccable
 vercel-labs/agent-browser
+coleam00/skills
 
 # Cited inside a skill's reference material
 unjs/fontaine

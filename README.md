@@ -1,11 +1,12 @@
 # Odin-Skills
 
-The skills the Odin harness **owns** — seven authored from scratch, ten forked from upstream
-projects and modified — packaged as one installable Claude Code plugin. The harness itself is a
+The skills the Odin harness **owns** — authored here, or forked from an upstream and modified —
+packaged as one installable Claude Code plugin. The split is derived rather than restated: run
+`ls skills/*/UPSTREAM.md | wc -l` for the forks and `ls -d skills/*/ | wc -l` for the whole set. The harness itself is a
 private repository, so it is named here rather than linked.
 
-Odin vendors 99 skills in total. The other 82 are third-party work it has never touched, and they
-are not redistributed here. This repository is only the part Odin is actually the author or the
+Odin vendors far more than it owns; the rest is third-party work it has never modified, and that
+is not redistributed here. This repository is only the part Odin is actually the author or the
 maintainer of.
 
 ## What's in it

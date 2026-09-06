@@ -3,8 +3,8 @@
 Every skill in this repository is either **authored for Odin** (no upstream exists) or a **fork**
 (a real upstream exists and Odin's copy diverges from it). Nothing else ships here: the Odin harness
 also vendors third-party skills it has never modified, and redistributing those is not this
-repository's job. (95 = the harness's 122 skill directories minus the 27 mirrored here; measured
-2026-09-04, not inherited — a count here is a dated measurement, never a standing fact; see
+repository's job. (84 = the harness's 122 skill directories minus the 38 mirrored here; measured
+2026-09-06, not inherited — a count here is a dated measurement, never a standing fact; see
 [`adr/0003`](adr/0003-mirror-membership-rule.md).)
 
 `scripts/validate-skills.sh` cross-checks this table against `skills/` and
@@ -33,6 +33,16 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `successor-manager` | Ownership of a delegated session and a verdict computed from channels it does not control — daemon health first, then branch movement, then landedness by content |
 | `superplan` | Multi-agent deep planning — planner + architect + adversarial reviewer in parallel, synthesized into one approved plan |
 | `tidy` | A verdict per path over spent material — it decides and never acts, performs no discovery of its own, and permanently refuses to give a delete verdict for a branch |
+| `caveat` | Records a sharp edge the moment it is found — the condition under which it recurs, not the incident, and the safeguard lands before work continues |
+| `consistency` | Names the incumbent by path before a variation is written, and records the decision to differ where the next reader will look |
+| `gauntlet` | An endless campaign that re-arms instead of ending — a frozen batch so a verdict can be computed, and a frontier recomputed at read time |
+| `leek` | Leak and hygiene diagnosis across context, tokens, memory, cache, sessions and isolation — it files findings and never cleans up |
+| `mutations` | Records a change whose real effect nobody has checked, with the expected impact written BEFORE the observation and `pending` until one exists |
+| `off-topic` | A committed checkpoint for work displaced mid-run — the displacement edge and the resume condition, never a copy of state another file owns |
+| `out-of-scope` | Fix it now or file it — six weighted dimensions through the decision-matrix engine, where a near-tie defers and a deferral carries its own score |
+| `revive` | Brings a stopped fleet back with no human present — a committed manifest holding the assignment and a not-before instant, five preconditions checked in order |
+| `s2s` | Session-to-session reporting — the deliverable is a durable path, the message is a pointer to it, and an orphan's terminal is bounded on narration |
+| `status` | The four controls a human has over a running fleet — a report computed at read time, quiesce rather than freeze, a timed resume, and stop-for-handoff |
 
 ## Forks
 
@@ -54,6 +64,7 @@ see the decision below. Upstream HEADs are those audited on 2026-08-15
 | `agent-browser` | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | Apache-2.0 | `548b159` | Reduced to an offline stub that delegates live content to the `agent-browser` CLI, so the skill resolves without network |
 | `rules-distill` | [affaan-m/ECC](https://github.com/affaan-m/ECC) | As published upstream — no LICENSE accompanied the vendored copy; the blanket ECC row in Odin's `FORKS.md` carries the provenance | not pinned (see the skill's `UPSTREAM.md`) | Non-functional as vendored: paths resolved against `~/.claude/`, and an empty scan exited 0 having examined nothing. Fork makes every path repo-relative, makes an empty scan non-zero, replaces the human-approval stop with a recorded decision plus a branch artifact, moves `results.json` into `.claude/.runtime/`, adds `MISTAKES.md` keys at the promotion threshold as a second evidence source, and requires an always-on-vs-`paths:` tier on every new-rule verdict |
 | `decision-mapping` | [mattpocock/skills](https://github.com/mattpocock/skills) (upstream `wayfinder`) | MIT | `8b78b53` | Made invocable — upstream's `disable-model-invocation` dropped, real description and triggers added. Keeps a committed markdown map instead of upstream's issue-tracker map; ports Destination / Out-of-scope / Not-yet-specified, HITL-vs-AFK ticket typing, the `task` type, and claim-before-work (with the claim required to be committed) |
+| `factory` | [coleam00/skills](https://github.com/coleam00/skills) | MIT | `ecef6ff` | Upstream's mandatory `AskUserQuestion` interview replaced by computed rounds that adopt their own recommendation and record it (ADR-0052), plus four portability repairs — an absolute path to the author's workstation, two bare `python` invocations, and a fixture inheriting the host's `init.defaultBranch`; the runner suite went 20/56 to 56/56 and the audit suite from crash to 12/12 |
 
 ### Decision — `rules-distill` ships a NOTICE where no upstream LICENSE exists (2026-08-17)
 

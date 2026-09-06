@@ -1,0 +1,113 @@
+name: factory-lap
+description: |
+  Run ONE dispatcher tick of a dark factory as an Archon workflow — the observable front door to a
+  loop that normally runs from a scheduler. Reads the factory's state, dispatches at most one target
+  at the configured autonomy level, and reports what it did. The dispatcher is still the only thing
+  that decides what runs next; this workflow does not decide anything.
+  Use when: starting a lap by hand, watching one, or proving a factory before arming its trigger.
+  Triggers: "run one factory lap", "dispatch the factory once", "what would the factory do next",
+  "prove the factory before arming it".
+  NOT for: building a factory (the `factory` skill), or replacing the scheduler (that is
+  `factory/install-trigger.sh`).
+
+provider: claude
+model: small
+worktree:
+  enabled: false
+mutates_checkout: true
+tags: [factory, ops]
+
+nodes:
+  # ------------------------------------------------------------------------------------------
+  # Refuse before spending anything. Four preconditions, each of which makes the lap worthless
+  # rather than merely failed.
+  # ------------------------------------------------------------------------------------------
+  - id: preflight
+    bash: |
+      set -uo pipefail
+      test -f factory/config.sh || { echo "FAIL: no factory/config.sh here — this is not a factory repo"; exit 1; }
+      . ./factory/config.sh
+
+      echo "autonomy: ${FACTORY_AUTONOMY:-unset}"
+      echo "agent:    ${FACTORY_AGENT:-unset}"
+      echo "python:   ${FACTORY_PYTHON:-unset}"
+      echo "validate: ${FACTORY_VALIDATE_CMD:-unset}"
+
+      # THE STOP BUTTON IS CHECKED FIRST, and it is checked here rather than only inside the
+      # orchestrator, because a stop that is only honoured by the thing you are trying to stop is
+      # not a stop button. Two mechanisms, because they fail in different places: the file works
+      # with the network down.
+      #
+      # THE PREDICATE IS config.sh's, NOT THIS FILE'S (ADR-0170). This node used to carry its own
+      # copy, and the copy had drifted -- `[ -e ]` here against `[ -f ]` in the dispatcher, so a
+      # DIRECTORY named .factory/STOP halted a lap and not the loop -- plus its own inline default
+      # for a path config.sh owns. An entry point may refuse before spending; it may not compute
+      # the refusal. The DISPOSITION stays this node's: exit non-zero, because that is how a node
+      # halts a DAG, where the dispatcher exits 0 because cron reads its code.
+      #
+      # Fallback for a config.sh predating that decision, in the shape orchestrator.sh already
+      # uses: the stop button is the last thing that may fail because somebody is on an older copy.
+      command -v factory_stopped_by_file >/dev/null 2>&1 \
+        || factory_stopped_by_file() { [ -f "$FACTORY_STOP_FILE" ]; }
+      command -v factory_stop_reason >/dev/null 2>&1 \
+        || factory_stop_reason() { [ -s "$FACTORY_STOP_FILE" ] && head -1 "$FACTORY_STOP_FILE"; }
+
+      if factory_stopped_by_file; then
+        echo "STOPPED: $FACTORY_STOP_FILE exists. Remove it deliberately to resume."
+        why="$(factory_stop_reason)"
+        [ -n "$why" ] && echo "reason: $why"
+        exit 1
+      fi
+
+      # The REMOTE half is deliberately not checked here, and that is not an omission. It needs the
+      # network, python and the tracker; refusing a lap because GitHub is unreachable would turn
+      # every offline run into a failed one, where the dispatcher's own fail-closed check exits 0
+      # and dispatches nothing. `tick` runs the dispatcher, which checks it. The cost of a label
+      # stop is one wasted preflight and one peek, and nothing is ever dispatched.
+
+      command -v "$FACTORY_PYTHON" >/dev/null 2>&1 \
+        || { echo "FAIL: FACTORY_PYTHON ($FACTORY_PYTHON) is not on PATH"; exit 1; }
+    timeout: 120000
+
+  # ------------------------------------------------------------------------------------------
+  # What WOULD run — read-only, before anything runs. The dispatcher's own answer, not a guess.
+  # ------------------------------------------------------------------------------------------
+  - id: peek
+    depends_on: [preflight]
+    bash: |
+      set -uo pipefail
+      . ./factory/config.sh
+      "$FACTORY_PYTHON" factory/state.py next 2>&1 || echo "idle"
+    timeout: 120000
+
+  # ------------------------------------------------------------------------------------------
+  # One tick. `orchestrator.sh` is the dispatcher and the ONLY thing that decides what runs next:
+  # bash, a fixed priority order (fix → validate → implement → triage), and state in something
+  # boring. Archon supplies the run record, the log, the cancel and the resume — not the decision.
+  #
+  # `always_run` because a resumed run must re-read state rather than replay a cached dispatch: the
+  # tick's whole input is what the tracker said a moment ago.
+  # ------------------------------------------------------------------------------------------
+  - id: tick
+    depends_on: [peek]
+    always_run: true
+    bash: |
+      set -uo pipefail
+      bash factory/orchestrator.sh
+    timeout: 3600000
+
+  - id: report
+    depends_on: [tick]
+    bash: |
+      set -uo pipefail
+      . ./factory/config.sh
+      # Unquoted: Archon injects the substitution already shell-quoted.
+      peeked=$peek.output
+      echo "dispatcher said next: $peeked"
+      echo
+      echo "--- state after the tick ---"
+      "$FACTORY_PYTHON" factory/state.py next 2>&1 || echo "idle"
+      echo
+      echo "A lap that says 'idle' is a lap with nothing to do, not a lap that failed."
+      echo "A factory whose dial is 0 dispatches nothing by design — raise it only on evidence."
+    timeout: 120000

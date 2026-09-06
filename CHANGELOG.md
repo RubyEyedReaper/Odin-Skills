@@ -10,6 +10,17 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **Eleven members the mirror was missing** — `caveat`, `consistency`, `factory`, `gauntlet`,
+  `leek`, `mutations`, `off-topic`, `out-of-scope`, `revive`, `s2s` and `status`. Every one is a
+  skill the harness authored or forked, so every one belonged here by the membership rule in
+  [`adr/0003`](docs/adr/0003-mirror-membership-rule.md); none of them was published, and nothing
+  said so. `factory` is the fork among them, shipping upstream's MIT `LICENSE` beside the
+  `UPSTREAM.md` that states the local delta, and `coleam00/skills` joins the link allowlist because
+  the fork is licence-required to cite it.
+
+  The gap is now a predicate rather than a habit: the harness's `skill-provenance-check.sh
+  --membership` fails when a skill it classes `authored` or `forked` is absent from `skills/`.
+
 - **`learn`** — what is worth a durable record, how confident it is, and when it stops being
   true. Adds no store: five confidence rungs with stated promotion and demotion evidence, six
   outcomes exactly one of which applies per pass, and a `verified_by` field naming the command
