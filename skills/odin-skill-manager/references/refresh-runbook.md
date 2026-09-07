@@ -55,6 +55,37 @@ Invocability is not optional. One refresh reintroduced `disable-model-invocation
 live routes at once (`setup-matt-pocock-skills`, `improve-codebase-architecture`, `teach`,
 `triage`) — upstream added it, the diff looked ordinary, and the skills went silently unusable.
 
+## The two checks a diff does not give you
+
+A refresh replaces a skill wholesale, so **anything Odin added or repaired inside a vendored skill
+disappears without a conflict**. Two commands find that, and both are cheap. Run them against the
+refresh commit before anything else looks green:
+
+```sh
+R=<the refresh commit>
+
+# 1. What it DELETED. An added file leaves no trace in a diff you read top-down.
+git diff --diff-filter=D --name-only "$R^" "$R" -- .claude/skills
+
+# 2. What it OVERWROTE. Odin's edits carry markers — an issue id, an ADR, a DEC — so a file whose
+#    marker count DROPPED is a file whose local repairs went with the replacement.
+for f in $(git diff --diff-filter=M --name-only "$R^" "$R" -- .claude/skills); do
+  b=$(git show "$R^:$f" | grep -cE 'harness:RM-|ADR-0|DEC-0')
+  a=$(git show "$R:$f"  | grep -cE 'harness:RM-|ADR-0|DEC-0')
+  [ "$b" -gt "$a" ] && echo "$f  markers $b -> $a"
+done
+```
+
+Measured on the 2026-09-06 refresh: two deletions (`skill-comply/tests/__init__.py` and its
+`.gitignore`, which broke `py_tests` discovery) and two overwritten files (seven pipefail repairs in
+`skill-repo` and one in `automated-assessment`). The marker scan and the gates found the same two
+files independently, which is what makes the scan worth running: it names the loss *before* a gate
+has to.
+
+The repair is never "re-apply and move on" — re-applying restores the code and leaves the next
+refresh free to revert it again. **Freeze the skill in the same change**, so the declaration exists
+where the refresh reads it.
+
 Check for dangling symlinks too. `ui-ux-pro-max` previously shipped `data/` and `scripts/` as
 broken links; a skill whose scripts do not resolve fails at the moment someone needs it.
 
