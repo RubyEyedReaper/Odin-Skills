@@ -9,6 +9,25 @@ eleven owned skills that nothing was publishing became visible at once.
 
 ## The steps
 
+### 0. The mirror is a submodule, so publishing is four steps, not one
+
+Since ADR-0174 `projects/Odin-Skills` is a gitlink. A sync writes into the submodule's working
+tree, and nothing in the superproject records it until the pin moves:
+
+```sh
+bash projects/Odin-Skills/scripts/sync-from-odin.sh --odin "$PWD"   # 1. harness -> submodule tree
+git -C projects/Odin-Skills add -A && git -C projects/Odin-Skills commit -F <msg>
+git -C projects/Odin-Skills push origin main                        # 2. publish
+git add projects/Odin-Skills && git commit                          # 3. bump the pin
+```
+
+The superproject commit's **subject must name the submodule** — `submodule-pin-check.sh` refuses a
+staged gitlink move whose subject does not, because one line of `160000` diff is invisible beside
+whatever else the commit touches.
+
+Step 2 must **fast-forward**. Force-push is unavailable, so a split or push that cannot
+fast-forward means the public repository moved independently — a finding, not a merge to resolve.
+
 ### 1. Copy the skill into the mirror
 
 ```sh
