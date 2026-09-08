@@ -94,13 +94,35 @@ class TestRunWithRecord(unittest.TestCase):
     def test_a_reserved_id_that_is_taken_is_refused_not_moved(self):
         """The negative control, and the reason this is a refusal rather than a bump: a run
         that asked for DEC-0042 and silently got DEC-0043 writes 0043's record under 0042's
-        name in the filename, the frontmatter, the index row and the commit message."""
+        name in the filename, the frontmatter, the index row and the commit message.
+
+        The second run scores a DIFFERENT decision, and that is load-bearing rather
+        than cosmetic. This case used to re-run the identical spec, which made the
+        fixture two things at once: a collision between two decisions over one id,
+        and a retry of one decision after a transport failure. Those want opposite
+        answers — refuse the first, reuse the second — and the fixture could not
+        distinguish them. It asserted the refusal only because reuse did not exist
+        yet.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             decisions_dir = Path(tmp) / "decisions"
             run(_spec(), decisions_dir=decisions_dir, record=True, dec_id="DEC-0042")
+            other = _spec(goal="Pick the queue for outbound webhooks")
             with self.assertRaises(Exception) as caught:
-                run(_spec(), decisions_dir=decisions_dir, record=True, dec_id="DEC-0042")
+                run(other, decisions_dir=decisions_dir, record=True, dec_id="DEC-0042")
             self.assertIn("already spoken for", str(caught.exception))
+
+    def test_a_retry_asking_for_the_same_id_reuses_rather_than_colliding(self):
+        """The other half of the pair above: an identical spec asking again for the
+        id it already holds is a retry, and the id it names is its own."""
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+            first, _ = run(_spec(), decisions_dir=decisions_dir, record=True, dec_id="DEC-0042")
+            second, code = run(_spec(), decisions_dir=decisions_dir, record=True, dec_id="DEC-0042")
+
+            self.assertEqual(code, 0)
+            self.assertTrue(second.get("dec_record_reused"))
+            self.assertEqual(first["dec_record_path"], second["dec_record_path"])
 
     def test_record_true_writes_readme_index(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -559,3 +581,58 @@ class TestAmbiguousLedgerWarning(unittest.TestCase):
             warning_block = err.split("note:")[0]
             self.assertNotIn(str(root), warning_block,
                              "paths are repo-relative, not absolute")
+
+
+class TestRecordIdempotence(unittest.TestCase):
+    """`--record` run twice on one spec must produce one record, not two.
+
+    THE INCIDENT (KinNest ledger, 2026-09-07). The engine wrote DEC-0050 and
+    DEC-0051 and exited 0; the shell pipe consuming its stdout errored, the
+    operator read that as a failed run and retried, and the retry allocated
+    DEC-0052 and DEC-0053 for the same two decisions. Nothing detected it — the
+    duplicates were found by eye and removed by hand, and the ledger carries the
+    gap.
+
+    The engine cannot see a broken pipe, but it can see that this exact spec has
+    already been recorded, which is the condition that actually matters.
+    """
+
+    def test_a_second_record_of_one_spec_returns_the_first_record(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+
+            first, code_a = run(_spec(), decisions_dir=decisions_dir, record=True)
+            second, code_b = run(_spec(), decisions_dir=decisions_dir, record=True)
+
+            self.assertEqual(code_a, 0)
+            self.assertEqual(code_b, 0)
+            self.assertEqual(first["dec_record_path"], second["dec_record_path"])
+            self.assertTrue(second.get("dec_record_reused"))
+            self.assertFalse(first.get("dec_record_reused"))
+
+            records = sorted(decisions_dir.glob("DEC-*.md"))
+            self.assertEqual(
+                len(records), 1,
+                "a retried --record wrote a second record for the same spec: %s" % records,
+            )
+
+    def test_a_changed_weight_is_a_new_decision_and_gets_its_own_record(self):
+        # The inverse case, and the reason the fingerprint is over the spec
+        # rather than over the goal: re-scoring with different weights is the
+        # documented way to revisit a decision, and it must still record.
+        with tempfile.TemporaryDirectory() as tmp:
+            decisions_dir = Path(tmp) / "decisions"
+
+            run(_spec(), decisions_dir=decisions_dir, record=True)
+
+            reweighted = _spec()
+            reweighted["criteria"] = [
+                {"id": "features", "label": "Feature Set", "weight": 30,
+                 "direction": "higher-is-better"},
+                {"id": "ops", "label": "Ops Simplicity", "weight": 70,
+                 "direction": "higher-is-better"},
+            ]
+            second, _ = run(reweighted, decisions_dir=decisions_dir, record=True)
+
+            self.assertFalse(second.get("dec_record_reused"))
+            self.assertEqual(len(sorted(decisions_dir.glob("DEC-*.md"))), 2)

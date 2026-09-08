@@ -195,3 +195,27 @@ cd .claude/skills/gauntlet && python3 -m unittest discover -s tests -t . -v 2>&1
 
 Confirm the collected count is **non-zero**. `tests/__init__.py` is what makes discovery work;
 without it the suite passes having examined nothing.
+
+## Which roadmap, and which tracker
+
+The frontier is computed for **one** repository's work. When a campaign's work lives somewhere other
+than the repository holding its manifest — `projects/<slug>`, its own git repository — the manifest
+says so with `project`, and `frontier`, `rearm` and `verify` all follow it:
+
+```sh
+python3 -m scripts.gauntlet frontier --root <harness> --manifest <campaign manifest>
+python3 -m scripts.gauntlet frontier --root <harness> --roadmap <path>   # the flag wins
+```
+
+Two channels follow `project` and two deliberately do not. The **roadmap** and the **tracker** are
+the project's; `.claude/docs/campaigns` and the work-loop ledger are the harness's and stay on
+`--root`. That split is not cosmetic: reading the roadmap from one repository and the tracker from
+another produces a frontier that mixes two backlogs and looks entirely plausible — measured once at
+165 project items beside 96 issues from the wrong tracker.
+
+Every failure resolving `project` is `undetermined`, never a fall back to the default. Reporting on
+the harness roadmap while the caller believes it read the project's is a confident wrong answer, and
+this engine's whole discipline is that "I looked and found nothing" and "I could not look" are
+different answers. The one exception is `verify` with an unreadable `--manifest`: it already asks
+`campaign close` about that manifest and reports its exit, so raising a second time would shadow the
+answer that names the problem.

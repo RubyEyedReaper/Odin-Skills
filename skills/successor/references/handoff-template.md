@@ -70,6 +70,14 @@ Append-only ledgers (`CHANGELOG.md`, `MISTAKES.md`, `FORKS.md`) default **out** 
 several workers touch them concurrently in one wave, and a rebase-merge conflict on one has
 already landed with its markers intact. Name one explicitly in `edit only:` when this worker's own
 change belongs in it (DEC-0121).
+
+**Read what you do not own from `origin/main`, never from your own disk.** A worktree is a snapshot
+of the moment it was cut, and nothing in it says how old that moment is. A worker's own files stay
+current because it writes them; every other file silently ages as siblings land, and a citation of
+one is a fact about your checkout rather than about the repository — measured at 43 commits behind
+on one live worker while its siblings sat at 1 and 2 (C-0011). Use
+`git show origin/main:<path>` for any file outside `edit only:`, and `git fetch origin` first. Your
+own edits need no rebase: the coordinator rebases at integration.
 <Named prohibitions: never merge, never force-push, never open a PR, never close an issue,
 never edit generated files.>
 

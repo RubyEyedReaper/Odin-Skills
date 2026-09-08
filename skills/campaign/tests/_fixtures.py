@@ -194,6 +194,79 @@ class Campaign:
             json.dump(doc, handle, indent=1)
         return full
 
+    def nest_project(self, rel: str = "projects/Demo") -> str:
+        """A nested repository under this one, with its own bare origin and roadmap.
+
+        The shape a project under `projects/` actually has: its own remote, its own
+        `docs/roadmap/roadmap.json` with no `.claude/` above it, and branches that exist
+        only there. A fixture that made the project a plain subdirectory would let a
+        landedness computed against the OUTER repository pass, which is the defect.
+        """
+        self.project_rel = rel
+        self.project_origin = os.path.join(self.tmp, "project-origin.git")
+        self.project_root = os.path.join(self.root, rel)
+        subprocess.run(
+            ["git", "init", "--bare", "-b", "main", self.project_origin],
+            capture_output=True, text=True, check=True, env=_env(self.home),
+        )
+        subprocess.run(
+            ["git", "clone", self.project_origin, self.project_root],
+            capture_output=True, text=True, check=True, env=_env(self.home),
+        )
+        git(self.project_root, "config", "user.name", "Fixture", home=self.home)
+        git(self.project_root, "config", "user.email", "fixture@example.invalid", home=self.home)
+        os.makedirs(os.path.join(self.project_root, "docs", "roadmap"))
+        with open(os.path.join(self.project_root, "README.md"), "w", encoding="utf-8") as h:
+            h.write("project base\n")
+        git(self.project_root, "add", "-A", home=self.home)
+        git(self.project_root, "commit", "-m", "base", home=self.home)
+        git(self.project_root, "push", "-u", "origin", "main", home=self.home)
+        self.project_items: list[dict] = []
+        self.project_workers: list[dict] = []
+        return self.project_root
+
+    def add_project_worker(
+        self,
+        item: str,
+        branch: str,
+        landed: bool = False,
+        roadmap_status: str = "open",
+    ) -> dict:
+        """The same world as `add_worker`, inside the nested project repository."""
+        g = lambda *a: git(self.project_root, *a, home=self.home)
+        g("checkout", "-q", "-b", branch, "main")
+        path = os.path.join(self.project_root, branch.replace("/", "-") + ".md")
+        with open(path, "w", encoding="utf-8") as h:
+            h.write(f"work for {item}\n")
+        g("add", "-A")
+        g("commit", "-m", f"feat: {item}")
+        g("push", "-q", "-u", "origin", branch)
+        tip = g("rev-parse", branch)
+        g("checkout", "-q", "main")
+        landed_sha = None
+        if landed:
+            g("cherry-pick", tip)
+            g("commit", "--amend", "-m", f"feat: {item} (landed by rebase)")
+            landed_sha = g("rev-parse", "HEAD")
+            g("push", "-q", "origin", "main")
+        self.project_items.append({
+            "id": item.split(":", 1)[-1],
+            "status": roadmap_status,
+            "evidence": landed_sha,
+            "title": f"item {item}",
+        })
+        worker = {"worker": branch.rsplit("/", 1)[-1], "branch": branch, "item": item}
+        self.project_workers.append(worker)
+        return worker
+
+    def write_project_roadmap(self, slug: str = "demo") -> str:
+        """The project's own roadmap, at `<project>/docs/roadmap/roadmap.json`."""
+        path = os.path.join(self.project_root, "docs", "roadmap", "roadmap.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"schema": 1, "scope": "task:Demo", "slug": slug,
+                       "items": self.project_items}, handle)
+        return path
+
     def unreachable_remote(self) -> None:
         """Point origin at a path that is not there — the remote cannot be consulted."""
         self._git("remote", "set-url", "origin", os.path.join(self.tmp, "gone.git"))

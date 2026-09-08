@@ -70,6 +70,10 @@ DEFAULT_REMOTE = "origin"
 LANDEDNESS_LIB = os.path.join(".claude", "scripts", "lib", "branch-landedness.sh")
 ROADMAP_REL = os.path.join(".claude", "docs", "roadmap", "roadmap.json")
 
+#: Where a project under `projects/` keeps its roadmap. No `.claude/` above it — that
+#: directory is the harness's, and a project is its own repository (ADR-0001 in each).
+PROJECT_ROADMAP_REL = os.path.join("docs", "roadmap", "roadmap.json")
+
 #: The roadmap engine's own identity rule, called rather than copied — for the same reason
 #: `bl_classify` is called rather than reimplemented. A roadmap's `scope` field is its
 #: MEMORY CLASS ("operational"); the prefix in `harness:RM-0302` is its SLUG, which is the
@@ -349,14 +353,52 @@ def row_verdict(
     return settle(LANDED, f"content of `{ref}` is in `{base}`")
 
 
+def project_root_of(doc: dict, root: str) -> str | None:
+    """The repository this campaign's WORK lives in, or None when it is `root` itself.
+
+    `--root` names the repository the manifest and the harness live in; a campaign's work
+    may be somewhere else entirely — `projects/<slug>`, its own git repository with its
+    own remote and its own roadmap. Two things depend on getting this right, and both
+    fail the same silent way when it is wrong: the roadmap is read from the wrong file,
+    and branch landedness is computed in a repository that does not have the branches, so
+    every row comes back `absent` and absent is indistinguishable from a real negative.
+
+    A declared `project` that does not resolve is `undetermined`, never a fall back to the
+    default: reporting on the harness roadmap while the operator believes it read the
+    project's is a confident wrong answer.
+    """
+    declared = doc.get("project")
+    if declared in (None, ""):
+        return None
+    if not isinstance(declared, str):
+        raise ManifestError("manifest `project` must be a path")
+    path = declared if os.path.isabs(declared) else os.path.join(root, declared)
+    path = os.path.normpath(path)
+    if not os.path.isdir(path):
+        raise UnreadableError(
+            f"manifest declares project `{declared}`, which does not resolve: {path}"
+        )
+    return path
+
+
+def roadmap_path_for(args, doc: dict, project_root: str | None) -> str:
+    """Flag, then the manifest's project, then the harness default."""
+    if args.roadmap:
+        return args.roadmap
+    if project_root:
+        return os.path.join(project_root, PROJECT_ROADMAP_REL)
+    return os.path.join(args.root, ROADMAP_REL)
+
+
 def compute(args, doc: dict) -> tuple[list[dict], str]:
     """Every row, and the campaign's overall verdict. Nothing is written."""
-    roadmap_path = args.roadmap or os.path.join(args.root, ROADMAP_REL)
-    slug, items = load_roadmap(roadmap_path)
+    project_root = project_root_of(doc, args.root)
+    slug, items = load_roadmap(roadmap_path_for(args, doc, project_root))
+    work_root = project_root or args.root
     base = args.base or doc.get("base") or DEFAULT_BASE
     remote = args.remote or doc.get("remote") or DEFAULT_REMOTE
     rows = [
-        row_verdict(args.root, row, slug, items, base, remote, args.landedness_lib)
+        row_verdict(work_root, row, slug, items, base, remote, args.landedness_lib)
         for row in workers_of(doc)
     ]
     verdicts = {row["verdict"] for row in rows}
@@ -503,7 +545,9 @@ def build_parser() -> argparse.ArgumentParser:
         sub = subs.add_parser(name, help=help_text)
         sub.add_argument("--root", required=True, help="repository root; never inferred")
         sub.add_argument("--manifest", required=True, help="path to the campaign record")
-        sub.add_argument("--roadmap", default=None, help=f"default <root>/{ROADMAP_REL}")
+        sub.add_argument("--roadmap", default=None,
+                         help="this flag, else <project>/" + PROJECT_ROADMAP_REL
+                              + " when the manifest declares one, else <root>/" + ROADMAP_REL)
         sub.add_argument("--base", default=None, help=f"comparison ref (default {DEFAULT_BASE})")
         sub.add_argument("--remote", default=None, help=f"remote (default {DEFAULT_REMOTE})")
         sub.add_argument("--landedness-lib", default=default_lib, help=f"default <repo>/{LANDEDNESS_LIB}")

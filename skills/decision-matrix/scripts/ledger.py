@@ -4,7 +4,9 @@ A "DEC" is a numbered, recorded decision produced by a scoring run: a markdown f
 YAML frontmatter (hand-rolled, not a YAML library — stdlib only) plus a human-readable
 recommendation, scored matrix, and sensitivity summary.
 """
+import hashlib
 import importlib.util
+import json
 import re
 import sys
 from contextlib import contextmanager
@@ -263,6 +265,61 @@ def _format_sensitivity_summary(result: dict) -> str:
     return "\n".join(lines)
 
 
+def spec_fingerprint(spec: dict) -> str:
+    """A stable digest of the decision a spec describes.
+
+    THE INCIDENT (KinNest ledger, 2026-09-07): `--record` wrote DEC-0050 and
+    DEC-0051 and exited 0, the shell pipe reading its stdout errored, the
+    operator read that as a failed run, and the retry allocated DEC-0052 and
+    DEC-0053 for the same two decisions. The engine could not see the broken
+    pipe. It can see that this spec has already been recorded, which is the
+    condition that actually matters, and it is the only one a retry preserves.
+
+    Over the whole spec minus its routing keys, so the sensitivity of the
+    fingerprint matches what a decision *is*: change a weight, a score, an
+    option or a constraint and it is a different decision that must record;
+    re-run the same spec after a transport failure and it is the same one.
+    `decisions_dir` and `dec_id` name where a record goes rather than what it
+    decides, so both are excluded — recording one spec into two ledgers is two
+    records by construction, and the fingerprint is only ever compared within
+    one ledger.
+    """
+    material = {k: v for k, v in spec.items() if k not in ("decisions_dir", "dec_id")}
+    canonical = json.dumps(material, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def find_record_by_fingerprint(decisions_dir, fingerprint: str):
+    """The `(dec_id, path)` already recording this spec in this ledger, or None.
+
+    Reads frontmatter only, and only the `.md` records — an `.html` twin sits
+    beside each one and a walk without the filter would double every hit.
+
+    A record written before the fingerprint field existed carries none, and is
+    therefore never matched. That is the honest behaviour: the field is evidence
+    that a specific spec produced this record, and its absence is not evidence
+    of anything. Older records are not retrofitted.
+    """
+    decisions_dir = Path(decisions_dir)
+    if not decisions_dir.is_dir():
+        return None
+
+    for record in sorted(decisions_dir.glob("DEC-*.md")):
+        if not _DEC_FILENAME_RE.match(record.name):
+            continue
+        head = record.read_text(encoding="utf-8", errors="replace")[:4000]
+        if not head.startswith("---"):
+            continue
+        for line in head.splitlines()[1:]:
+            if line.startswith("---"):
+                break
+            key, sep, value = line.partition(":")
+            if sep and key.strip() == "spec_fingerprint" and value.strip() == fingerprint:
+                number = _DEC_FILENAME_RE.match(record.name).group(1)
+                return "DEC-%s" % number, record
+    return None
+
+
 def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path) -> tuple[Path, str]:
     """Write a DEC-NNNN-<slug>.md record under decisions_dir.
 
@@ -297,6 +354,7 @@ def write_dec_record(dec_id: str, spec: dict, result: dict, decisions_dir: Path)
         f"winner: {winner}\n"
         f"confidence: {confidence}\n"
         f"fragile: {str(fragile).lower()}\n"
+        f"spec_fingerprint: {spec_fingerprint(spec)}\n"
         "---\n"
     )
 

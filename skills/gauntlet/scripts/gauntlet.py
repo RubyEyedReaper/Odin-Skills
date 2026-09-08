@@ -64,6 +64,10 @@ EXIT_NOTHING_TO_ASSIGN = 3
 EXIT_USAGE = 64
 
 ROADMAP_REL = os.path.join(".claude", "docs", "roadmap", "roadmap.json")
+
+#: Where a project under `projects/` keeps its roadmap — no `.claude/` above it, because
+#: that directory is the harness's and a project is its own repository.
+PROJECT_ROADMAP_REL = os.path.join("docs", "roadmap", "roadmap.json")
 CAMPAIGNS_REL = os.path.join(".claude", "docs", "campaigns")
 CAMPAIGN_SKILL_REL = os.path.join(".claude", "skills", "campaign")
 WORKLOOP_REL = os.path.join(".claude", ".runtime", "work-loop")
@@ -160,9 +164,65 @@ def _roadmap_schema(root: str):
 
 # ------------------------------------------------------------------ channel: roadmap
 
-def read_roadmap(root: str) -> tuple[str | None, list[dict]]:
+def project_root_for(root: str, manifest: str | None = None,
+                     manifest_optional: bool = False) -> str | None:
+    """The repository a campaign's work lives in, or None when it is `root` itself.
+
+    Two channels follow it and one deliberately does not. The roadmap and the tracker are
+    the project's; `.claude/docs/campaigns` and the work-loop ledger are the harness's and
+    stay on `root`. Reading the roadmap from one repository and the tracker from another
+    produces a frontier that mixes two backlogs and looks entirely plausible — measured
+    once, at 165 project items beside 96 issues from the wrong tracker.
+    """
+    if not manifest:
+        return None
+    try:
+        with open(manifest, encoding="utf-8") as handle:
+            doc = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        if manifest_optional:
+            # `verify` already asks `campaign close` about this manifest and reports its
+            # exit as its own `undetermined`. Raising here too would report the same
+            # unread channel twice and, worse, would shadow the answer that names it.
+            return None
+        raise Undetermined(f"campaign manifest could not be read: {manifest}: {exc}") from exc
+    declared = doc.get("project") if isinstance(doc, dict) else None
+    if declared in (None, ""):
+        return None
+    if not isinstance(declared, str):
+        raise Undetermined(f"campaign manifest `project` must be a path: {manifest}")
+    project = declared if os.path.isabs(declared) else os.path.join(root, declared)
+    project = os.path.normpath(project)
+    if not os.path.isdir(project):
+        raise Undetermined(
+            f"campaign manifest declares project `{declared}`, which does not resolve: {project}"
+        )
+    return project
+
+
+def roadmap_path_for(root: str, manifest: str | None = None,
+                     manifest_optional: bool = False) -> str:
+    """Which roadmap this run is about: the manifest's project, else the harness default.
+
+    A campaign's work may live in another repository entirely — `projects/<slug>`, with
+    its own roadmap and no `.claude/` above it. Without this the frontier could only ever
+    be computed for the harness, so a gauntlet driving a project campaign could not start.
+
+    Every failure here is `Undetermined` rather than a fall back to the default. Reporting
+    on the harness roadmap while the caller believes it read the project's is a confident
+    wrong answer, and this engine's whole channel discipline is that "I looked and found
+    nothing" and "I could not look" are different answers.
+    """
+    default = os.path.join(root, ROADMAP_REL)
+    project = project_root_for(root, manifest, manifest_optional)
+    if project is None:
+        return default
+    return os.path.join(project, PROJECT_ROADMAP_REL)
+
+
+def read_roadmap(root: str, path: str | None = None) -> tuple[str | None, list[dict]]:
     """(slug, items). Unreadable is `Undetermined`, never an empty roadmap."""
-    path = os.path.join(root, ROADMAP_REL)
+    path = path or os.path.join(root, ROADMAP_REL)
     try:
         with open(path, encoding="utf-8") as handle:
             doc = json.load(handle)
@@ -429,7 +489,8 @@ def surfaces_intersect(a: list[str], b: list[str]) -> bool:
 
 # ------------------------------------------------------------------ the frontier
 
-def build_frontier(root: str, want_tracker: bool = True, issue_limit: int = 500) -> dict:
+def build_frontier(root: str, want_tracker: bool = True, issue_limit: int = 500,
+                   roadmap_path: str | None = None, work_root: str | None = None) -> dict:
     """Every open item across every channel, ordered quick-win first.
 
     Channels are read in a fixed order and each one's outcome is recorded, so a caller can see
@@ -438,7 +499,7 @@ def build_frontier(root: str, want_tracker: bool = True, issue_limit: int = 500)
     _check_root(root)
     channels: dict[str, str] = {}
 
-    slug, items = read_roadmap(root)
+    slug, items = read_roadmap(root, roadmap_path)
     channels["roadmap"] = "read"
     by_id = {item.get("id"): item for item in items}
     escalated = escalated_items(root)
@@ -482,7 +543,7 @@ def build_frontier(root: str, want_tracker: bool = True, issue_limit: int = 500)
         })
 
     if want_tracker:
-        for issue in read_tracker(root, issue_limit):
+        for issue in read_tracker(work_root or root, issue_limit):
             number = str(issue.get("number"))
             if number in linked_issues:
                 continue  # already on the frontier as its roadmap item; one row per unit of work
@@ -708,7 +769,11 @@ def verify_batch(root: str, manifest: str | None, want_tracker: bool = True) -> 
         out["campaign_close"] = {"exit": None, "verdict": "not-asked",
                                  "output": "no --manifest given; only the frontier was computed"}
 
-    frontier = build_frontier(root, want_tracker=want_tracker)
+    frontier = build_frontier(root, want_tracker=want_tracker,
+                              roadmap_path=roadmap_path_for(root, manifest,
+                                                            manifest_optional=True),
+                              work_root=project_root_for(root, manifest,
+                                                         manifest_optional=True))
     out["channels"] = frontier["channels"]
     out["counts"] = frontier["counts"]
     out["frontier_empty"] = frontier["counts"]["total"] == 0
@@ -769,8 +834,11 @@ def _print_wave(wave: dict) -> None:
 
 def cmd_frontier(args) -> int:
     try:
-        payload = build_frontier(args.root, want_tracker=not args.no_tracker,
-                                 issue_limit=args.issue_limit)
+        payload = build_frontier(
+            args.root, want_tracker=not args.no_tracker, issue_limit=args.issue_limit,
+            roadmap_path=args.roadmap or roadmap_path_for(args.root, args.manifest),
+            work_root=project_root_for(args.root, args.manifest),
+        )
     except Undetermined as exc:
         print(f"UNDETERMINED: {exc}", file=sys.stderr)
         return EXIT_UNDETERMINED
@@ -790,8 +858,11 @@ def cmd_frontier(args) -> int:
 
 def cmd_rearm(args) -> int:
     try:
-        frontier = build_frontier(args.root, want_tracker=not args.no_tracker,
-                                  issue_limit=args.issue_limit)
+        frontier = build_frontier(
+            args.root, want_tracker=not args.no_tracker, issue_limit=args.issue_limit,
+            roadmap_path=args.roadmap or roadmap_path_for(args.root, args.manifest),
+            work_root=project_root_for(args.root, args.manifest),
+        )
     except Undetermined as exc:
         print(f"UNDETERMINED: {exc}", file=sys.stderr)
         return EXIT_UNDETERMINED
@@ -846,9 +917,14 @@ def build_parser() -> argparse.ArgumentParser:
                        help="skip the tracker channel; the frontier then says `skipped`, "
                             "never `read`")
         p.add_argument("--issue-limit", type=int, default=500)
+        p.add_argument("--roadmap", default=None,
+                       help="this flag, else the --manifest campaign's `project`, "
+                            "else <root>/" + ROADMAP_REL)
         return p
 
     fr = common(sub.add_parser("frontier", help="open work across every channel, quick-win first"))
+    fr.add_argument("--manifest", default=None,
+                    help="a campaign manifest; its `project` says which roadmap this is about")
     fr.add_argument("--limit", type=int, default=30)
     fr.add_argument("--explain", action="store_true",
                     help="print each ordering factor and the field it was read from")
@@ -858,6 +934,8 @@ def build_parser() -> argparse.ArgumentParser:
     fr.set_defaults(func=cmd_frontier)
 
     re_ = common(sub.add_parser("rearm", help="the next wave, with colliding surfaces held back"))
+    re_.add_argument("--manifest", default=None,
+                     help="a campaign manifest; its `project` says which roadmap this is about")
     re_.add_argument("--width", type=int, default=4)
     re_.set_defaults(func=cmd_rearm)
 

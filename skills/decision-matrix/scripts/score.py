@@ -44,6 +44,8 @@ from scripts.sensitivity import (
 )
 from scripts.ledger import (
     allocate_dec_id,
+    find_record_by_fingerprint,
+    spec_fingerprint,
     next_dec_number,
     write_dec_record,
     update_readme_index,
@@ -578,8 +580,33 @@ def run(spec: dict, *, decisions_dir: Path = None, record: bool = False,
         result["html_artifact_path"] = None
         result["promote_to_adr_hint"] = promote_to_adr_hint(result)
 
+        result["dec_record_reused"] = False
+
         if recommendation.get("winner") is not None:
             title = spec.get("goal", "Untitled decision")
+
+            # `--record` is idempotent within one ledger, and the reason is an
+            # incident rather than a principle: a run that had already written
+            # DEC-0050 and DEC-0051 exited 0, the shell pipe reading its stdout
+            # errored, the operator read that as a failed run, and the retry
+            # allocated two more records for the same two decisions. Nothing
+            # detected it. The engine cannot observe the broken pipe; it can
+            # observe that this exact spec is already recorded here, which is
+            # the condition a retry preserves and a genuine re-decision does not.
+            fingerprint = spec_fingerprint(spec)
+            already = find_record_by_fingerprint(resolved_decisions_dir, fingerprint)
+            if already is not None:
+                existing_id, existing_path = already
+                result["dec_record_path"] = str(existing_path)
+                result["dec_id"] = existing_id
+                result["dec_record_reused"] = True
+                html_twin = existing_path.with_suffix(".html")
+                result["html_artifact_path"] = (
+                    str(html_twin) if html_twin.exists() else None
+                )
+                result["revisit_reminder"] = _revisit_reminder(spec)
+                return result, 0
+
             # Allocated against the counter every worktree of this clone shares, with this
             # ledger's own scan as the floor (harness:RM-0165). The reservation is held for
             # the duration of the write, so a failed record write rewinds it rather than
