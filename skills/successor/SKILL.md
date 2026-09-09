@@ -85,9 +85,27 @@ One git worktree per worker, cut from `main`, named by change class. Copy
 without it stalls on prompts nobody is there to answer. The launch directory must carry `CLAUDE.md`
 and a non-empty `.claude/skills/`, or the relay refuses (ADR-0056).
 
-**Reserve every id up front** — ADR, DEC, and roadmap numbers — and write each worker's ids into its
-handoff. Ids are allocated by reading a ledger; parallel workers reading the same ledger all win, and
-the collision surfaces at integration when it is most expensive.
+**Check which id namespaces have a counter, and reserve only the ones that do not.**
+
+```sh
+git -C <repo> for-each-ref 'refs/odin/ids/*'      # a namespace with no ref has no allocator
+```
+
+A namespace **with** a ref needs no reservation and must not be given one. The counter is a
+compare-and-swap that every minting path already goes through — `next-id.sh`, `id_alloc.py`,
+`decision-matrix`, `roadmap add` — so a number is spent the moment the engine hands it out, and a
+number written into a brief is a second, weaker copy that no tool consults. Worse, a brief that both
+names numbers and tells the worker to run `/decide` is telling it two incompatible things: measured
+on KinNest wave 6, the coordinator reserved `DEC-0091`/`DEC-0092`, the worker ran `/decide` exactly
+as instructed, and the engine correctly issued `DEC-0097`-`0099`. Eight reserved ids became gaps.
+Write instead: *"allocate through the engine; that allocation is the reservation."*
+
+A namespace **without** a ref is the pre-counter world and does need reserving, because there the
+next id really is read off a directory listing and every parallel worker picks the same one. KinNest
+had `dec` and `rm` refs but no `adr` ref, so its four wave-6 workers would all have minted `ADR-0035`.
+The durable fix is to seed the missing ref rather than to reserve in prose —
+`id_alloc.py alloc --namespace adr --floor <on-disk high-water> --want <n> --start <repo>` — after
+which that namespace needs no brief-level reservation either.
 
 ### 2. Launch
 
