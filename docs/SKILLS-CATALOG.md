@@ -3110,3 +3110,589 @@ what several harness guards must do.
 - **Versioning:** unversioned.
 
 ---
+
+## Skill: revive
+
+**Identifier:** `revive`
+**Repository:** `.claude/skills/revive/` (harness) · `skills/revive/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+**The fleet comes back on its own.** Owns one thing nothing else owns: *what restarts a fleet that
+has stopped, and what proves it should be restarted at all.*
+
+**The stance is a single sentence with the whole design in it: a schedule may not decide what to do;
+it may only decide when to look.** The cadence is dumb — two crontab entries, always the same, gated
+on nothing. Every decision lives in a committed manifest and in facts measured at the moment the tick
+fires. That split is what makes the mechanism survive the two-day gap it exists for: *a handoff
+written on Saturday and fired on Monday describes a fleet that has moved, and a status written into a
+file reads identically whether it is current or six hours old.*
+
+So the manifest stores **the assignment and a not-before instant, and never a status.**
+`revival-manifest-check.sh` refuses `status`, `state` and `progress` **at any depth** rather than at
+the top level — *because the field people actually add is a note inside a role row.*
+
+### Purpose and Use Cases
+
+Fires when a campaign must survive a shutdown, a weekly limit, or a turn that ends with work
+remaining.
+
+**Five preconditions, in order, and the order is the substance: each channel after the first cannot
+report its own absence.**
+
+1. **The bridge** — a session launched without it is unreachable, unlistable and unstoppable.
+   Checked as pid **plus `procStart`** plus a control socket, *because a pid alone is reused within
+   hours on a busy host and a liveness test that reads only the number passes forever.* (exit 4)
+2. **The daemon**, via `fleet-health.sh`, whose exits 2 and 3 are forwarded unchanged. Without this,
+   step 5 is meaningless: **a registry outlives the daemon that served it, and on 2026-08-19 five
+   dead sessions rendered as ordinary for eight hours** (M-0014, ADR-0072).
+3. **The not-before**, read from the manifest. A weekly limit, a maintenance window or a deliberate
+   pause is a fact about the work, so it lives with the work.
+4. **Open items**, from the `campaign` engine. *Its `undetermined` is forwarded, never collapsed into
+   "nothing to do" — those are different sentences.*
+5. **Absence**, from the daemon's roster — **never from the session's own `state`**: a wedged session
+   reports `running`, and a dead one reports whatever the registry last knew.
+
+**Only the coordinator is relaunched.** A cron job that also launched workers would be a second actor
+provisioning worktrees and reserving identifiers for the same items — *the collision `successor`
+Phase 1 exists to prevent, arriving from a new direction.* An absent worker is a **finding**,
+reported for the coordinator to act on.
+
+### Scripts
+
+This skill does not define scripts of its own; it owns four harness scripts.
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `fleet-revive.sh` | `.claude/scripts/fleet-revive.sh` | The engine: evaluates the five preconditions and relaunches the coordinator, or refuses **naming which precondition failed** | fired by cron; runnable by hand | the revival manifest |
+| `revival-cron.sh` | `.claude/scripts/revival-cron.sh` | The dumb cadence — two crontab entries, gated on nothing | cron | none |
+| `revival-manifest-check.sh` | `.claude/scripts/revival-manifest-check.sh` | Refuses a manifest carrying `status`, `state` or `progress` at any depth | `ci-local.sh` step *Revival manifest* | the manifest |
+| `fleet-heartbeat.sh` | `.claude/scripts/fleet-heartbeat.sh` | Liveness signal | called by the engine | — |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-role-claim.sh` | `SessionStart` | every session start | Claims the session's role; names `revive` because a revived coordinator must claim its role on start | the role register |
+| `odin-plan-gate.sh` | `PreToolUse` on writes | a write is attempted | Names `revive` among the skills whose documents satisfy or are exempt from the plan requirement | the plan directories |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches restart-the-fleet / survive-a-shutdown intent | Names this skill in the routing hint | none |
+
+The **cron entries are not hooks** — they are host scheduling, outside the six registered events, and
+the skill is explicit that they decide only *when to look*.
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `revival-manifest-check.sh` | that no status is stored in the manifest | always on | `ci-local.sh` step *Revival manifest* | refuses `status`/`state`/`progress` **at any depth** (ADR-0113 applied to the second file that could carry one) |
+| `fleet-revive.test.sh` | the five preconditions and their exit codes | always on | `ci-local.sh` step *Fleet revival matrix*, `--timeout 600` | one case per precondition, plus the refusal messages |
+| the five preconditions | whether a launch happens at all | **all five must hold** | evaluated at fire time, never at write time | exits: 4 bridge, 2/3 daemon (forwarded), 0 not-before / no open items / coordinator present |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `campaign` | reads from | Precondition 4 asks the campaign engine for open items | The manifest **references a campaign by slug and copies nothing from it**. `undetermined` is forwarded, never collapsed |
+| `successor` | launches one instance of | This skill launches exactly **one** session — a campaign's coordinator — which then runs Phase 1 for its own workers | The six-element bar is cited, never restated |
+| `successor-manager` | shares channels | Asks a narrower question — present or absent — of the same channels | The five verdicts stay there |
+| `handoff` | generates | A handoff is generated **at fire time**, not written in advance | *A handoff written on Saturday and fired on Monday describes a fleet that has moved* |
+| `gauntlet` | invoked by | The budget terminal state writes a revival manifest | Ordering: gauntlet stops, revive restarts |
+| `status` | invoked by | A timed resume writes `not_before` into **this** manifest | There is no second not-before format |
+| `endless`, `work-loop`, `tidy` | explicitly excluded | Continuation doctrine, one cycle's ledger, deleting residue | *This engine issues no delete verdicts, prunes nothing, and retires no row* |
+
+### Additional Relevant Information
+
+- **Ownership:** the manifest schema, the five preconditions and the cron shape.
+- **Related documentation:** `references/revival-record.md`; ADR-0121 (the committed manifest, the
+  not-before instant, the five preconditions, the handoff generated at fire time); ADR-0072 and
+  M-0014 (the registry outlives the daemon); ADR-0113 (no stored status).
+- **Known limitations / technical debt:** the mechanism depends on host cron and on the Remote
+  Control bridge; where either is absent the fleet does not come back and the refusal names which
+  precondition failed — visible only to whoever reads the cron output.
+- **Observability:** `fleet-revive.sh`'s refusal messages, each naming its precondition; the
+  committed manifest.
+- **Security / compliance:** the manifest is committed and names branches and campaigns, no
+  credentials. It launches sessions unattended, which is the highest-trust action in the fleet
+  tooling — hence five preconditions rather than one.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: roadmap
+
+**Identifier:** `roadmap`
+**Repository:** `.claude/skills/roadmap/` (harness) · `skills/roadmap/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+**Command form:** `/roadmap`
+
+---
+
+### Description
+
+The standing inventory of everything a project still needs — features, pages, functions,
+integrations, infra — plus the dependency graph between them. **`roadmap.json` is canonical;
+`ROADMAP.md` and `graph.{dot,svg}` are generated.** A script computes the graph; **never compute
+"what's next" yourself.**
+
+It also **owns the hand-offs**: when to grill, when to score, when one item needs a multi-PR
+blueprint, and how a wave of items gets executed. *Those are gates with observable predicates, not
+suggestions.*
+
+This is the skill CLAUDE.md names as the only sanctioned answer to "what should I work on next", and
+the one whose canonical file is never hand-edited.
+
+### Purpose and Use Cases
+
+Fires on "what should I work on next", "start the next thing", a new feature/page/function/
+integration being mentioned (**record it first**), project initialization, "what can run in
+parallel", more than about 8 items competing for a slot, an item finishing, or nothing reconciled in
+`RECONCILE_AFTER_DAYS` (7) days — *ask `due`, never restate it.*
+
+**Not** for how to build one item (`superplan`; `blueprint` for multi-PR), phase narrative
+(`PLAN.md`), or vocabulary (`CONTEXT.md`, owned by `domain-modeling`).
+
+**Storage:** project at `<root>/docs/roadmap/roadmap.json`; harness at
+`.claude/docs/roadmap/roadmap.json`.
+
+**Never hand-edit `roadmap.json` or `ROADMAP.md` — hand edits are detected and fail `validate`.**
+**`blocked` is not a status**; it is computed from unmet deps.
+
+**Generated files self-heal.** `next`, `waves`, `prioritize` and `reconcile` re-render `ROADMAP.md`
+and the graph whenever they no longer match, so a project never reads a stale rendering — including
+after an out-of-band edit. `validate` still *reports* staleness rather than hiding it, because it is
+the CI gate, and `--no-render` opts out for read-only checkouts. **Never quote `ROADMAP.md` back to
+the user without having run one of the refreshing commands in the same turn.**
+
+**The four gates**, each on an observable predicate:
+
+| Gate | Fires when | Skill |
+|---|---|---|
+| **Sharpen** | acceptance is thin | `grilling` / `grill-with-docs` |
+| **Score** | >8 items compete, or two look equally next | `decision-matrix` (`/decide`) |
+| **Decompose** | one item exceeds one PR | `blueprint` |
+| **Plan** | always, before source | `superplan` |
+
+Gate 1's predicate is precise: fewer than 2 `acceptance` entries; acceptance containing an
+unmeasurable word (*fast, better, nice, robust, seamless*); no `links.prd` on a product-facing item;
+or the title being the only description. *An item that survives a grill with unchanged acceptance was
+already sharp — that is a pass, not a wasted step. Planning an item whose acceptance nobody can test
+is how a plan gets approved and then rebuilt.*
+
+Gate 2's exported spec carries a `decisions_dir` naming the ledger that owns this roadmap, **so a
+project's prioritisation never lands in the harness DEC sequence** (`harness:RM-0170`). Scores land
+in `priority.score` with the `DEC-####` that produced them, so the ordering in `next` carries its own
+audit trail.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `roadmap` | `.claude/skills/roadmap/scripts/roadmap.py` | The engine: `next`, `waves`, `add`, `set`, `prioritize`, `validate`, `render`, `reconcile`, `due`, `bootstrap`, `init` | `python3 -m scripts.roadmap <command>` from the skill directory; engine tests are the `ci-local.sh` step *Roadmap engine tests* | `--limit`, `--status`, `--deps`, `--acceptance`, `--evidence`, `--scope task:<slug>`, `--fail-on <kind>`, `--no-render` |
+| `graph` | `scripts/graph.py` | The dependency graph and wave layering | called by `next`/`waves` | the item edges |
+| `prioritize` | `scripts/prioritize.py` | RICE spec export and score write-back | `--export --out spec.json` / `--from result.json` | the `decisions_dir` naming the owning ledger |
+| `reconcile` | `scripts/reconcile.py` | Drift report between the roadmap and reality | `reconcile [--fail-on <kind>]` | exit 1 on the named finding kind, for a CI gate |
+| `render` | `scripts/render.py` | Regenerates `ROADMAP.md` and `graph.{dot,svg}` | called automatically by the self-healing commands | — |
+| `schema` | `scripts/schema.py` | Item schema and validation | `validate` | exit 1 on error |
+| `sweep` | `scripts/sweep.py` | The `bootstrap --surface-sweep` starter surfaces | `bootstrap --from INIT.md` | project docs |
+| `docsurface` | `scripts/docsurface.py` | Documentation-surface derivation | `bootstrap` | — |
+| `__init__.py` | `scripts/__init__.py` | Package marker | import time | none |
+
+Harness gates it owns: `roadmap-check.sh`, `roadmap-drift-check.sh`, `roadmap-issue-link-check.sh`,
+`roadmap-regression-check.sh`, `roadmap-scope-test.sh`, `roadmap-command-doc-test.sh`,
+`project-roadmap-scope-check.sh`.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-roadmap-gate.sh` | `UserPromptSubmit` | a prompt about what to work on next | Emits the next unblocked items and the source file, and states when the last reconcile was | the roadmap's own engine; the **primary checkout**'s copy |
+| `odin-project-context.sh` | `PreToolUse` on most tools | a project path is touched | Resolves which roadmap is in scope | the project slug |
+| `odin-plan-gate.sh` | `PreToolUse` on writes | a write is attempted | Names `roadmap` in the chain that satisfies it | — |
+| `odin-compact-boundary.sh` | `PostToolUse` on `TaskUpdate` | a task completes | Names `roadmap` in the boundary note | a task list must exist |
+| `odin-task-gate.sh` | `PreToolUse`/`PostToolUse` | task bookkeeping | Names `roadmap` in its guidance | — |
+| `odin-unfinished-work.sh` | `Stop` | a turn ends with work outstanding | Names `roadmap` as where the remaining work is captured | — |
+| `odin-safety-guard.sh` | `PreToolUse` | a write near `roadmap.json` | Names `roadmap` in its guidance; hand edits are refused by `validate` regardless | — |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `roadmap-check.sh` | schema, cycles, freshness, and hand edits | always on | `ci-local.sh` step *Roadmap validation*, clean-clone | `validate` — exit 1 on error; a hand edit is **detected** |
+| `roadmap-drift-check.sh` | that the roadmap matches reality | always on | `ci-local.sh` step *Roadmap drift*, `--timeout 600`, plus *Roadmap drift matrix* | `reconcile --fail-on <kind>` |
+| `roadmap-issue-link-check.sh` | that an item's issue links resolve | always on | `ci-local.sh` step *Roadmap issue links* **and** `PRE_PUSH_GATES` (`--links-only`, 66ms, ADR-0136) | link resolution only, in the pre-push half |
+| `roadmap-regression-check.sh` | that a claim already made is not re-made | always on | `ci-local.sh` step *Roadmap claim regression*, clean-clone | prior claims vs the current tree |
+| `roadmap-scope-test.sh`, `project-roadmap-scope-check.sh` | that ids stay in their own per-file sequence | always on | two `ci-local.sh` steps | the slug rule; qualified citation outside the project |
+| `roadmap-command-doc-test.sh` | that the `/roadmap` command doc matches the engine | always on | `ci-local.sh` step *Roadmap command-doc gate* | command coverage |
+| `doc-reference-roadmap-citation.test.sh` | that a roadmap citation in a document resolves | always on | `ci-local.sh` step *Roadmap citation matrix* | citation → item |
+| `RECONCILE_AFTER_DAYS` | when a reconcile is overdue | **7** | `due` is **silent when not overdue**, so a caller needs no comparison | date arithmetic against the last reconcile |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `grilling` / `grill-with-docs` | invokes (Gate 1) | Acceptance is thin | Use `grill-with-docs` when the item introduces a noun not yet in `CONTEXT.md` — the interview then lands the glossary entry and any ADR as it goes |
+| `decision-matrix` | invokes (Gate 2), bidirectionally | `prioritize --export` → score → `prioritize --from` | The DEC id lands on the item as `priority.dec`; re-run with different weights to revisit |
+| `blueprint` | invokes (Gate 3) | One item exceeds one PR | Blueprint registers its tasks back as **roadmap children**, and the roadmap computes the waves so no wave number is ever stored (DEC-0001) |
+| `superplan` | invokes (Gate 4) | **Always, before source** | No exceptions in the gate table |
+| `out-of-scope` | receives from | Capturing a defect found mid-run is this skill's job; **whether capturing is the right answer at all** is that skill's | An item captured from a deferral is **named by the record that deferred it** |
+| `endless`, `gauntlet` | invoked by | Phase 3 picks; the frontier reads | Never from `ROADMAP.md` prose |
+| `campaign` | shares a record | Campaign items **are** roadmap items | The manifest references qualified ids and copies nothing |
+| `projects` | routes from | A project's remaining work is in that project's own roadmap | Per-file counters; qualified ids outside |
+| `domain-modeling` | explicitly excluded | Vocabulary lives in `CONTEXT.md` | Cited as a boundary |
+
+### Additional Relevant Information
+
+- **Ownership:** `roadmap.json`, the engine, the four gates and seven checker scripts.
+- **Related documentation:** `references/roadmap-schema.md` (field reference),
+  `references/workflows.md` (entry chains and handoff text); ADR-0039 (the
+  `roadmap` → `blueprint` → `superplan` chain); DEC-0001 (waves computed, never stored);
+  `harness:RM-0170` (the `decisions_dir` in the exported spec).
+- **Known limitations / technical debt:**
+  - `odin-roadmap-gate.sh` reads the **primary checkout**'s roadmap, so a session working in a
+    worktree can be shown a stale "next unblocked" list. The hint states when the last reconcile was,
+    which is the only signal that this has happened.
+  - `blocked` being computed rather than stored means a hard external blocker is not visible in the
+    item's status at all — it lives in a `work-loop` ledger, and `gauntlet frontier` is what reports
+    the two kinds apart.
+- **Observability:** `next --limit 3`, `waves --limit 3`, `reconcile`, `due` (silent when not due),
+  `validate`.
+- **Security / compliance:** none specific; the roadmap is committed and public to anyone with the
+  repository.
+- **Versioning:** unversioned; the schema is validated rather than versioned.
+
+---
+
+## Skill: rules-distill
+
+**Identifier:** `rules-distill`
+**Repository:** `.claude/skills/rules-distill/` (harness) · `skills/rules-distill/` (this mirror)
+**Status:** `active`
+**Class:** `forked` — upstream `affaan-m/ECC`; **no LICENSE file accompanied the vendored copy**, and the blanket ECC row in `FORKS.md` carries the provenance. Forked 2026-08-15 (`skills/mistake-system`, `harness:RM-0063`)
+
+---
+
+### Description
+
+Scans installed skills and the repository's mistake logs, extracts principles that recur across them,
+and distils them into rules — appending to existing rule files, revising outdated content, or
+creating new ones. It applies the "deterministic collection + LLM judgment" principle: **scripts
+collect facts exhaustively, then an LLM cross-reads the full context and produces verdicts.**
+
+**Two evidence sources, two predicates, deliberately not merged.** A principle appearing in **2+
+skills** answers *what is cross-cutting in the catalog*; a failure-mode key with **4+ recorded
+occurrences** answers *what keeps breaking*. *Overloading one predicate onto the other would make a
+four-occurrence incident invisible unless it also happened to appear in two skills.*
+
+**This skill is the corpus's own hard case for provenance:** it is vended from ECC **and** forked
+here, which is why `odin-skill-manager`'s precedence rule states that fork evidence outranks the vend
+map. Its refresh protection is **derived from this mirror directory**, not from a hand-typed list —
+*deleting the mirror re-exposes the fork.*
+
+### Purpose and Use Cases
+
+Fires on periodic rules maintenance (monthly, or after installing new skills); after a skill
+stocktake reveals patterns that should be rules; on **promotion**, when a key in a `MISTAKES.md` has
+reached the threshold and `mistake-to-gate` §11 needs the rule-text half; and as **the judgment
+hatch** — `oops` §3 classified a condition as not mechanically checkable, *and that route used to end
+nowhere; it ends here, and it ends with a drafted rule and a tier, not an intention.*
+
+**Every rule carries its `tier`:** `scoped` (has `paths:` frontmatter, loads only when a session
+touches a matching file) or `always-on` (no `paths:`, and therefore **costs context on every turn of
+every session**). Choosing the tier is the consequential half of the output.
+
+**Phase 1 fails closed.** Any of the three collection commands exiting non-zero stops the phase — *an
+empty enumeration reported as a clean pass is the shape being refused.* Promotion evidence is read in
+full (`--key K`): the `context` and `artifact` columns are the concrete evidence the draft rule must
+be true of, and **a rule that does not cover all four occurrences is the wrong rule.**
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `scan-skills.sh` | `.claude/skills/rules-distill/scripts/scan-skills.sh` | Phase 1a — the skill inventory | invoked by the skill body | repository-relative paths only |
+| `scan-rules.sh` | `.claude/skills/rules-distill/scripts/scan-rules.sh` | Phase 1b — the rules index, each rule with its `tier` | invoked by the skill body; matrix at `rules-distill-scan.test.sh` | `RULES_DIR` defaults to the repository's `.claude/rules`, **not `$HOME`** |
+| `mistakes.py report` | `.claude/skills/mistake-to-gate/scripts/mistakes.py` | Phase 1c — promotion evidence, the second source | invoked by the skill body | `report .`, `report . --key K` |
+
+**All paths are repository-relative.** Skills and rules are vendored into the repository (ADR-0001),
+so nothing reads `$HOME` — *upstream's `~/.claude/...` commands resolved to nothing here, which is
+why this skill sat unrunnable for 49 days.*
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-surface-router.sh` | `PreToolUse` on writes | the file being written is under `.claude/rules/` | Names this skill and the rule namespace for the surface | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches distillation / promotion intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `rules-distill-scan.test.sh` | the two scanners' output and their fail-closed behaviour | always on | `ci-local.sh` step *Rules-distill scan matrix* | non-zero from any collection command stops Phase 1 |
+| `rule-citations.test.sh` | that every citation in a rule file resolves — path, line **and** anchor phrase | always on | `ci-local.sh` step *Rule-citation matrix* **and** `PRE_PUSH_GATES` (5819ms) | *a bare line number resolves to real, wrong text after a refresh; the anchor is what survives* |
+| `rule-count-claims-check.sh` | that a stated rule count matches the corpus | always on | `ci-local.sh` steps *Rule count claims* and its matrix | the count is asserted in exactly one place |
+| `context-budget.test.sh` | the always-on rule byte total | always on | `ci-local.sh` step *Context-budget matrix* | `ao_total_bytes` over `.claude/rules`; the figure lives in one gated block |
+| `retry-bounds-check.sh` | a rule-derived predicate this skill's body names | always on | `ci-local.sh` | the retry-bound rule |
+| the tier decision | whether a new rule costs context on every turn | **`scoped` unless argued otherwise** | `paths:` frontmatter | *a file without `paths:` is a permanent tax on every session* |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `mistake-to-gate` | **paired with** | §11 promotion is two halves — the check there, the rule text here | Reads `mistakes.py report`; a key at band `promoted` is a candidate on the ≥4-occurrence predicate **independent of** how many skills mention it |
+| `oops` | receives from | §3's judgment class — the not-mechanically-checkable route | *It used to end nowhere.* Now it ends with a drafted rule and a tier |
+| `caveat` | receives from | A safeguard whose kind is `rule` | At a `paths:`-scoped tier |
+| `improve` | complements | A pattern in 2+ skills is a rule, not an improvement | Ordering: `improve` hands over rather than writing rule text |
+| `consistency` | complements | It records a difference; this distils a recurring principle into always-follow text | Different durability tiers |
+| `odin-skill-manager` | classified by | The precedence rule exists because of this skill | Fork evidence outranks the vend map |
+
+### Additional Relevant Information
+
+- **Ownership:** the two scanners and the distillation procedure; the rule namespaces themselves are
+  owned by `.claude/rules/README.md`.
+- **Related documentation:** `.claude/skills/rules-distill/UPSTREAM.md` **and** the mirror copy (one
+  of only two forks carrying it in both places); `.claude/rules/README.md` (tiers and namespaces);
+  ADR-0001 (skills and rules are vendored into the repository); ADR-0067 and DEC-0008 (a pass leaves
+  committed evidence — **upstream stored `results.json` outside the tree**); the 2026-08-15
+  mistake-pipeline audit, F9–F16.
+- **Known limitations / technical debt:**
+  - The fork exists because the vendored skill was **non-functional in this harness** — its first
+    documented command could not succeed here, which is why "No record of last distill pass" stayed
+    open for **49 days**.
+  - `scan-rules.sh` cannot source `.claude/scripts/lib/always-on-rules.sh` because it ships as a
+    published plugin, so the always-on predicate exists twice; the exemption is registered and a
+    conformance case holds the two to agreement (DEC-0040). *It is a registered second
+    implementation, not an unnoticed one.*
+- **Observability:** the two scanners' output; `DISTILLATIONS.md` at the root records each pass.
+- **Security / compliance:** the licence position is explicit — **no LICENSE accompanied the
+  vendored copy**, and the blanket ECC row in `FORKS.md` carries the provenance. That declaration is
+  what `validate-skills.sh` check 6 accepts in place of a file.
+- **Versioning:** unversioned; forked at a stated date rather than a sha.
+
+---
+
+## Skill: s2s
+
+**Identifier:** `s2s`
+**Repository:** `.claude/skills/s2s/` (harness) · `skills/s2s/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+The channel between two running sessions.
+
+**The stance is one sentence, and it is a measurement rather than a caution: a send reports on the
+send.** `MISTAKES.md` M-0125 — a monitor brief named cross-session `SendMessage` to its coordinator
+as its only reporting path. Every send is held for the recipient user's approval. **Two expired
+undelivered. Each returned `success:true`.** The role produced correct findings and delivered none of
+them, and nothing anywhere said so.
+
+So the channel is real and the channel is **not a delivery guarantee**, and a session that treats it
+as one loses its work silently. Three things follow:
+
+1. **The deliverable is a durable path** — something committed and pushed, that the reader can pull
+   whether or not any message arrives. The message is a **pointer** to it, plus an ask.
+2. **A delegated session's terminal is a log, not a report.** Nobody is sitting in front of it. It is
+   read, if at all, through `claude logs` — *a channel measured at ten escape sequences per hundred
+   bytes, redrawn by cursor moves, whose word spacing does not survive the transport.* Writing a long
+   report there is writing to a lossy channel with no reader.
+3. **Those are different audiences with different budgets**, and a session that has not decided which
+   one it is addressing writes for neither.
+
+Rigid on the message bar and the report contract; the rest is judgment.
+
+### Purpose and Use Cases
+
+Fires when a session must say something to another session rather than to a person: reporting back to
+a coordinator, messaging a peer or worker, deciding what belongs in a terminal versus a report, or
+asking who is actually reading this output. Also on "cut the chatter", "nobody is reading this
+terminal", and **when a message was sent and the reader never acted on it.**
+
+**The seam is testable:** `s2s` governs a message and a report **in flight**; `successor` governs a
+session's **lifecycle**; `handoff` governs the **document** that starts one. *If the question is
+about a session that exists or is about to, it is not this skill's.*
+
+**Two audiences.** A human reads now, in the terminal, and can say "shorter" — budget is as much as
+the decision needs, and the failure is too little context to decide. Another session reads later,
+cold, with none of your context — the channel is a durable path plus a pointer, the budget is **four
+lines plus structure**, and the failure is a claim the reader cannot resolve or act on.
+
+**An orphan has no human column.** A delegated session launched by `odin-relay.sh` is bounded on
+**narration** rather than length: it speaks only to declare one of a fixed set of kinds, as a label
+at the start of a line, and evidence under a declaration is free.
+
+**The gap this fills**, measured at `55bb7609`:
+`grep -rn 'SendMessage' .claude/rules/ .claude/docs/*.md` returned **0**. Every campaign in this
+workspace ran on that channel, and no rule, no skill and no gate said anything about it. *Re-measure
+before quoting the number; it is a fact about a commit.*
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `report-volume.py` | `.claude/skills/s2s/scripts/report-volume.py` | Measures a report's volume against the bound | invoked by the skill body | the report text |
+| `s2s-brief-check.sh` | `.claude/scripts/s2s-brief-check.sh` | Checks a brief against the message bar | `ci-local.sh` | the brief |
+| `s2s_kinds.py`, `s2s_report.py` | `.claude/scripts/lib/` | The declared-kind vocabulary and the report predicate, as libraries so there is one implementation | sourced by the gates and by `odin-voice-lint.sh` | — |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-voice-lint.sh` | `Stop` | every turn end | Lints the turn's prose for undeclared narration in a delegated session; **warns, never blocks** on the s2s clause (`harness:RM-0565`) | `s2s_kinds.py`, `voice_lint.py` |
+| `odin-voice-midturn.sh` | `PostToolUse`, all tools | mid-turn | Restates the contract before a lapse rather than after one, and names the declared kinds | `s2s_kinds.py` |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches cross-session-message / "report back" intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `s2s.test.sh` | the channel contract | always on | `ci-local.sh` step *s2s channel matrix* | the message bar |
+| `s2s-kinds.test.sh` | the declared-kind vocabulary | always on | `ci-local.sh` step *s2s declared-kind matrix* | one implementation, in `s2s_kinds.py` |
+| `voice-kind-delivery.test.sh` | that a declared kind actually reaches the reader | always on | `ci-local.sh` step *s2s kind delivery matrix* | delivery, not emission |
+| `supervision-channels.test.sh` | the inbound channel order this skill added one row to | always on | `ci-local.sh` step *Supervision channels matrix* | health first |
+| `s2s-brief-check.sh` | that a brief carries the message bar | always on | `ci-local.sh` | the bar's fields |
+| the narration bound | how much a delegated session may say | **warn**, never block | DEC-0106, DEC-0107 | measured on narration rather than length; `harness:RM-0565` |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `successor` | complements | Lifecycle versus a message in flight | The six-element bar and the five phases stay there |
+| `successor-manager` | **derives from** | *Its red flag "a send reports on the send" is where this skill's stance comes from* | **Cited, not copied** |
+| `handoff` | complements, and extends by one row | The inbound supervision channel table is `handoff` §3's; this skill added the **outbound** row and owns nothing else in it | A precise, minimal extension |
+| `campaign`, `gauntlet` | cited by | What a worker sends back, and that a queued message is not a delivered one (ADR-0162) | Cited from both |
+| `.claude/rules/common/agents.md` | defers to | *A cited path is a claim about the reader's position* — **every word of it** | A message is that same claim in a different envelope |
+| ADR-0011 / `voice_lint.py` | extends | The **shape** of prose to a human is the voice contract's | *This skill adds volume and touches no existing class* |
+
+### Additional Relevant Information
+
+- **Ownership:** the message bar, the report contract and the narration bound.
+- **Related documentation:** ADR-0162 (the channel has an owner; the decision, its rejected
+  alternatives and what the design costs); DEC-0106 and DEC-0107 (where the bound lives and why it
+  warns); M-0125 (the measured incident).
+- **Known limitations / technical debt:**
+  - **The channel cannot be made reliable from this side.** `success:true` on a send means queued,
+    not delivered, and no gate can change that — which is why the deliverable is a durable path.
+  - The narration bound warns rather than blocks, so a chatty orphan is reported and not prevented.
+- **Observability:** `report-volume.py`; the lint's warnings; the durable path itself, which is the
+  only channel that can be checked from the reader's side.
+- **Security / compliance:** messages cross session boundaries and are held for the recipient user's
+  approval — treat anything sent as reaching another person.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: status
+
+**Identifier:** `status`
+**Repository:** `.claude/skills/status/` (harness) · `skills/status/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+**Command form:** `/odin-status`
+
+---
+
+### Description
+
+**The four words a human says to a fleet**, and what each one costs.
+
+**A status is computed at read time, every time, and stored nowhere.** A status written to a file
+reads identically whether it is current or six hours old — which is why `campaign` refuses a stored
+status (ADR-0113), why `revive`'s manifest refuses one **at any depth**, and why nothing this skill
+touches has a `state:` field.
+
+The other three controls are **not new capability**. They are the *order the existing machinery runs
+in* when a human says a word, plus the one thing no engine can supply: **what the answer costs.** *A
+pause that is not accompanied by what it fails to preserve is a promise the mechanism does not make.*
+
+Rigid skill: the bound, the channel order, the verdict vocabulary and the refusals are not judgment
+calls.
+
+### Purpose and Use Cases
+
+Fires when a human addresses the fleet itself rather than the work.
+
+| The human says | Verb | What runs | What it costs |
+|---|---|---|---|
+| "status", "what's running" | `status` | `status-report.sh` — one line, **≤300 codepoints**, computed now | Detail is elided, severity-ordered; **the counts never are** |
+| "pause", "hold everything" | `pause` | quiesce the reachable sessions; report the rest | **Nothing is preserved by contract** |
+| "stop and wait an hour" | `resume-at` | checkpoint, stop cleanly, write `not_before` into `revive`'s manifest | The context window. What comes back reads committed state |
+| "stop so I can start fresh" | `handoff` | `handoff` / `/relay`, unchanged | Nothing — *this is the control that preserves things, by writing them down first* |
+
+The report reads like
+`odin · daemon up · sessions 18 (5 live, 8 idle, 3 blocked, 2 absent) · tasks 29 · agents ? · …`
+
+**Three rules are load-bearing:**
+
+1. **Liveness is never read from the subject.** `fleet-health.sh` runs first, and a roster row is
+   believed only when that row's *own* socket exists. A wedged session reports `running`; a dead one
+   reports whatever the registry last knew, *because the registry outlives the daemon* (ADR-0072).
+2. **A count that could not be obtained renders `?`.** An invented `0` reads as a finished fleet.
+   **`agents ?` is the steady state** — no channel enumerates a session's in-context subagents.
+3. **An elision announces itself, and never drops the failing worker.** Blocked and absent rows sort
+   ahead of live; the tail is what goes. If the counts alone will not fit, nothing is cut.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `status-report.sh` | `.claude/scripts/status-report.sh` | Computes the one-line report | run by hand, or by the `/odin-status` command | `--json` for the same content, **machine-readable and unbounded** |
+| `fleet-health.sh` | `.claude/scripts/fleet-health.sh` | The first channel; its exits are **forwarded, never re-interpreted** | called first, always | — |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-compact-boundary.sh` | `PostToolUse` on `TaskUpdate` | a task completes | Names `status` among the fleet-facing skills | — |
+| `odin-hardcode-guard.sh` | `PreToolUse` on writes | domain data in source | Names `status` in its guidance | — |
+| `odin-task-gate.sh` | `PreToolUse`/`PostToolUse` | task bookkeeping | Names `status` in its guidance | — |
+| `odin-unfinished-work.sh` | `Stop` | a turn ends with work outstanding | Names `status` as the fleet-level report | — |
+| `odin-safety-guard.sh` | `PreToolUse` | a fleet-affecting command | Names `status` in its guidance | — |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "what's running" / "hold everything" / "resume in an hour" intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `status-report.sh`'s 300-codepoint bound | how much of the report reaches a terminal | always on | measured over the rendered line; `--json` is unbounded | elision is severity-ordered, announces itself, and **never drops the failing worker**; if the counts alone will not fit, nothing is cut |
+| `status-report.test.sh` | the bound, the elision order and the `?` rendering | always on | `ci-local.sh` step *Status report matrix*, `--timeout 180` | one case per rule |
+| the `?` rule | whether an unobtainable count may render `0` | **`?`, never `0`** | inside the report | *an invented `0` reads as a finished fleet* |
+| `fleet-health.sh`'s exits | whether any roster row may be believed | forwarded unchanged | first channel, always | ADR-0072 |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `handoff` (`/relay`) | **is** control 4 | "Stop so I can start fresh" | *This one routes to it and adds nothing* |
+| `revive` | writes into | A timed resume writes `not_before` into that manifest | There is no second not-before format |
+| `successor-manager` | defers to | What is true of one delegated session right now | The health gate, the five verdicts and the ownership register stay there |
+| `successor` | defers to | Launching, integrating, tearing down a worker | **An absent worker is a finding here, never a relaunch** |
+| `off-topic` | writes into | A pause that needs a checkpoint writes **that** checkpoint | *There is no second format* |
+| `work-loop` | complements | **`work-loop`'s `pause` ends a cycle; this one stops a session acting** | Neither writes to the other's record |
+| `s2s` | inherits from | A pause request travels that channel and inherits its rule — a send reports on the send | Cited, not restated |
+| `campaign`, `gauntlet`, `endless` | defers to | Landedness, the frontier, continuation doctrine | Cited as boundaries |
+
+### Additional Relevant Information
+
+- **Ownership:** the four controls, the report contract and the bound.
+- **Related documentation:** `references/report-contract.md` (what the 300 is measured over, why
+  elision is severity-ordered, why `unknown` is never `0`, the exit codes),
+  `references/pause-contract.md`, `references/report-template.txt`; DEC-0115; ADR-0072; ADR-0113.
+- **Known limitations / technical debt:**
+  - **`pause` preserves nothing by contract.** The skill says so rather than implying a guarantee
+    the machinery does not make; anything that must survive is written down by control 4 instead.
+  - `agents ?` is permanent, not a bug — no channel enumerates in-context subagents.
+- **Observability:** `bash .claude/scripts/status-report.sh` and `--json`.
+- **Security / compliance:** the report names sessions and projects; `--json` is unbounded and should
+  be treated as the more revealing form.
+- **Versioning:** unversioned.
+
+---
