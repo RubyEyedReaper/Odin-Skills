@@ -2553,3 +2553,560 @@ not a checked predicate. The corpus-wide gates in the overview still apply.
 - **Versioning:** unversioned.
 
 ---
+
+## Skill: odin-skill-manager
+
+**Identifier:** `odin-skill-manager`
+**Repository:** `.claude/skills/odin-skill-manager/` (harness) · `skills/odin-skill-manager/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+> *A skill's provenance is not a fact about its content. It is a fact about what may be done to it —
+> and the only place that fact can live is somewhere a gate can read.*
+
+Owns **where a skill came from, whether it may be overwritten, whether it is published, and how far
+it has drifted.** Four other skills already own parts of skill work — `skill-creator` and
+`writing-skills` write bodies, `skill-comply` checks whether a body's own instructions are followed,
+`find-skills` and `skill-repo` find one, `consistency` asks whether a new thing duplicates an
+existing one — and this owns what none of them does: **classification, mirror membership, packaging,
+freshness, refresh, publication.**
+
+**Creating a skill is therefore always two steps:** `skill-creator` writes it, and this registers it.
+*A skill that exists but is not registered is invisible to the gate that decides what a refresh may
+destroy.*
+
+**This skill is the authority behind the document you are reading** — the membership predicate, the
+four classes, and the per-skill class in every entry above come from it.
+
+### Purpose and Use Cases
+
+Fires when a skill enters, changes or leaves the harness: registering a new one, forking a vendored
+one, refreshing vendored skills from upstream, publishing an owned skill to this mirror, retiring
+one, or answering "is this skill ours".
+
+**The four classes, derived on every run from four inputs** — the vend map, the `FROZEN` list, an
+`UPSTREAM.md`, and mirror membership: `vendored` (third-party, unmodified — a refresh **may**
+overwrite it, which is the point), `forked` (third-party, modified here — a refresh may not; data
+loss with no upstream copy), `authored` (written here, no upstream exists), `frozen` (vendored, but
+upstream is gone or unusable — there is nothing to refresh from).
+
+**A fifth answer exists and is not a class: `undetermined`, rc 3.** Nothing claims the skill and
+nothing declares it. *It is never folded into `authored`, because a skill installed by a provisioner
+looks identical on disk to one written here, and guessing either way protects or exposes the wrong
+thing.* `sp_protected_set` **refuses entirely** while any skill is undetermined — a partial protect
+list is the shape that overwrites exactly the skill nobody could classify.
+
+**Precedence, and the one line of it that matters: fork evidence outranks the vend map**, because a
+forked skill is usually still in the map. `rules-distill` is vended from ECC *and* forked here.
+
+**Five operations**, each with a runbook: a new skill (write → register → publish → route); forking a
+vendored skill (decide fork vs freeze, write `UPSTREAM.md` **before** editing the body, verify the
+class flipped, publish with the licence artefact); refreshing (**never hand-edit a vendored body** —
+the next refresh reverts it, silently, and the finding closes while the cost comes back); publishing
+to the mirror (a one-way publication; *a change made in the mirror is destroyed by the next sync*);
+and retiring (deletion is not enough — remove it from the vend list **with the reason inline**, or
+the next run re-vendors it; `grill-me` was re-created on every run for weeks after being retired).
+
+### Scripts
+
+This skill does not define scripts of its own; it owns a set of harness scripts and the mirror's own.
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `skill-provenance-check.sh` | `.claude/scripts/skill-provenance-check.sh` | Every skill has a class; `--membership` checks every owned skill is published | `ci-local.sh` step *Skill provenance* **and** `PRE_PUSH_GATES` (declared 386ms, worst of three offline) | `--membership` |
+| `skill-provenance.sh` | `.claude/scripts/lib/skill-provenance.sh` | The library: `sp_class`, `sp_list`, `sp_protected_set`, `sp_mirror_members`, `sp_enumerate`. **One implementation, two calling conventions** — `_sp_class_var` answers through a variable because a command substitution per skill is a fork per skill, measured at 1.3s of a gate inside a 30-second budget | sourced by the gates | `sp_list <root>` → TSV `name class origin mirrored` |
+| `skill-freshness.sh` | `.claude/scripts/skill-freshness.sh` | Did any upstream move, and by how much | run by hand | `--quick` (17 `ls-remote`), `--deep`, `--deep --only <name>` |
+| `vendor-skills.sh` | `.claude/scripts/vendor-skills.sh` | The upstream map and the refresh | `--print-map` (TSV, no network); `--refresh` replaces vendored skills only | the vend list, with retirement reasons inline |
+| `sync-from-odin.sh` | `projects/Odin-Skills/scripts/sync-from-odin.sh` | Mirror drift, and the one-way publication | `--check` in `ci-local.sh` (*Skill mirror drift*) and in `PRE_PUSH_GATES` as `mirror_drift --uninitialised-ok` (213ms) | `--check --odin <harness root>` |
+| `validate-skills.sh` | `projects/Odin-Skills/scripts/validate-skills.sh` | This repository's own gate, including **check 6** — a fork must ship a licence artefact | run in the mirror | — |
+
+**Exit codes are the interface.** `skill-freshness` separates **1** (a vendored skill is behind) from
+**3** (an upstream could not be read) on purpose: *"it moved" and "nobody could tell" are different
+sentences, and only one of them is a finding about a skill.*
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-provenance-guard.sh` | `PreToolUse` on `Write\|Edit\|NotebookEdit\|Bash` | a write targeting a skill body | Refuses a hand-edit of a body the provenance library says a refresh owns | `skill-provenance.sh`; matrix at `skill-provenance-guard.test.sh` |
+| `odin-surface-router.sh` | `PreToolUse` on writes | the file being written is under `.claude/skills/` | Names this skill and the `skills` rule namespace for the surface | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches skill-lifecycle intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `skill-provenance-check.sh` | that every skill on disk has a class | always on | `ci-local.sh` **and** `PRE_PUSH_GATES` | the four-input derivation; `undetermined` is rc 3 |
+| `skill-provenance-guard.test.sh` | that the hand-edit guard fires | always on | `ci-local.sh` **and** `PRE_PUSH_GATES` (930ms) | BLOCK/ALLOW matrix |
+| `skill-provenance.test.sh` | the library's own predicate | always on | `ci-local.sh` step *Skill provenance matrix* | per-class cases |
+| `mirror_drift` | that this mirror matches the harness | always on | `ci-local.sh` step *Skill mirror drift* **and** `PRE_PUSH_GATES` with `--uninitialised-ok` (caught `harness:RM-0458`) | file-by-file comparison |
+| `skill-freshness.test.sh` | the freshness reporter | always on | `ci-local.sh` step *Skill freshness matrix* | exit-code separation of 1 and 3 |
+| `vendor-refresh.test.sh` | that a refresh does not overwrite a protected skill | always on | `ci-local.sh` step *Vendor-refresh matrix* | the protect set, which **refuses** while any skill is undetermined |
+| `skill-invocability-check.sh` | that a routed skill is actually invocable | always on | `ci-local.sh` step *Routed skills are invocable*, clean-clone | `disable-model-invocation` must be absent — **a refresh reintroduced it on four routed skills in one command** |
+| `skill-routing-check.sh`, `skill-reachability-check.sh`, `skill-registry-coverage.sh` | that a skill something owns is a skill something names | always on | three `ci-local.sh` steps | *a skill nothing names is a skill nothing fires* |
+| `validate-skills.sh` check 6 | that a published fork ships a licence artefact | always on, in the mirror | run in this repository | a `LICENSE`, or the literal declaration `no LICENSE file accompanied` plus a `NOTICE` |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `skill-creator`, `writing-skills` | **paired with** | They write the body; this registers it | **Ordering is mandatory and both steps are required.** An unregistered skill is invisible to the refresh guard |
+| `skill-comply` | complements | Whether a body's own instructions are being followed | Different question about the same file |
+| `consistency` | complements | Whether a new thing duplicates an existing one | Fires before authoring |
+| `find-skills`, `skill-repo` | complements | Finding a skill that already does the thing | Discovery, not lifecycle |
+| `rules-distill` | **is an instance of its own hard case** | Vended from ECC *and* forked here — the precedence rule exists because of it | Fork evidence outranks the vend map |
+| every member of this catalog | classifies | The class in each entry above is `sp_class`'s answer | This skill is the source of the membership predicate |
+
+### Additional Relevant Information
+
+- **Ownership:** the provenance library, the four scripts, the mirror's publication runbook, and the
+  `skills` rule namespace (`.claude/rules/skills/lifecycle.md`).
+- **Related documentation:** `references/classification.md` (what each class licenses and how it is
+  derived), `references/refresh-runbook.md`, `references/membership-runbook.md`,
+  `references/fork-runbook.md`; `.claude/docs/skill-provenance.tsv` (declared rows, *and why most of
+  them are debts*); `FORKS.md` at the harness root; `odin-skills:ADR-0003`.
+- **Known limitations / technical debt:**
+  - **Two mechanical edits are applied by `vend()` on every refresh** — the frontmatter `name:`
+    rewrite and stripping `disable-model-invocation: true` — precisely so that nobody hand-edits a
+    vendored body for those two reasons.
+  - The red-flags table records a real regression: *"the refresh was clean, nothing broke" — run
+    `skill-invocability-check.sh`; a refresh reintroduced `disable-model-invocation` on four routed
+    skills in one command.*
+  - **"No diff means up to date" is only true if the comparison used the upstream's own directory
+    name.** Guessing by target name misses every renamed skill.
+  - A declared row in `skill-provenance.tsv` is described by the skill itself as usually a **debt**,
+    not a record — the derivation is preferred.
+- **Observability:** `sp_list <root>`; `skill-freshness.sh --deep`; the gates' own output.
+- **Security / compliance:** **publishing is a licensing act, not a copy.** `validate-skills.sh`
+  check 6 refuses a fork with no licence artefact, and the fork runbook requires the upstream
+  `LICENSE` beside the `UPSTREAM.md` — or, where upstream published none, the literal declaration
+  plus a `NOTICE`.
+- **Versioning:** unversioned; freshness is measured against upstream shas, never asserted by a
+  document. *"The freshness doc says…" — a document cannot notice that upstream moved. Run `--deep`.*
+
+---
+
+## Skill: off-topic
+
+**Identifier:** `off-topic`
+**Repository:** `.claude/skills/off-topic/` (harness) · `skills/off-topic/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+Owns **the work a mid-run task displaced.** A task introduced into a run in flight creates an
+**obligation to return**, and that obligation is the only thing worth writing down — everything else
+about the interrupted work is already recorded somewhere with an owner: the item, the plan, the
+branch, the ledger. *A checkpoint that copies them becomes a second, staler opinion about facts it
+does not own.*
+
+So a checkpoint here is **a pointer plus a relation**: which work was displaced, what displaced it,
+what condition means the displacement is over, and what to do first on returning. Nothing else.
+
+**The honest limit is stated rather than implied away:** the return itself is held by the agent, and
+*nothing can make a session resume*. What is mechanical is that an **owed** return cannot stay
+invisible — the checkpoint is committed, so every checkout reaches the same verdict about it, and
+`.claude/scripts/off-topic-check.sh` reports a return that has come due.
+
+Declared a **rigid** skill: the trigger predicate, the schema and the refusals are not judgment
+calls.
+
+### Purpose and Use Cases
+
+Fires on an interruption, a pivot, being sidetracked, parking work, or coming back to it — and on
+"before I forget", "hold that thought", "where were we".
+
+**Three conditions, all of which must hold:** work is in flight that a reader could not reconstruct
+from the tree alone (a claimed roadmap item, an open plan, an unpushed branch, a part-done
+integration); a new task arrives that is not that work, and finishing the in-flight work would not
+finish it; and the new task **displaces rather than interleaves** — it needs an edit, a branch or a
+plan of its own.
+
+**The origin of the new task does not matter.** A defect the agent finds mid-run displaces exactly as
+hard as one a human introduces.
+
+**Explicitly not triggers:** a question (answering displaces nothing — *a question is not a task*); a
+defect fixed in the same breath inside the same unit of work; one skill routing to another.
+
+**Against `pause`.** `work-loop`'s `pause` outcome describes the event well, and this is still a
+separate skill for two reasons: a `work-loop` ledger exists only where somebody opened a contract,
+and displacement arrives most often in a session that never did; and *`pause` ends the loop, while a
+displacement does not* — the interrupting task runs inside the same run and the return is owed while
+the loop is still live. Where a loop *is* open, use both.
+
+Checkpoints **stack by `parent` and close LIFO**.
+
+### Scripts
+
+This skill does not define any scripts.
+
+Its gate is `.claude/scripts/off-topic-check.sh`, a harness script the body names as its enforcement.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches interruption / "hold that thought" / "where were we" intent | Names this skill in the routing hint. Its arming is separately asserted by `off-topic-skill-gate.test.sh` | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `off-topic-check.sh` | that an owed return cannot stay invisible | always on | `ci-local.sh` step *Off-topic checkpoints* | reports a return that has come due, from the **committed** checkpoint — so every checkout reaches the same verdict |
+| `off-topic-check.test.sh` | the checker's own matrix | always on | `ci-local.sh` step *Off-topic check matrix*, `--timeout 180` | — |
+| `off-topic-skill-gate.test.sh` | that the intent actually arms the routing | always on | `ci-local.sh` step *Off-topic skill-gate arm matrix*, `--timeout 60` | routing-surface coverage |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `work-loop` | complements | `pause` is the adjacent outcome | **This skill neither extends that vocabulary nor writes to that ledger.** They answer different questions — `pause` says this cycle stopped, a checkpoint says a return is owed |
+| `handoff` | shares a record | A handoff written while a checkpoint is open **names it** | *That is the whole interaction.* Otherwise the successor inherits the branch without the debt |
+| `out-of-scope` | complements | A `fix-now` verdict can **produce** a displacement, and then this skill fires **on its own predicate — never because that one asked it to** | The boundary is one word: **who brought the work.** New task → here; discovered defect → there |
+| `endless` | complements | `endless`'s checkpoint is a decision point in a long run; this one is a **debt** | Same word, deliberately distinguished |
+| `roadmap` | references | A checkpoint references an item and holds **no second opinion** about it | Item identity stays there |
+| `tidy` | explicitly excluded | An open checkpoint is **not residue**; closing one is a return, never a sweep | Cited as a boundary |
+
+### Additional Relevant Information
+
+- **Ownership:** checkpoints live under `.claude/docs/off-topic/` and are committed.
+- **Related documentation:** `references/checkpoint-format.md`, `references/return-contract.md`;
+  DEC-0108 (a committed checkpoint holding the displacement edge and the resume condition, never a
+  copy of state another file owns).
+- **Known limitations / technical debt:** the resume is unenforceable. The gate can report that a
+  return is due; it cannot cause one.
+- **Observability:** `bash .claude/scripts/off-topic-check.sh`; the committed checkpoint files.
+- **Security / compliance:** checkpoints are committed, so they must not carry anything sensitive —
+  they are pointers, which is also why.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: oops
+
+**Identifier:** `oops`
+**Repository:** `.claude/skills/oops/` (harness) · `skills/oops/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+The incident front door. **An incident is worth exactly one thing: the guard it buys.** Fixing the
+symptom and moving on spends the incident and gets nothing back.
+
+**The deliverable is a check a machine runs** — a test, an assertion, a lint or type rule, a hook, or
+a CI gate. *Not a resolution, not a note, not a paragraph in a commit message. A rule nobody checks is
+wrong by the second change.*
+
+### Purpose and Use Cases
+
+Fires on the incident itself, whether or not a fix or a check was requested: code did the wrong thing
+or the right thing for the wrong reason; an assumption was held that was never verified (a file
+exists, a field is non-null, an API returns in order, a value is fresh); validation was missing at a
+boundary; an unsafe, destructive or irreversible action ran or nearly ran; a review or postmortem
+produced a "we should always…"; a guard was found to pass when it should have failed.
+
+**Not for a bug you have not diagnosed yet.** A failing test is a symptom — run
+`systematic-debugging` / `diagnosing-bugs` first. *OOPS starts once the cause is known: you cannot
+guard a mechanism you have not identified.*
+
+**Step 1 — name the incident with its artifact**, then name the **failure mode in the vocabulary of
+the check that will catch it**: "no input validation", "missing null check", "assumed the file
+exists", "used a stale read", "unbounded retry", "no test for the empty case". *"Links were wrong" is
+not an incident; "`getUser(id)` returned `undefined` for a deleted user and the caller dereferenced
+`.email`" is.* The artifact becomes the first test case.
+
+**Step 2 — root cause is the condition, not the symptom.** Ask what condition allowed this, then ask
+it again of the answer, and stop when you reach something expressible as a predicate. **The test of a
+real root cause: you can state the guard from it in one sentence.** If you cannot, you are still on
+the symptom. The body's worked table includes the one this repository keeps re-learning: *a
+destructive command ran → the command's target was inferred from ambient state, never named.*
+
+**Step 3 — classify the guard, and this fork decides everything after it:** a predicate over
+repository state → **CI gate**, handed to `mistake-to-gate`, *which owns that branch end to end — do
+not rebuild it here*; untrusted data entering the system → **input guard** at the boundary function;
+required state assumed to exist → **precondition**; a result used unchecked → **postcondition**; a
+failure path nobody exercised → **error-path guard** at the call site; judgment → **not mechanically
+checkable**, say so out loud and route to `rules-distill`.
+
+**When the incident is outside the work in hand**, the guard still belongs here; what is decided
+elsewhere is whether it lands in this run or is routed and left — `out-of-scope` scores that.
+
+### Scripts
+
+This skill does not define any scripts.
+
+It appends to the log through `mistake-to-gate`'s engine:
+`python3 .claude/skills/mistake-to-gate/scripts/mistakes.py append . --key '<class>/<predicate-slug>'
+--context … --artifact … --fix …`.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-safety-guard.sh` | `PreToolUse` on `Bash\|Edit\|Write\|NotebookEdit` | a destructive or ambiguous command | Blocks always-on; names `oops` in the guidance it prints, because a refused command is frequently an incident | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "that shouldn't have happened" / "add a guard" / "I assumed" intent | Names this skill in the routing hint. *An incident is exactly the moment nobody stops to pick a skill*, which the hook's own comment says | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `mistakes-check.sh` | that the appended row is well-formed, and the "promotion due" signal | always on | `ci-local.sh` and `PRE_PUSH_GATES` | owned by `mistake-to-gate`; this skill is a writer to it |
+| the promotion band | when an incident stops being a mistake | fires at the fourth occurrence of a key | announced by `oops`, executed by `mistake-to-gate` §11 | recurrence count per failure-mode key (ADR-0057) |
+| the diagnosis precondition | whether the skill may run at all | requires a known cause | procedural | *you cannot guard a mechanism you have not identified* |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `mistake-to-gate` | **hands off to** | The CI-gate branch, end to end, plus the log engine this skill appends through | ADR-0057. **Do not rebuild that branch here** |
+| `systematic-debugging`, `diagnosing-bugs` | **gated by** | The cause must be known first | Hard ordering: diagnose, then guard |
+| `test-driven-development` | hands off to | Input guards, preconditions and postconditions are written test-first | Three of the six guard classes route here |
+| `error-handling-patterns` | hands off to | The error-path guard class | Bounded retry, fallback, explicit surfaced error |
+| `rules-distill` | hands off to | The not-mechanically-checkable class — *and the last row now terminates somewhere* | Produces a drafted rule rather than leaving judgment unowned |
+| `caveat` | complements | A hazard may be met with nothing yet gone wrong; an incident already went wrong and is **counted** | Both can fire on one event; the key goes in `MISTAKES.md`, the condition in `CAVEAT.md` |
+| `mutations` | complements | Its Oops gate hands over here for the occurrence and the guard | One event, two records, joined by a citation |
+| `out-of-scope` | complements | Whether the guard lands in this run or is routed and left | A deferral it records names the item or issue the guard now waits on |
+| `endless`, `gauntlet` | invoked by | Phase 8's second half — a loop that captures features and drops its own mistakes re-makes them on a schedule | Per iteration, per batch |
+
+### Additional Relevant Information
+
+- **Ownership:** the incident procedure and the guard classification are owned here; `MISTAKES.md`
+  and the engine by `mistake-to-gate`.
+- **Related documentation:** ADR-0057; `MISTAKES.md`; `.claude/rules/common/security.md` (the
+  destructive-command class that produces many of these incidents).
+- **Known limitations / technical debt:** the failure-mode key is chosen by the author, so two
+  spellings of one class never reach the promotion threshold together — a limitation this skill
+  shares with `mistake-to-gate` and which nothing detects.
+- **Observability:** `mistakes.py report .`; the guard itself, once it exists.
+- **Security / compliance:** many incidents recorded here are destructive-command near-misses, so
+  entries quote commands that must not be replayed.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: out-of-scope
+
+**Identifier:** `out-of-scope`
+**Repository:** `.claude/skills/out-of-scope/` (harness) · `skills/out-of-scope/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+Resolves a genuine contradiction between two contract items, neither of which is wrong:
+
+- **CLAUDE.md item 8** — on audit, review or structural work, file one issue per distinct concern
+  rather than fixing out-of-scope items in the same pass.
+- **CLAUDE.md item 3** — never close a turn reporting in-scope work as deferred-by-choice.
+
+Item 3 governs work *inside* the scope; item 8 governs work *outside* it. **Between them sits work
+that is genuinely out of scope and whose deferral costs the next session more than fixing it costs
+this one — and that case had no rule, so it was settled by whoever held the keyboard.**
+
+This skill makes it decidable: the call is scored by the `decision-matrix` engine against **six
+weighted dimensions**, the winner is taken, and a **deferral** is written into a committed store
+carrying the spec that produced it. *That last part is half the value: a deferral today is invisible
+tomorrow unless the reasoning travels with it.* The tracker is where this repository has watched
+findings go to be re-discovered late — one burn-down found **31 of 43** examined issues already fixed
+on `main`, each re-established from context by somebody who did not have it.
+
+Declared a **rigid** skill: the trigger predicate, the six criteria, the tie-break and the refusals
+are not judgment calls. *The scores are.*
+
+### Purpose and Use Cases
+
+Fires on a defect noticed in passing, a landmine the next session would trip over, "that's out of
+scope but", "should we fix this now or file it", "is this worth fixing now" — and when a deferral
+needs to be **auditable rather than remembered.**
+
+**A near-tie defers**, and a deferral is either supported by its own score or names the bar that made
+fixing unavailable (DEC-0112, DEC-0113; the whole resolution is ADR-0168).
+
+**Against `off-topic`, the boundary is one word: who brought the work.**
+
+| | `off-topic` | `out-of-scope` |
+|---|---|---|
+| Subject | A new task introduced into a run in flight | A defect discovered inside a run |
+| Question | How does the displaced work get resumed | Should this be fixed now, or routed and left |
+| Artifact | A checkpoint, deleted on return | A deferral record, **kept for the audit** |
+| Nesting | Stacks by `parent`, closes LIFO | **Never nests** |
+
+A `fix-now` verdict can *produce* a displacement, and then `off-topic` fires — but only on its own
+predicate, unchanged. *A defect fixed in the same breath, inside the same unit of work, is explicitly
+not an `off-topic` trigger, and this skill does not make it one.*
+
+### Scripts
+
+This skill does not define any scripts.
+
+It supplies a spec to `decision-matrix`'s engine and reads the winner; **it never computes a score by
+hand.** Its own gate is `.claude/scripts/out-of-scope-check.sh`.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-safety-guard.sh` | `PreToolUse` | a command near a deferral record | Names `out-of-scope` in its guidance | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "file it or fix it" / "out of scope but" intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `out-of-scope-check.sh` | that a deferral record is well-formed and carries the spec that produced it | always on | `ci-local.sh` step *Out-of-scope deferrals*, matrix `out-of-scope-check.test.sh` `--timeout 300` | the record schema; a deferral must be **supported by its own score** or name the bar that made fixing unavailable |
+| the near-tie rule | what happens when the two options score within the noise | **defers** | inside the scoring spec | DEC-0113 |
+| `decision-matrix`'s own refusals | whether the score may be computed at all | incomplete spec is refused | delegated wholly | a missing score is a question nobody answered |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `decision-matrix` | **invokes — required** | All the math: scoring, sensitivity, vetoes, the DEC record | **This skill supplies a spec and reads the winner; it never computes a score by hand** |
+| `off-topic` | complements | Who brought the work | A `fix-now` verdict may produce a displacement; that skill then fires on its own predicate |
+| `to-issues`, `triage` | hands off to | Turning the finding into a tracker row | Issue shape, labels and the triage state machine stay there |
+| `roadmap` | references | Capturing the work as an item with acceptance criteria | A record here references an item and holds no second opinion |
+| `oops`, `mistake-to-gate` | complements | The guard for an incident found out of scope still belongs there; this decides only whether it lands now | A deferral names the item or issue the guard waits on |
+| `caveat`, `mutations` | complements | Neighbouring ledgers with their own contracts | Cited, never re-derived |
+| `campaign`, `gauntlet` | complements | Whether a batch may close, and what re-arms it | Cited as boundaries |
+| `superplan`, `writing-plans` | hands off to | Planning the fix once `fix-now` wins and it is big | The plan-depth bar applies |
+
+### Additional Relevant Information
+
+- **Ownership:** the six dimensions and the deferral record are owned here; the arithmetic by
+  `decision-matrix`; the tracker row by `to-issues`.
+- **Related documentation:** `references/record-schema.md`, `references/worked-example.md`;
+  ADR-0168 (the full resolution), DEC-0112 (where the record lives), DEC-0113 (the six dimensions).
+- **Known limitations / technical debt:** the dimensions are weighted, and the weights are a policy;
+  re-running with different weights is the documented way to revisit a deferral, which means an old
+  deferral's verdict is only as good as the weights of its day.
+- **Observability:** `bash .claude/scripts/out-of-scope-check.sh`; the committed deferral records and
+  their DEC specs.
+- **Security / compliance:** none specific.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: projects
+
+**Identifier:** `projects`
+**Repository:** `.claude/skills/projects/` (harness) · `skills/projects/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+**The routing table** over a project subtree's lifecycle, plus the two things that had no owner: the
+**project-switch ritual** and the **per-project artifact checklist**.
+
+**There is no engine here, and no state anybody sets by hand.** A project's state — initialized,
+active, dormant, completed — is *read from its tree*.
+
+### Purpose and Use Cases
+
+Fires when starting or switching to a project subtree, when a project's own README, changelog, ADR
+set, decision ledger, roadmap or data-provenance manifest may be missing, or when deciding whether a
+project is initialized, active, dormant or completed.
+
+**The project-switch ritual runs on starting and on switching, before any other action.** The failure
+it prevents is silent: *nothing errors when the previous project's scope is carried into a new one —
+the work is simply aimed at the wrong target, and reads as correct all the way to the commit.* Each
+step is an assertion about **this** project; state the answer, do not assume it carried over.
+
+1. **Name the subtree** — `projects/<slug>/`, and whether it is a **nested repository of its own**;
+   the harness enumerates such a project, skips it, and says so on every run. *Its git state is not
+   the harness's git state.*
+2. **Read the project's own goal and scope**, in its own words. *The previous project's goal is not
+   evidence about this one.*
+3. **Assert the memory namespace** — `task:<slug>`. Operational records are read-only context inside
+   a project and are never merged into project memory.
+4. **Assert the id sequences are the project's own.** Roadmap ids and decision ids are **per-file
+   counters**, so the same number names different work in every project. Outside the project, cite
+   them qualified: `<slug>:RM-0007`.
+5. **Assert the project's own gate** — the command that is *this* project's CI — and **run it once
+   before changing anything**, so a later red is attributable to your change.
+6. **Walk the artifact checklist**, and read its warning about silence.
+
+The red-flags table is the operational core: *"Same repo, I already know the setup" — a subtree is
+not the harness.* *"The tests were passing earlier" — earlier, in a different project's gate.*
+*"The guard found nothing, so it is clean" — or it is not configured.* *"This project has no roadmap,
+so I'll just start" — a project with more than one unit of remaining work owes one; **absence is a
+finding**.*
+
+### Scripts
+
+This skill does not define any scripts.
+
+Its frontmatter declares `artifact: projects/*/README.md` — the per-project README is the artifact
+whose existence `skill-artifact-check.sh` asserts.
+
+### Hooks
+
+`projects` is named by more hooks than any other member — six — because a project subtree changes
+what several harness guards must do.
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-project-context.sh` | `PreToolUse` on `Read\|Write\|Edit\|NotebookEdit\|Bash\|Grep\|Glob` | any tool call touching a project path | Establishes which project subtree is in scope and surfaces its context | the project's own docs |
+| `odin-project-doc-guard.sh` | `PreToolUse` on writes; also `--scan` | a write into a project subtree | Enforces that a project carries its own README, changelog, ADR set and ledger | in `PRE_PUSH_GATES` as `--scan` (4220ms; caught `harness:RM-0455`) |
+| `odin-memory-guard.sh` | `PreToolUse` on memory MCP tools | a memory write | Enforces the `task:<slug>` namespace, fail-closed (ADR-0025) | the active memory class |
+| `odin-hardcode-guard.sh` | `PreToolUse` on writes; also `--scan` | domain data appearing in source | Refuses hardcoded project vocabulary; needs a per-project manifest to say anything | `ci-local.sh` step *Domain data in source (tree)* |
+| `odin-roadmap-gate.sh` | `UserPromptSubmit` | a prompt about what to work on | Routes to the **project's own** roadmap | the project's `roadmap.json` |
+| `odin-plan-gate.sh`, `odin-safety-guard.sh` | `PreToolUse` | writes, and destructive commands | Both name `projects` in their guidance for subtree paths | — |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `odin-project-doc-guard.sh --scan` | that every project carries its own required documents | always on | `ci-local.sh` step *Project-doc routing (tree)* **and** `PRE_PUSH_GATES` (4220ms) | the artifact checklist, as a repository-state predicate |
+| `project-doc-guard-test.sh` | the guard's own matrix | always on | `ci-local.sh` step *Project-doc guard matrix* | BLOCK/ALLOW cases |
+| `project-context-test.sh` | that the slug resolution is correct | always on | `ci-local.sh` step *Project-context slug* | slug derivation |
+| `nested-repo-sync.test.sh` | that a nested-repository project is enumerated, skipped, and **said so** | always on | `ci-local.sh` step *Nested-repo sync check matrix* | the enumeration's own output |
+| `project-roadmap-scope-check.sh` | that a project's roadmap ids stay in the project's sequence | always on | `ci-local.sh` steps *Project roadmap scope* and its matrix | per-file counters; qualified citation outside the project |
+| `memory-guard-test.sh`, `claude-mem-guard.test.sh` | the `task:<slug>` namespace guard | fail-closed | two `ci-local.sh` steps | ADR-0025 |
+| `skill-artifact-check.sh` | that `projects/*/README.md` exists | always on | `ci-local.sh` step *Skill artifact (tree)* | the declared `artifact` glob |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `roadmap` | routes to | A project's remaining work is items in **that project's own** roadmap | **This skill never ranks or picks** |
+| `codebase-onboarding`, `repo-scan` | routes to | How to read an unfamiliar codebase | This skill only says that phase comes first and names them |
+| `superplan`, `blueprint` | routes to | Planning before source is edited | *Nothing here relaxes or restates the plan-depth bar* |
+| `domain-modeling` | routes to | Terms live in the project's own `CONTEXT.md` | Written by that skill |
+| `handoff` / `/relay`, `successor` | complements | A handoff is a session-level act; **a project switch inside one session is not a handoff** | Cited as a boundary |
+| `endless` | complements | Continuation is about the loop, not about the project | Cited as a boundary |
+| the project's own docs | defers to | *This skill describes the model; it never writes into anybody's project* | A hard constraint on its own scope |
+
+### Additional Relevant Information
+
+- **Ownership:** the ritual and the checklist are owned here; every phase it routes to is owned by
+  the skill named in the row.
+- **Related documentation:** `references/operating-model.md` (every lifecycle phase and its owner;
+  the artifact checklist), `references/state-transitions.md` (the four states and the evidence each
+  transition requires); ADR-0106; ADR-0025 (the memory class guard).
+- **Known limitations / technical debt:**
+  - `odin-hardcode-guard.sh` **needs a per-project manifest to say anything** — silence on a new
+    project means it is unconfigured, not clean, which is exactly the red flag the skill names.
+  - The skill deliberately writes nothing into a project, so every artifact it requires is created by
+    somebody else; the guard can only report absence.
+- **Observability:** `bash .claude/hooks/odin-project-doc-guard.sh --scan`;
+  `bash .claude/hooks/odin-hardcode-guard.sh --scan`.
+- **Security / compliance:** the memory-class guard is fail-closed, which is the boundary that keeps
+  one project's records out of another's context.
+- **Versioning:** unversioned.
+
+---
