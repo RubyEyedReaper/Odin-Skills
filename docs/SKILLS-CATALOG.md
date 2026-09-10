@@ -2004,3 +2004,552 @@ It reads `mistake-to-gate`'s register through
 - **Versioning:** unversioned.
 
 ---
+
+## Skill: learn
+
+**Identifier:** `learn`
+**Repository:** `.claude/skills/learn/` (harness) · `skills/learn/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+Decides what is worth remembering, how sure the record is, and when it has stopped being true. A
+record earns its place by clearing a **capture bar**, states its confidence as a **rung on a ladder**
+rather than a feeling, and carries **the command that would re-check it** — so a later session can
+re-run the evidence instead of taking the record's word for it.
+
+**This skill adds no store.** The memory tiers already exist and are described in
+`.claude/docs/odin-memory-standards.md`; what this adds to a record in one of them is two fields and
+a discipline for moving them.
+
+### Purpose and Use Cases
+
+Fires when durable knowledge is being built, validated or retired: whether a finding is worth a
+record at all, how confident that record is, which command re-verifies it, and when its premise has
+expired.
+
+**The two fields:**
+
+```yaml
+confidence: gated
+verified_by: bash .claude/tests/safety-guard.test.sh
+verified_on: 2026-08-27
+```
+
+**`verified_by` names a command, not a person and not a date.** A date says somebody looked; a
+command says what would have to be re-run to look again — *the difference between a record that can
+be re-checked and one that can only be trusted.*
+
+The always-loaded memory index has a **300-character-per-line ceiling** (`memory-index-check.sh`,
+DEC-0053), because it is read whole into every session in its scope. The index line therefore carries
+the short half only — `· gated 2026-08-27` — and the command lives on the record it links to, which
+is unbounded on purpose. *The engine renders that marker; it is never hand-assembled.*
+
+**Six outcomes, exactly one per pass:** `record`, `merge`, `promote`, `refresh` (the verifying
+command still passes — the rung holds, the date moves), `demote`, `retire`. **`retire` deletes
+knowledge on purpose:** a record kept past its truth is worse than no record, because it is read with
+the same confidence as one that is still correct and nothing about it says otherwise.
+
+**Five confidence tiers:** `asserted` → `observed` → `reproduced` → `gated` → `enforced`. Every rung
+states the evidence that promotes into it and the trigger that demotes out of it — *a ladder whose
+every rung is a feeling is a vocabulary, not a mechanism.* **The three rungs from `reproduced` up
+require `verified_by`**; a record claiming one without a command is **malformed**, not merely
+unverified.
+
+**The capture bar is five refusal classes, evaluated highest-harm first, each with its own exit
+code** so a caller can tell them apart — *five refusals sharing one non-zero code report "no" and
+nothing else, and the remedy for a secret is not the remedy for a duplicate*: credential (exit 3,
+matched by key name or value shape), personal data (4), chatter — true only inside the conversation
+that produced it (5), duplicate (6, → `merge`), and **derivable** (7) — a restatement of a line the repository already
+carries.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `capture_bar` | `.claude/skills/learn/scripts/capture_bar.py` | Evaluates a candidate against the five refusal classes and returns the class-specific exit code | invoked by the skill body; tested by the `ci-local.sh` step *Learn capture-bar tests* (`py_tests learn`) | the candidate record; exits 3/4/5/6 per class |
+| `__init__.py` | `scripts/__init__.py` | Package marker | import time | none |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-ask-gate.sh` | `PreToolUse` on `AskUserQuestion` | an `AskUserQuestion` call is attempted | Names `learn` among the skills that resolve rather than ask | the posture ticket |
+| `odin-completion-evidence.sh` | `Stop` | a turn ends claiming completion | Names `learn` among the records that count as evidence | — |
+| `odin-safety-guard.sh` | `PreToolUse` | a write near memory or credential surfaces | Names `learn` in its guidance | — |
+| `odin-task-gate.sh` | `PostToolUse` on `TaskCreate\|TaskUpdate`, `PreToolUse` on writes | task-list bookkeeping | Names `learn` in its guidance | — |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches durable-knowledge / staleness intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `memory-index-check.sh` | the 300-character-per-line ceiling on the always-loaded index | always on | `ci-local.sh` step *Memory-index ceiling*, `--machine` | DEC-0053; the index is read whole into every session in its scope |
+| `memory-index.test.sh` | the ceiling's own matrix | always on | `ci-local.sh` step *Memory-index matrix* | — |
+| `memory-store-declaration-check.sh` | that a record declares which store it lives in | always on | `ci-local.sh` steps *Store declaration (tree)* and *Store-declaration matrix* | the declaration's presence |
+| `odin-memory-guard.sh` | cross-tier writes | **fail-closed** | `PreToolUse` on memory MCP tools; matrix at `claude-mem-guard.test.sh` | the active memory class (ADR-0025) |
+| the `verified_by` requirement | whether a record may claim `reproduced` or higher | required from `reproduced` up | inside the skill's own tiers | a rung claimed without a command is **malformed** |
+| `py_tests learn` | the capture bar's own correctness | always on | `ci-local.sh` step *Learn capture-bar tests* | the five classes and their distinct exit codes |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `.claude/docs/odin-memory-standards.md` + `odin-memory-guard.sh` | reads from | Where a record physically lives, and which class it belongs to | **Settled elsewhere; this skill is a reader of them** and adds no store |
+| `architecture-decision-records` | complements | An ADR is a *decision* record; this is knowledge that was **discovered**, not chosen | Cited as a boundary |
+| `domain-modeling` | complements | `CONTEXT.md` is the glossary — *a term is not a finding* | Cited as a boundary |
+| `oops`, `mistake-to-gate` | complements | Those turn an incident into a check; this decides whether the **knowledge** is worth keeping | Different questions on one event |
+| `rules-distill` | complements | A rule is always-on text; a record is recalled on demand | The tier distinction is the boundary |
+| `leek` | complements | Hygiene failures in the environment, not questions about a record's truth | Cited as a boundary |
+
+### Additional Relevant Information
+
+- **Ownership:** the confidence ladder and capture bar are owned here; the tiers, classes and write
+  guard by `.claude/docs/odin-memory-standards.md` and `odin-memory-guard.sh`.
+- **Related documentation:** `references/capture-bar.md`, `references/confidence-tiers.md` (rung by
+  rung, with the promotion evidence each demands and the mistake each invites),
+  `references/staleness-pass.md`; ADR-0112; DEC-0053; ADR-0025.
+- **Known limitations / technical debt:** the index ceiling means the *useful* half of a record —
+  the verifying command — is never visible in the always-loaded index, so a stale record looks
+  identical to a fresh one until its file is opened.
+- **Observability:** `verified_by` re-run; `memory-index-check.sh --machine`.
+- **Security / compliance:** the capture bar's first two refusal classes are credential and personal
+  data, with distinct exit codes so the remedy is distinguishable. `odin-memory-guard.sh` is
+  fail-closed.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: leek
+
+**Identifier:** `leek`
+**Repository:** `.claude/skills/leek/` (harness) · `skills/leek/` (this mirror)
+**Status:** `active`
+**Class:** `authored` · frontmatter declares `forks: context-budget, ecc-tools-cost-audit`
+
+---
+
+### Description
+
+> "Leek", as in leak — the vegetable.
+
+A diagnostic and hygiene pass over a Claude Code environment: what is being wasted, what is retained
+past its scope, what is reachable from where it should not be, and what is still running after its
+work ended.
+
+**Leek diagnoses. Leek never remediates.** Its outputs are a report document, **one GitHub issue per
+distinct concern**, and a hand-off to `mistake-to-gate` where a finding has a repo-state predicate.
+It runs no cleanup, terminates no process, expires no memory and clears no cache. The reason is
+ADR-0088 and it is worth stating in full: *the scanner's own evidence says the environment is in an
+unexpected state, which is the worst possible moment to exercise judgment about what is safe to
+destroy.*
+
+### Purpose and Use Cases
+
+Fires when: context fills too fast or a session feels "heavy"; burn or spend looks disproportionate;
+a memory surfaced from another project or one that should have expired; caches, job workspaces,
+transcripts or embeddings accumulate; a session went silent, a fleet reports `blocked`, or a process
+will not stop; secrets may have reached a memory store, cache or config file; before adding agents,
+skills or MCP servers ("is there room?"); "which skills have never been used?"; and periodically as
+hygiene, before or after a campaign.
+
+**Not for** fixing what it finds (open the issue, then plan that work like any other), choosing what
+to build (`roadmap`), auditing a plan (`plan-adversary`), or diagnosing one concrete bug
+(`systematic-debugging`).
+
+**Everything in the body is triage of the scanner's output — do not hand-audit what it measures.**
+
+**Eight families:** `context` (always-on rule bytes, oversized instruction files, bloated agent
+descriptions, heavy bodies, byte-identical skill bodies, MCP over-subscription), `tokens` (oversized
+transcripts, repeated identical tool output, retry loops, over-budget tool results), `memory`
+(unscoped records, records relabelled across projects, duplicates, past-retention records, provenance
+gaps, credential shapes, file-tier index drift), `cache`, `sessions` (daemon liveness via
+`fleet-health.sh`, MCP servers with no live session in their ancestry, and long-lived processes split
+by CPU fraction — *burning CPU is a runaway, near-idle is a memory hold*), `isolation`
+(workspace-wide permission grants, memory files naming several projects, credential shapes in caches
+every session can read), `state` (spent plans, runtime residue, expired posture tickets, abandoned
+worktrees, a large uncommitted diff), and `components` (duplicate agent names, unbounded tool grants,
+unregistered and missing hooks, hook hygiene, MCP filesystem breadth and inline credentials, settings
+conflicts, never-invoked skills, stub skills).
+
+**Exit 0 is a measured clean, not a silence.** An evidence channel that could not be read produces an
+`evidence-unavailable` finding, so a blind channel exits 1. The *Evidence channels* block at the top
+of every report is read **before** the findings — *"no findings" from an instrument that could not
+look is the failure mode that let 76 of 77 open issues go uncaptured* (ADR-0069).
+
+**Three things the scanner will not tell you**, stated in the skill rather than left for a reader to
+discover: a hook-hygiene finding is a **shape, not a proven defect** (the checks read normalized
+source, because a guard that *matches* `eval` in order to block it reads identically to one that runs
+it — only the author can tell them apart); **the transcript window bounds every usage answer**, so
+"never invoked" means "not in the retained transcripts" and a skill added last week looks identical
+to one nobody has ever wanted; and **a credential-shape match is reported by
+class, never by text** — the scanner prints the record id, the project and the match class, and does
+not quote the match, *because a finding that quotes a secret has copied it into a report and then
+into an issue.*
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `leek-scan.sh` | `.claude/skills/leek/scripts/leek-scan.sh` | The scanner. Runs every family, or a selection | run by hand, or as a hygiene pass; a full pass over a live host takes about **ten seconds** | `--json`, `--check <families>` (e.g. `memory,isolation`, `skills-unused`), `--min-severity high`. Exit `0` no findings, `1` findings, `2` usage error |
+| `leek.py` | `scripts/leek.py` | The scan engine behind the shell entry point | called by `leek-scan.sh`; matrix at `.claude/tests/leek.test.sh` | — |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches leak / hygiene / "never used" intent | Names this skill in the routing hint | none |
+
+The skill **audits** hooks as part of its `components` family; it registers none of its own.
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `leek.test.sh` | the scanner's own families and exit codes | always on | `ci-local.sh` step *Leek scanner matrix* | per-family assertions |
+| `--min-severity` | which findings are reported | all severities | per-invocation | `critical`/`high` filtering |
+| the `evidence-unavailable` finding | whether an unread channel may be reported as clean | **refuses** — a blind channel exits 1 | inside the scanner | ADR-0069 |
+| the never-remediate rule | whether the skill may act on what it finds | **never**; not a posture, an absolute | ADR-0088 | no cleanup path exists in the scanner |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `mistake-to-gate` | hands off to | A finding with a repo-state predicate becomes a gate | The hand-off is the skill's only remediation path, and it is someone else's |
+| `to-issues`, `triage` | hands off to | One GitHub issue per distinct concern | Never fixes; files |
+| `tidy` | complements | `tidy` supplies a verdict per path on what may go; `leek` reports what is accumulating | **Neither deletes.** Two skills, both non-destructive, deliberately |
+| `handoff`, `successor-manager` | shares a channel | The `sessions` family calls `fleet-health.sh` — the same first channel those skills read | The registry is not liveness |
+| `context-budget`, `ecc-tools-cost-audit` | **forked from** | Declared in frontmatter as `forks:` — this skill absorbed both | Both still exist as separate vendored skills; this is the composed successor |
+| `roadmap`, `plan-adversary`, `systematic-debugging` | explicitly excluded | Choosing work, auditing a plan, diagnosing one bug | Cited as boundaries |
+
+### Additional Relevant Information
+
+- **Ownership:** the eight families and the scanner are owned here; `fleet-health.sh` by the fleet
+  tooling; the issues it files by whoever triages them.
+- **Related documentation:** `references/burn-audit.md`, `references/context-inventory.md`;
+  ADR-0088 (diagnoses, never remediates); ADR-0069 (an instrument that could not look).
+- **Known limitations / technical debt:**
+  - Every usage answer is **bounded by the transcript retention window**, and the report states the
+    window it scanned. This is the single most misread output of the skill.
+  - Hook-hygiene findings are shapes; a normalized-source check cannot distinguish a guard that
+    blocks `eval` from one that runs it.
+  - The `forks:` frontmatter names two skills this one absorbed, but both remain present in the
+    harness as separate vendored skills, so a reader can still route to the superseded ones.
+- **Observability:** `leek-scan.sh --json`; the *Evidence channels* block; exit codes 0/1/2.
+- **Security / compliance:** the `memory` and `isolation` families exist to find credential shapes in
+  shared stores and workspace-wide permission grants. Findings may themselves quote sensitive
+  material, so a report is handled with the care its subject warrants.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: mistake-to-gate
+
+**Identifier:** `mistake-to-gate`
+**Repository:** `.claude/skills/mistake-to-gate/` (harness) · `skills/mistake-to-gate/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+Turns one concrete incident into a check that runs on every push, plus the matrix that proves the
+check would have caught it. **A rule nobody checks is a rule that is wrong by the second change.**
+
+**The output is three things, and the work is not finished until all three exist:** a checker that
+exits non-zero on the mistake; a matrix asserting **exit codes** — a BLOCK case per real mistake and
+ALLOW cases for the near misses; and a line in the repository's single gate list.
+
+It also owns the **mistake log engine**, `scripts/mistakes.py`, which counts recurrence by
+failure-mode key and tells the repository when a mistake has happened often enough to stop being a
+mistake (ADR-0057). `oops` appends to the log; §11 is what happens when a key reaches the threshold.
+
+### Purpose and Use Cases
+
+Fires whether or not a check was requested: something was edited, cited or named wrongly and a human
+caught it; a convention lives in prose with no enforcement; a review or postmortem produced a "we
+should always…"; a guard was found to pass when it should have failed; or **a failure-mode key
+reached the promotion threshold** — `mistakes-check.sh` fails with "promotion due", or `oops`
+announced the promotion band. *At that point the incident is not a mistake any more, it is a missing
+rule.*
+
+**The procedure's early steps are where gates go wrong, and each is a rule with a stated failure:**
+
+1. **Name the incident with its artifact.** "Links were wrong" is not an incident;
+   "`0027-plan-depth-standard.md` was linked from three files; the file on disk is
+   `0027-skill-utilization-and-plan-depth.md`" is. The artifact becomes the first BLOCK case — *a
+   gate built from a remembered category tends to check the category you imagined rather than the one
+   that happened.*
+2. **Decide whether it is mechanically checkable**: is there a predicate over repository state true
+   exactly when the mistake is present? Checkable — a reference resolves, a count matches, a
+   generated file matches its source, an id is namespaced, a required section exists. Not checkable —
+   "the plan was shallow", "this name is confusing", "the abstraction is wrong". *A gate encoding
+   taste produces false positives, and a gate people disagree with gets disabled, taking its true
+   positives with it.*
+3. **Key the check on the consumer, not on a correlate.** To check that a cited document exists,
+   resolve the citation to a **file**; do not check that its number appears in an index. *A sweep
+   keyed on something that merely correlates stops asserting the moment the correlation drifts —
+   silently, because it still passes.*
+4. **Scope it to what this repository owns.** Where a workspace holds nested repositories, each keeps
+   its own numbering and conventions; checking a subtree's ids against the parent's set *is not
+   thoroughness, it is the exact confusion the gate exists to prevent.* State the boundary in a
+   comment so the next reader does not "improve" the gate by widening it.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `mistakes.py` | `.claude/skills/mistake-to-gate/scripts/mistakes.py` | The mistake-log engine: `append` (returns the M-id), `report` (recurrence by failure-mode key), and the promotion-threshold arithmetic (ADR-0057) | invoked by `oops`, `caveat`, `improve` and this skill; tested by `ci-local.sh` step *Mistake-log engine tests* (`py_tests mistake-to-gate`) | `append . --key '<class>/<predicate-slug>' --context --artifact --fix`; `report .` / `report . --key <key>` |
+| `__init__.py` | `scripts/__init__.py` | Package marker | import time | none |
+
+The harness gates it owns: `.claude/scripts/mistakes-check.sh`,
+`.claude/scripts/mistakes-monotonic-check.sh`, `.claude/scripts/mistake-citations-check.sh`, and
+`.claude/scripts/doc-reference-check.sh`.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-completion-evidence.sh` | `Stop` | a turn ends claiming completion | Names `mistake-to-gate` among the records that count as evidence | the log |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "add a check" / "can't regress" / "enforce this always" intent | Names this skill in the routing hint | none |
+
+### Gates
+
+This skill owns more of the repository's gate surface than any other. The ones it is the direct owner
+of:
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `mistakes-check.sh` | the log's own shape, the `CAVEAT.md` conversion fields, the `MUTATIONS.md` disposition refusal, **and** the "promotion due" signal | always on | `ci-local.sh` step *Mistake-log gate* **and** `PRE_PUSH_GATES` (declared 214ms) | required fields per entry; refuses a caveat with no `Recurs when:`/`Safeguard:`; refuses a mutation whose `Actual observed impact:` is `pending` while its `Disposition:` claims anything but `needs review`; fails when a key reaches the promotion threshold |
+| `mistakes-monotonic-check.sh` | that the log only grows | always on | `ci-local.sh` step *Mistake-monotonicity gate* **and** `PRE_PUSH_GATES` (2315ms) | monotonicity over M-ids |
+| `mistake-citations-check.sh` | that every citation in the log resolves | always on | `ci-local.sh` step *Mistake-citation gate* **and** `PRE_PUSH_GATES` (2618ms) | resolve each citation to a **file** — the consumer, not a correlate |
+| `mistakes-dup-order.test.sh`, `mistakes-log.test.sh`, `mistake-promotion-provenance.test.sh` | duplicate ordering, log format, and that a promotion cites its evidence | always on | three `ci-local.sh` steps | — |
+| `doc-reference-check.sh` | that every path a document cites exists | always on | `ci-local.sh` step *Doc reference resolution*, clean-clone | the citation resolves to a file; **fails on a reserved-but-unminted `ADR-` token even inside a sentence saying it stays unminted** |
+| the promotion threshold | when a key stops being a mistake and becomes a rule | fires at the fourth occurrence | §11 | recurrence count per failure-mode key (ADR-0057) |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `oops` | receives from | `oops` is the incident front door and appends the counted row; a repo-state predicate is handed here | ADR-0057. **Ordering: root-cause there, gate here** |
+| `caveat` | shares a record | `mistakes-check.sh` enforces `CAVEAT.md`'s conversion fields; a caveat entry carries **no** failure-mode key | DEC-0092 — a second file able to hold a key would make every count an undercount, silently |
+| `mutations` | shares a record | The same gate refuses a `MUTATIONS.md` disposition claimed over an unobserved effect | ADR-0146 |
+| `rules-distill` | hands off to, and is called by | §11 promotion writes the rule half through the forked `rules-distill`; and an unmechanisable finding is routed there instead of a gate | **Both halves of a promotion: the check here, the rule text there** |
+| `improve` | read by | `improve` reads the recurrence register through `mistakes.py report` and **never writes it** | A key at threshold is §11's, not `improve`'s |
+| `automate` | receives from | `automate`'s `gate` verdict hands over here | A gateable predicate is never an automation decision |
+| `leek` | receives from | A leek finding with a repo-state predicate becomes a gate | Leek's only remediation path |
+
+### Additional Relevant Information
+
+- **Ownership:** `MISTAKES.md`, the log engine, and the four checker scripts above.
+- **Related documentation:** ADR-0057 (incident → guard, and the promotion ladder); DEC-0092 (why
+  caveats are uncounted); ADR-0146 (the mutation disposition refusal); `MISTAKES.md` itself.
+- **Known limitations / technical debt:**
+  - The promotion threshold is a count over **keys an author chose**. A mistake logged under two
+    spellings of one key never reaches threshold, and nothing detects that.
+  - `doc-reference-check.sh` failing on an unminted `ADR-` token *inside prose saying it is unminted*
+    is a known sharp edge, and it constrains how plan documents may discuss future ADRs.
+- **Observability:** `mistakes.py report .`; the four gates' own output; "promotion due".
+- **Security / compliance:** the log is committed and quotes commands and paths from real incidents,
+  several of them destructive; it is written to be read, not replayed.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: mutations
+
+**Identifier:** `mutations`
+**Repository:** `.claude/skills/mutations/` (harness) · `skills/mutations/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+A mutation is a change to expected behaviour, data, logic, workflow, configuration or output. **It is
+worth exactly one thing: the observation that says what it actually did.**
+
+The deliverable is an entry in `MUTATIONS.md` that stays **OPEN until that observation exists**, then
+closes with a disposition and a citation of wherever the outcome was recorded. *A change whose effect
+nobody looked at is otherwise indistinguishable from one that was checked and behaved* — and that
+indistinguishability is the whole subject of the skill. `MU-0001` is that case, measured.
+
+### Purpose and Use Cases
+
+Fires on the change itself, whether or not anybody asked: a new implementation, a rule change, a
+refactor, a config or dependency update, a schema or interface change — and equally a regression, a
+side effect, a corrupted value, or a mutation someone else's change produced. Also on "did anyone
+check what that did", "this used to work", "the output changed", "we changed the default", "is this
+safe to accept", "should we revert this".
+
+**Three gates fire it**, and the work in hand pauses until the mutation is assessed: **Mutation** (a
+change affecting behaviour, data integrity, configuration, security, dependencies, interfaces or
+outputs), **Oops** (a mutation produced an unexpected result), **Mistake** (a mutation stems from an
+incorrect assumption or preventable process failure). The Oops and Mistake gates are **hand-offs, not
+duplicates**: one event, two records, joined by a citation.
+
+**Only the Mutation gate is mechanical, and the residue is stated rather than hidden** (ADR-0146). A
+tool-level matcher over "edits that touch behaviour, config or interfaces" would fire on nearly every
+edit in this repository, and *a detector with a ~100% hit rate carries no information.* Routing for
+the other two is intent-level, in `odin-skill-gate.sh`.
+
+**The cycle — pause, record, observe, dispose, continue:**
+
+1. **Pause.** Do not finish the step that produced the mutation. *A prediction written after the
+   result is known is not a prediction.*
+2. **Name the change with its artifact.** "The behaviour changed" is not a mutation; "landing by
+   rebase rewrites shas, so `merge-base --is-ancestor` reports a landed branch as unmerged" is.
+3. **Write `Expected impact:` now, before observing anything.** This is the field the pair turns on,
+   and **it is never edited afterwards** — a prediction revised once the answer is known destroys the
+   only thing the ledger measures. *No gate can see that; it is held by the author, exactly as
+   test-first-ness is.*
+4. **Open with `Actual observed impact: pending` and `Disposition: needs review`.** Any other
+   disposition at this point is refused, and correctly: *a verdict over an unobserved effect is a
+   prediction wearing a verdict's label.*
+5. **Observe** — run the command that would show the effect **on the surface it reaches**, the
+   consumers listed in `Location:`, not the change itself. *An observation is a measurement with its
+   command or artifact, never a reading of the diff.*
+
+### Scripts
+
+This skill does not define any scripts.
+
+Its enforcement is `.claude/scripts/mistakes-check.sh`, owned by `mistake-to-gate`.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "did anyone check what that did" / "the output changed" / behaviour-altering intent | Names this skill in the routing hint. **This is the routing for the Oops and Mistake gates, which are deliberately intent-level rather than tool-level** | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `mistakes-check.sh` (the mutation clause) | that a disposition is not claimed over an unobserved effect | always on | `ci-local.sh` step *Mistake-log gate* and `PRE_PUSH_GATES` | refuses an entry whose `Actual observed impact:` reads `pending` while `Disposition:` claims anything but `needs review`; refuses any line in `MUTATIONS.md` parsing as a **keyed occurrence**; refuses an entry missing a required field |
+| the Oops and Mistake gates | whether those two fire mechanically | **deliberately not mechanical** | intent-level routing only | ADR-0146 — a matcher over behaviour-touching edits would fire on nearly every edit, and a ~100% hit rate carries no information |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `oops` | hands off to | The Oops gate records the occurrence and builds the guard while this records the mutation and its observation | **One event, two records, joined by a citation** |
+| `mistake-to-gate` | is gated by | `mistakes-check.sh` enforces this ledger's fields and refusals | The gate is that skill's; the ledger is this one's |
+| `caveat` | complements | A hazard met once versus a change whose effect is unobserved | Both refuse to let the work in hand finish first |
+| `test-driven-development` | shares a discipline | The unedited `Expected impact:` is the same unenforceable property as test-first-ness | Named explicitly as such |
+
+### Additional Relevant Information
+
+- **Ownership:** `MUTATIONS.md` at the harness root; the gate is `mistake-to-gate`'s.
+- **Related documentation:** ADR-0146 (the disposition refusal, and why two of three gates are not
+  mechanical); `MUTATIONS.md` (the entry shape and `MU-0001`).
+- **Known limitations / technical debt:** the two properties that matter most — that the prediction
+  was written first and never revised — are **unenforceable by any predicate**, and the skill says
+  so rather than implying coverage it does not have.
+- **Observability:** `bash .claude/scripts/mistakes-check.sh`; the ledger's own `pending` entries are
+  the open-work list.
+- **Security / compliance:** the ledger records configuration and dependency changes, so it doubles
+  as a change record for anything security-relevant.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: not-impressed
+
+**Identifier:** `not-impressed`
+**Repository:** `.claude/skills/not-impressed/` (harness) · `skills/not-impressed/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+Owns exactly one verdict nothing else in this repository owns: **is this code overdeveloped?**
+
+**The stance: assume the code is machine-generated and untrusted until validated.** Not malicious —
+*plausible.* Machine-generated code fails in a specific direction: it is fluent, well-formatted,
+reasonably named, and *too much*. It reaches for an abstraction before there are two callers, adds a
+cache before there is a measurement, wraps a working call in an adapter, and pulls a dependency for
+six lines of logic. **None of that looks like a bug. All of it is cost the reader pays forever.**
+
+So the default verdict is neither "approve" nor "reject" — it is **trim**, until the code shows why
+each part earns its place. A finding is not an opinion about taste: it names what to delete and
+asserts, in a sentence, that deleting it preserves the original behaviour.
+
+*Being unimpressed is the discipline. Fluent code reads as correct code, and the reviewer who is
+impressed has stopped reviewing.*
+
+### Purpose and Use Cases
+
+Fires when reviewing code not written by hand — an agent-generated diff, a large pasted
+implementation, a PR that looks finished.
+
+The boundary table is unusually candid: **two of its rows are honest de-escalations.** If the diff is
+small, human-written and uncontroversial, `code-reviewer` is the correct answer and this skill is
+overkill — *which is the same mistake this skill exists to find, pointed at itself.*
+
+**The procedure's first step is a dispatch, and it is not optional: never review inline.** Dispatch
+the `adversarial-reviewer` agent, and give it the diff, the surrounding conventions to measure
+against, and **nothing about why the code was written the way it was** — rationale is exactly what it
+must not have. Two independent reasons, either sufficient (ADR-0101):
+
+- *A reviewer sharing the author's context inherits the author's rationalisations.* The session that
+  wrote the abstraction already believes the second caller is coming; a fresh context does not.
+- *An invoked skill body never unwinds.* There is no call stack: invoking this skill inline from a
+  build loop leaves its body plus three references resident for every remaining turn. A dispatched
+  agent has a real context boundary and returns a real value.
+
+### Scripts
+
+This skill does not define any scripts.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "is this overdeveloped" / "too many abstractions" / review-what-I-did-not-write intent | Names this skill in the routing hint | none |
+
+### Gates
+
+This skill does not use any feature gates.
+
+Its one hard rule — dispatch, never review inline — is a procedural constraint recorded as ADR-0101,
+not a checked predicate. The corpus-wide gates in the overview still apply.
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `adversarial-reviewer` (agent, not a skill) | **dispatches — required** | The verdict must come from a context that did not write the code | ADR-0101. Reports; never edits |
+| `consistency` | complements | *That is the precondition, not the review.* A diff reimplementing something the tree already has is overdevelopment this skill can only find **afterwards** | The cheaper question is the earlier one |
+| `code-reviewer` (agent) | de-escalates to | The default reviewer for a routine change | Named explicitly as the correct answer when this skill is overkill |
+| `security-reviewer` (agent) | cites | Security-only review carries its own triggers and remediation ladder | Cited, never restated |
+| `plan-adversary` (agent) | complements | Critiquing a plan before code exists — no diff, so severity tables and style checks do not apply | Cited as a boundary |
+| `refactor-cleaner` (agent) | hands off to | Removing dead code and duplication is **remediation**; this skill reports and never deletes | Ordering: verdict here, removal there |
+| `impeccable` | complements | Design judgment, not structural judgment | Cited as a boundary |
+
+### Additional Relevant Information
+
+- **Ownership:** the overdevelopment catalog is owned here; the reviewer agent is
+  `.claude/agents/adversarial-reviewer.md`.
+- **Related documentation:** `references/review-rubric.md` (eleven verification bullets and, for
+  each, *what evidence discharges it* — read first; a review that skipped a bullet is not finished),
+  `references/overdevelopment-catalog.md` (six patterns, each with its recognition signal, the
+  simpler-alternative recipe, and the behaviour-preservation sentence that must be written before the
+  finding counts), `references/report-template.md` (five classes in a fixed order — copy it, do not
+  improvise); ADR-0101.
+- **Known limitations / technical debt:** the skill is expensive by design — a hostile prior plus a
+  dispatched agent — and the body says so, naming its own overuse as an instance of the failure it
+  hunts.
+- **Observability:** the report, in the five fixed classes.
+- **Security / compliance:** security review is explicitly routed elsewhere; a finding here is
+  structural.
+- **Versioning:** unversioned.
+
+---
