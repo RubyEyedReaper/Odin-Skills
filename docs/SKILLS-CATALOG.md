@@ -805,3 +805,606 @@ is owned by `mistake-to-gate`.
 - **Versioning:** unversioned.
 
 ---
+
+## Skill: consistency
+
+**Identifier:** `consistency`
+**Repository:** `.claude/skills/consistency/` (harness) · `skills/consistency/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+Asks one question before anything new is written: **what already solves this, and if something does,
+why is a new one better?** Both halves are required. Naming nothing and writing anyway is the
+failure; naming something and differing anyway is fine — *provided the differing is recorded where
+the next reader finds it.*
+
+The stance: **a second implementation is a decision, and an undeclared decision is a defect.** Not
+because variation is forbidden, but because two copies disagree and **the looser one wins silently.**
+Recorded three times in this repository under one failure key — a hook carrying its own copy of an
+engine's staleness policy at 14 days while the engine said 7; a gate list hand-copied into a handoff
+and missing a row; two implementations of "has promotion happened" inside a single file, disagreeing
+for as long as both existed.
+
+### Purpose and Use Cases
+
+Fires before the writing, on the reuse question, whether or not anybody asked: a new script, gate,
+matrix, helper, config format, id scheme, error convention or file layout; "is there already one of
+these"; "roll our own"; and when a review finds a new variation where a working solution exists.
+
+**Three steps.** (1) **Name the incumbent by path** — not "we probably have something", a file.
+Cheapest lookups first: `ls .claude/scripts/` and `.claude/scripts/lib/` for a script or gate; the
+matrix of the closest existing gate for a matrix (copy its *shape*, not its content); an existing
+`.conf`/`.tsv` beside its consumer for a format; the closest existing id scheme or exit-code
+convention, reusing the spelling. (2) **If something solves it, the default is reuse** — a near-fit
+adapted is cheaper than a parallel implementation, because the second one is the one nobody updates.
+(3) **If differing is right, record it** in descending order of durability: the new file's own
+header, a row in the governing registry, the commit body, a DEC when scorable, an ADR when it
+constrains future work. *A reason that names what is different about this case is a record;
+"cleaner" is not.*
+
+If the answer is genuinely "nothing", say so in one line and write the new thing. **That is the
+common case and it costs a sentence.**
+
+The gap it fills, and the only reason it is a skill: `common/development-workflow.md` step 0 says
+research *the world* before writing new code, and nothing said research *this tree*.
+
+### Scripts
+
+This skill does not define any scripts.
+
+Its mechanical half is `.claude/scripts/one-implementation-check.sh`, a harness gate the body names
+as its enforcement rather than a script the skill owns.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "is there already one of these" / "roll our own" / "another implementation" intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `one-implementation-check.sh` | that a script, hook or matrix does not recompute a predicate one of the ownership-claiming `.claude/scripts/lib/` libraries owns | always on | `ci-local.sh` step *One-implementation registry*, with `one-implementation.test.sh` as its matrix | five findings — `UNSOURCED-CALL` (names an owned symbol without sourcing its owner), `RESTATED` (matches the library's declared signature), `UNREGISTERED-OWNER` (a library claims sole ownership and the registry has no row), `STALE-REGISTRY`, and `EXEMPT`/`UNCHECKED` **printed on passing runs too**, so "exempt by design" stays a standing question |
+
+**What the gate does not catch, said plainly in the skill's own body:** two implementations inside
+one file (the unit is a file against a library); a copy of something that is not a library predicate
+— a gate list pasted into a handoff, a policy value pasted into a hook; and a restatement under
+different names where no signature is declared. The gate prints `UNCHECKED` for each of those on
+every run rather than letting silence read as coverage.
+
+**Measured finding — the body's counts are stale.** The skill's own text says *"Ten libraries under
+`.claude/scripts/lib/` exist so that a question has one answer, and eight declare it in their own
+headers"*, and *"seven of the eight rows"* have no declared signature. Run against this sha:
+
+```
+$ ls .claude/scripts/lib | wc -l                                            # 28 entries
+$ grep -rl 'sole owner\|one implementation\|single implementation' .claude/scripts/lib | wc -l
+7
+$ bash .claude/scripts/one-implementation-check.sh . | grep -c UNCHECKED
+4
+$ grep -vcE '^\s*#|^\s*$' .claude/scripts/one-implementation.conf                 # 14 registry rows
+```
+
+Seven claiming libraries and four `UNCHECKED`, not eight and seven. The gate is green and the
+registry is current; it is the **prose in the skill body** that has drifted, which is a small
+instance of exactly the failure this skill prosecutes. Recorded here rather than corrected — this
+document does not edit skills.
+
+What it rests on is stated too: a library header *claiming* sole ownership is a correlate of the real
+property, and no script can read the real one. A machine-readable marker inside each library is the
+recorded successor (DEC-0114, Fork 2).
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `automate` | gates | A verdict of `automate` over a job an existing script already does is a second implementation | **Ordering: this runs before any of the six verdicts is reached.** `automate` never asks the incumbent question itself |
+| `codebase-design` | routes to | The scalability half — module seams and interface depth — is judgment with an existing owner | Explicitly not re-derived here. The one thing added: *before inventing a new module shape, name the module in this tree that already has the shape you want* |
+| `not-impressed` | complements | That skill reviews code that exists; this is the precondition before it exists | Opposite sides of the same writing |
+| `oops`, `mistake-to-gate` | complements | Those fire **after** a failure and count recurrence; this fires **before** the writing | No runtime coupling; cited as a boundary |
+| `rules-distill` | hands off to | When the recorded difference is really a principle, the rule half belongs there | Ordering: record here, distil there |
+| `find-skills` | invokes | Step 1's "anything at all" lookup | Followed by `.claude/docs/skill-decision-matrix.md` |
+| `improve` | explicitly excluded | The declare-before / revert-after contract for a recurring friction | Cited as a boundary |
+
+### Additional Relevant Information
+
+- **Ownership:** the registry is `.claude/scripts/one-implementation.conf`; the gate over it is
+  `one-implementation-check.sh`. The style rules this skill deliberately does not restate are owned
+  per namespace under `.claude/rules/`.
+- **Related documentation:** `references/one-implementation-registry.md` (adding a row, and what a
+  reason must contain); `common/development-workflow.md` § Feature Implementation Workflow step 0;
+  `common/coding-style.md` (the file- and function-size ceilings); DEC-0114.
+- **Known limitations / technical debt:** the gate covers one slice — a file against a library — and
+  the body enumerates exactly what falls outside it. The `UNCHECKED` output on seven of eight rows is
+  the honest measure of that coverage, not a defect to be silenced.
+- **Observability:** `bash .claude/scripts/one-implementation-check.sh .` prints `EXEMPT` and
+  `UNCHECKED` rows on green runs by design.
+- **Security / compliance:** none specific.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: decision-mapping
+
+**Identifier:** `decision-mapping`
+**Repository:** `.claude/skills/decision-mapping/` (harness) · `skills/decision-mapping/` (this mirror)
+**Status:** `active` · declared `version: 1.0.0`, `license: MIT`, `user-invocable: true`
+**Class:** `forked` — upstream `mattpocock/skills`, `skills/engineering/wayfinder` (renamed from `decision-mapping`); MIT (Copyright (c) 2026 Matt Pocock); upstream HEAD last audited `8b78b53` (2026-08-15)
+
+---
+
+### Description
+
+Charts the way to a destination when a loose idea is too big for one agent session and the route is
+not visible yet. The product is a **decision map**: one committed markdown file carrying a named
+destination, explicit out-of-scope, typed decision tickets, blocking edges, and a fog frontier that
+advances one resolved ticket at a time.
+
+**Plan, don't do.** Each ticket resolves a decision; the map is finished when nothing is left to
+decide before someone goes and builds. The pull to just do the work is the signal that the edge of
+the map has been reached and it is time to hand off.
+
+**Forked from `mattpocock/skills`.** Two divergences are load-bearing: upstream keeps
+`disable-model-invocation: true` (adopting upstream's rename would not have fixed that), and
+**upstream moved the map onto an issue tracker while this fork keeps it a committed markdown file** —
+the committed tier is the reset-proof one (ADR-0009) and the tier a fresh session can read with no
+credentials and no network. Ported *from* upstream: the named `## Destination`, `## Out of scope` as
+a scoping act distinct from fog, and `## Not yet specified` with the sharpness test.
+
+### Purpose and Use Cases
+
+Fires on "where do I even start", "we need to figure out X before we can plan", or a space with
+several open questions that hang on each other. **Not** for scoring options against criteria
+(`decision-matrix`) or sequencing work already decided (`roadmap`, `blueprint`).
+
+**Where the map lives:** `.claude/docs/plans/<YYYY-MM-DD>-<effort>-map.md` for harness work,
+`<project>/docs/plans/…` for a project. The whole map is loaded as context every session, so **it
+must stay compact — it is an index, not a store.** A decision lives in exactly one place, its ticket;
+the map gists and links, never restates. Assets produced while resolving a ticket are linked, never
+pasted in.
+
+**Four ticket types, each HITL or AFK.** `research` (AFK; a subagent, in parallel with its siblings,
+producing a linked note), `prototype` (HITL; raise the fidelity of the discussion with something
+cheap and concrete), `grilling` (HITL; the default case), `task` (either — manual work that must
+happen *before a decision can be made*; the one type that does rather than decides, and it earns its
+place only by unblocking a decision).
+
+**A HITL ticket only resolves through a live exchange with a human, and the agent never stands in for
+the human's side of it.** A grilling ticket whose agent answered its own questions is not resolved.
+In an unattended run this is explicitly **not a licence to stop**: take every AFK ticket the frontier
+offers, leave the HITL ones unclaimed with the question sharpened, and report that as the real
+advance it is.
+
+**Fog of war.** The map is deliberately incomplete. The test for fog versus ticket is whether the
+question can be *stated* precisely now — not whether it can be answered now. Do not pre-slice fog
+into ticket-sized pieces: one patch may graduate into several tickets, or none.
+
+**Out of scope never graduates.** It returns only if the destination is redrawn, and then as a fresh
+effort, not a resumption.
+
+**Claiming is a commit.** A session claims a ticket by writing its `Claimed by:` line and committing
+that line *before doing anything else*.
+
+### Scripts
+
+This skill does not define any scripts.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-ask-gate.sh` | `PreToolUse` on `AskUserQuestion` | an `AskUserQuestion` call is attempted | Refuses the stop in an unattended run and names the skills that resolve a fork instead — `decision-mapping` among them (ADR-0052) | the posture ticket |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "where do I start" / open-questions intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `skill-artifact-check.sh` | that the mandated artifact (`.claude/docs/plans/*-map.md`) exists at least once | **exempt** — `artifact_status: never-run` | the exemption is printed on every green run, so it stays a standing question | the declared reason, verbatim in frontmatter: *no decision map has ever been committed — `.claude/docs/plans` holds no `*-map.md`, measured 2026-09-01. Writing one so this gate goes green would be manufacturing an instance to satisfy a detector, which is the detector working backwards. The exemption lifts the first time a real decision map is charted* |
+| `odin-ask-gate.sh` | whether a HITL ticket may stop an unattended run | **warn** interactive, **block** unattended | posture armed per session | ADR-0052 — a question is not a pause, it ends the turn |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `writing-plans`, `superplan`, `blueprint` | hands off to | Terminal successors once the route is clear | The handoff point is defined by the pull to start building |
+| `decision-matrix` | hands off to, and receives from | Fuzzy options are mapped here first, then scored there | Bidirectional: `decision-matrix`'s own hand-off table sends fuzzy criteria back here |
+| `grilling` / `grill-with-docs`, `domain-modeling` | invokes | Resolves a `grilling` ticket | HITL — the agent does not answer its own grilling ticket |
+| `prototype` | invokes | Resolves a `prototype` ticket and links the artifact | HITL |
+| `roadmap` | explicitly excluded | Sequencing work already decided | Cited as a boundary |
+
+### Additional Relevant Information
+
+- **Ownership:** the map file belongs to the effort that charts it; the skill is held as a fork by
+  `odin-skill-manager`.
+- **Related documentation:** `skills/decision-mapping/UPSTREAM.md` in this mirror; ADR-0009 (the
+  committed file tier is the reset-proof one); ADR-0052 (a question ends the turn).
+- **Known limitations / technical debt:**
+  - **Zero instances.** No decision map has ever been committed in this repository (measured
+    2026-09-01). The skill is routed, documented and unexercised — which the artifact gate records
+    rather than hides. That is the single most important operational fact about this entry.
+  - HITL resolution is unavailable to an unattended fleet by construction, so an unattended run can
+    only ever advance a map's AFK frontier.
+- **Observability:** the map file itself; `skill-artifact-check.sh`'s printed exemption.
+- **Security / compliance:** MIT obligations discharged by the `LICENSE` beside the skill in this
+  mirror.
+- **Versioning:** declares `version: 1.0.0` in frontmatter — one of only three members that declare a
+  version at all.
+
+---
+
+## Skill: decision-matrix
+
+**Identifier:** `decision-matrix`
+**Repository:** `.claude/skills/decision-matrix/` (harness) · `skills/decision-matrix/` (this mirror)
+**Status:** `active` · declared `version: 0.2.0`, `license: Apache 2.0`, `user-invocable: true`
+**Class:** `authored`
+**Command form:** `/decide`
+
+---
+
+### Description
+
+A quantitative weighted-decision engine. Turns a choice into a deterministic, **recorded** decision:
+options scored against weighted criteria by multiple methods (weighted-sum, Pugh, TOPSIS/AHP, and the
+product frameworks RICE/WSJF/ICE/Kano), with sensitivity analysis, method-disagreement detection,
+hard-constraint vetoes, multi-scorer aggregation, and a numbered `DEC-####` written to a ledger.
+
+The division of labour is strict: **the agent elicits and frames; the script does all the math.**
+Never compute scores by hand — if the script errors, surface it and stop rather than guessing.
+
+**Decide, do not ask.** A fork that reaches this skill is the agent's to resolve: score it, record the
+DEC, report the winner and the deciding reason in one line, and keep working. Handing the user a menu
+of options is the failure this skill exists to prevent
+(`.claude/rules/common/decision-authority.md`).
+
+### Purpose and Use Cases
+
+Fires for **any** non-trivial multi-option choice or prioritization, including a mid-task internal
+fork: "which library/framework/database/vendor", build-vs-buy, "rank these", RICE/WSJF.
+
+**Seven-step workflow.** Frame the goal and its reversibility (`two-way` / `one-way` — a one-way door
+with a non-low-confidence winner is promoted to an ADR); 2+ real alternatives, with "do nothing"
+usually belonging in the set; criteria and weights 0–100, flagged when one criterion exceeds 60% of
+the weight, each marked higher- or lower-is-better; **hard constraints captured *before* scoring**,
+because a vetoed option is eliminated regardless of score — that is what makes a constraint different
+from a heavy weight; scores 0–100 per option × criterion × scorer, elicited one at a time with a
+recommended value and its reasoning, **reading the codebase instead of asking whenever the answer is
+on disk**; run; present.
+
+Four decision-spec templates ship with the skill (build-vs-buy, technical architecture, product
+prioritization/RICE, candidate or vendor selection) — adapt one, never ship it unedited, and never
+keep a criterion the decision does not actually turn on.
+
+**Which ledger a DEC lands in is a decision the spec must declare.** A decision about a project is
+recorded in that project's `docs/decisions/`; only harness decisions go to
+`.claude/docs/decisions/`. Precedence is flag > spec key > harness ledger, and **relative paths
+resolve against the repository root, not the working directory**, because the engine runs from the
+skill's own directory. Recording a project's decision in the harness ledger inflates the harness DEC
+sequence and hides the decision from the project that owns it, so when the workspace contains any
+`projects/*/docs/decisions/` and the spec declares no `decisions_dir`, `--record` prints a warning
+naming every candidate ledger before it writes (DEC-0023). *Declaring the key silences it — the
+default is an assumption, the declaration is a statement.*
+
+**The engine refuses an incomplete spec on purpose:** a missing score is a question nobody answered,
+and filling it with a plausible number launders a guess as arithmetic.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `score` | `.claude/skills/decision-matrix/scripts/score.py` | The entry point. Runs every applicable method, compares them, and optionally records the DEC | `python3 -m scripts.score [--spec <path>] [--record]` from the skill directory (spec on stdin if `--spec` omitted); engine tests are the `ci-local.sh` step *Decision-matrix engine tests* | decision-spec JSON; `--decisions-dir`; result JSON to stdout, errors to stderr with exit 1 |
+| `methods` | `scripts/methods.py` | Weighted-sum, Pugh, TOPSIS/AHP, RICE/WSJF/ICE/Kano | called by `score` | the spec's criteria and scores |
+| `sensitivity` | `scripts/sensitivity.py` | Fragility of the ranking; `near_tie_pairs` | called by `score` | weights and scores |
+| `aggregation` | `scripts/aggregation.py` | Multi-scorer combination; the `multi_scorer_analysis` block reporting conflicts and outliers | called by `score` when more than one scorer is present | per-scorer scores |
+| `validate` | `scripts/validate.py` | Refuses an incomplete spec | called by `score` before any math | the spec schema |
+| `ledger` / `ledgers` | `scripts/ledger.py`, `scripts/ledgers.py` | Writes `DEC-####-<slug>.md` and upserts the ledger index; resolves which ledger owns the decision | `--record` | `decisions_dir`, repository root |
+| `recall` | `scripts/recall.py` | Reads back prior decisions | called by the skill body | the ledger |
+| `visual` | `scripts/visual.mjs` | Self-contained HTML rendering of a result | `node scripts/visual.mjs <result.json>` → stdout | a result JSON; Node |
+| `__init__.py` | `scripts/__init__.py` | Package marker | import time | none |
+
+`allowed-tools` deliberately pins the `cd`-prefixed invocation forms, because `-m scripts.score`
+needs the skill directory on `sys.path` and a rule that does not match that prompts on the documented
+happy path; `node` is permitted only for `scripts/visual.mjs`, since a bare `node *` would permit
+`node -e` for the lifetime of the invocation.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-ask-gate.sh` | `PreToolUse` on `AskUserQuestion` | an `AskUserQuestion` call is attempted | Refuses the stop unattended and names `decision-matrix` as the resolver for a scorable fork | the posture ticket |
+| `odin-safety-guard.sh` | `PreToolUse` on `Bash\|Edit\|Write\|NotebookEdit` | a write near the decision ledgers | Names `decision-matrix` in its guidance for ledger paths | none |
+| `odin-surface-router.sh` | `PreToolUse` on `Write\|Edit\|NotebookEdit\|Bash` | the file being written is a decision record | Names this skill for the surface, with no prompt involved | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "decide" / "compare options" / "prioritize" intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `decision-ledger.test.sh` | ledger format, index upsert, and the `Gaps` accounting | always on | `ci-local.sh` step *Decision-ledger matrix* | the ledger's own invariants |
+| `id-allocation.test.sh` | that two sessions cannot mint the same `DEC-####` | always on | `ci-local.sh` step *Id-allocation matrix* | compare-and-swap over `refs/odin/ids/*` |
+| `ledger-scope-default.test.sh` | that a project's decision is not silently recorded in the harness ledger | always on | `ci-local.sh` step *Ledger-scope default matrix* | DEC-0023 — the warning naming every candidate ledger when `decisions_dir` is undeclared |
+| `py_tests decision-matrix` | the engine's own correctness | always on | `ci-local.sh` step *Decision-matrix engine tests* | the skill's `tests/` |
+| the incomplete-spec refusal | whether math runs at all | always on | inside `validate.py` | a missing score is a refusal, never a default |
+| hard constraints (`veto_reasons`) | whether an option is eligible regardless of score | per-spec; empty by default | declared in the spec before scoring | a vetoed option is eliminated; when all options are vetoed, the constraints **are** the decision and must be quoted, not silently relaxed |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `roadmap` | shares a record, bidirectionally | `roadmap prioritize --export` → score → `roadmap prioritize --from` round-trips RICE scores onto items | A DEC produced while prioritizing lands on each item as `priority.dec`, so `roadmap next`'s ordering carries the audit trail of why it is ordered that way |
+| `architecture-decision-records` | hands off to | `promote_to_adr_hint` fires on a one-way door decided with confidence | Ordering: DEC first, ADR promoted from it |
+| `decision-mapping` | receives from, and hands back to | Fuzzy options are framed there and scored here | Bidirectional |
+| `grilling` / `grill-with-docs` | invokes | When criteria need an interview to pin down | Elicitation style is borrowed wholesale — one at a time, with a recommendation |
+| `blueprint` | hands off to | When the chosen option is a multi-PR effort | Then `roadmap` registers its steps |
+| `recursive-decision-ledger` | shares a convention | The numbered `DEC-####` ledger notion originates there | Not a call; a reused convention |
+| every skill with a fork to resolve | invoked by | `automate`, `out-of-scope`, `tidy`, `improve` and others delegate their arithmetic here | This is the harness's single scoring engine |
+
+### Additional Relevant Information
+
+- **Ownership:** the engine and the ledger format are owned here; id allocation is owned by the
+  harness's CAS allocator over `refs/odin/ids/*`.
+- **Related documentation:** `references/decision-spec-schema.md`, `references/elicitation.md`,
+  `references/multi-scorer.md`, `references/product-frameworks.md`, `references/pugh-matrix.md`,
+  `references/sensitivity-analysis.md`, `references/topsis.md`;
+  `.claude/rules/common/decision-authority.md`; DEC-0023.
+- **Known limitations / technical debt:**
+  - **Scoring to a predetermined winner** is the named failure mode: a rigged matrix is worse than an
+    opinion because it looks like evidence.
+  - The `redundant` criteria warning catches **labels, not synonyms** — three flavours of "developer
+    experience" triple that concern's weight silently, and a human catches that.
+  - A `near_tie` including the winner means the lead is inside the noise; the tiebreaker must be
+    named rather than assumed.
+  - A companion project, `projects/decision-matrix-web`, has its own gate stepped in `ci-local.sh`;
+    it is a separate deliverable and not part of this skill's package.
+- **Observability:** result JSON, the HTML artifact from `visual.mjs`, and the committed
+  `DEC-####-<slug>.md` with its ledger index row.
+- **Security / compliance:** `allowed-tools` is deliberately narrow — the `node` entry permits only
+  the bundled renderer. Apache-2.0 declared in frontmatter.
+- **Versioning:** declares `version: 0.2.0`.
+
+---
+
+## Skill: endless
+
+**Identifier:** `endless`
+**Repository:** `.claude/skills/endless/` (harness) · `skills/endless/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+**Command form:** `/loop`, `/autoloop` (one iteration)
+
+---
+
+### Description
+
+The continuous work loop. `roadmap` decides **what**, `successor` decides **who**, and this skill
+decides **whether to keep going, hand off, or fan out** — at every checkpoint, from an observable
+predicate rather than from whatever the context window still holds.
+
+**Core principle: an iteration ends at a checkpoint, not at a task.** A finished task with nothing
+decided after it is where autonomy dies quietly — the session idles, the branch sits unpushed, and
+the next roadmap item waits for a human. Every checkpoint forces one of three named continuations.
+There is no fourth, and *"stop" is not one of them unless a human is owed something.*
+
+Declared a **rigid** skill: the checkpoint decision is not a judgment call.
+
+### Purpose and Use Cases
+
+Fires on an unattended or overnight run, a `/loop` or `/autoloop` iteration, a session told to keep
+going until the roadmap is empty, a checkpoint reached with work still queued, or a run whose context
+is filling before the work is done.
+
+**Not for** a single task with a defined end, or a loop over work that shares mutable state —
+parallel sessions on one checkout corrupt each other's index (ADR-0054).
+
+**Ten phases:** arm posture → track → pick → gate → build → verify → land → capture → checkpoint →
+continue. The phase-to-skill table is not restated in the skill — it lives in
+`.claude/docs/autonomous-loop-standard.md`, and the commands live in `/autoloop`, because a third
+copy of a table is a third thing to drift. Two phases carry facts an operator needs:
+
+- **Phase 1** re-arms posture **every** iteration. The claim is TTL'd; skipping the renewal drops the
+  gates back to `warn`, and *a warned gate in an unattended run is a gate that did nothing.*
+- **Phase 2** creates the task list before any other tool. No task list → no completed task → no
+  compaction boundary, ever (ADR-0031, ADR-0036).
+- **Phase 8** has a second half only a loop has: an incident becomes a guard, through `oops`. A loop
+  that captures features and drops its own mistakes re-makes them on a schedule.
+
+**Three checkpoints, and only three:** `Landed` (on `main`, closed with the **landed** sha — a topic
+branch sha does not survive the rebase that merged it); `Hard blocker` (an external dependency
+refuses — missing credential, failing upstream, rate limit, or a decision that spends money or is
+outward-facing); `Context` (past roughly half the ceiling → `/relay`).
+
+**`blocked` is not a roadmap status**, and the skill says so against its own history: the engine's
+statuses are `proposed`, `ready`, `in-progress`, `done`, `dropped`, so the command this row
+prescribed for most of its life — `roadmap set … --status blocked` — *could not run at all*.
+Blockedness is **computed**, from an unmet `deps` edge or from an `escalate` record in a `work-loop`
+ledger. `gauntlet frontier` reports the two apart and never sums them: collapsing them is how a rate
+limit gets reported as a dependency and waited on forever.
+
+**Explicitly not checkpoints:** in-scope work left undone by choice; a plan written but not executed;
+a branch green but unpushed; "this deserves its own session later".
+
+### Scripts
+
+This skill does not define any scripts.
+
+It names three harness scripts as its machinery: `.claude/scripts/odin-autonomous.sh` (phase 1),
+`.claude/scripts/ci-local.sh` (phase 6), and `.claude/scripts/session-burn.sh` (the first
+continuation predicate).
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "keep going" / autonomous-loop intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `odin-autonomous.sh` (posture) | whether the plan gate and task gate **block** or merely **warn** | `warn` (interactive) | armed per session, TTL'd, re-armed **every** iteration; bound to the session's process tree so no other session can claim it (DEC-0020) | a published ticket claimed by the next gated tool call (ADR-0051) |
+| `session-burn.sh` | whether the loop relays on **spend** rather than depth | always on; exit 3 is the trip | first predicate at every checkpoint, ahead of the context predicate | measured: 48 sessions — the top 1% — accounted for 69.5% of all successor cache-read over 29 days, and the heaviest ran 853 turns at ~239K prefix (~24% of a 1M ceiling, so the *context* row never fired once) for **$159.61**; the median successor session cost about a cent |
+| `session-burn.test.sh`, `autonomous-posture.test.sh`, `loop-position-check.sh` | the loop's own machinery | always on | `ci-local.sh` steps *Session burn meter*, *Posture scope reporting*, *Loop position register* | each asserts its own predicate |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `roadmap` | invokes | Phase 3 picks the next unblocked item and sets it in-progress | **Never from `ROADMAP.md` prose, never from memory of the last iteration** |
+| `successor` | invokes | The Delegate continuation — become a coordinator, all five phases, then integrate and resume at phase 1 | Fires when `roadmap waves` puts ≥2 items in one layer **and** their surfaces do not overlap |
+| `handoff` / `/relay` | hands off to | The Relay continuation, on either the burn or the context predicate | This session stops only after confirming the branch is pushed |
+| `oops`, `mistake-to-gate` | invokes | Phase 8's second half — an incident becomes a guard (ADR-0057) | Ordering: capture the feature findings *and* the mistakes |
+| `work-loop` | shares a record | The `escalate` outcome with `--blocker`, `--evidence`, `--recommended-next` is how a hard blocker is recorded | A blocked item is not a stopped loop — the loop moves to the next item |
+| `gauntlet` | complements | This decides whether to continue; `gauntlet` computes what is left and which of it goes in the next wave | `gauntlet frontier` reports dependency-blocked and externally-blocked apart |
+| `out-of-scope` | invokes | A defect surfaced mid-iteration outside the item in hand | This skill never decides what happens to a finding inside an iteration |
+| `off-topic` | complements | Its checkpoint is a committed debt; this skill's checkpoints decide whether to continue at all | Different senses of the same word, deliberately distinguished |
+| `dynamic-workflow-mode` | complements | A task-local harness for one loop | Cited in the routing map |
+
+### Additional Relevant Information
+
+- **Ownership:** the phase table is owned by `.claude/docs/autonomous-loop-standard.md`; the commands
+  by `.claude/commands/autoloop.md`; the continuation predicates here.
+- **Related documentation:** `.claude/docs/autonomous-loop-standard.md` (phase → skill, rows 0–22);
+  ADR-0031 and ADR-0036 (task list → compaction boundary); ADR-0051 (posture is per-session);
+  ADR-0054 (parallel sessions on one checkout); ADR-0057 (incident → guard); ADR-0060 (checkpoints
+  and the three continuations).
+- **Known limitations / technical debt:**
+  - The skill records its own historical defect — a prescribed command that could not run — rather
+    than quietly correcting it. An operator reading an old loop transcript will see that command.
+  - The burn thresholds are measured on one host over one window; they are a policy, not a law.
+- **Observability:** `bash .claude/scripts/session-burn.sh` (exit 3 trips the relay);
+  `roadmap waves`; the `work-loop` ledger for escalations.
+- **Security / compliance:** phase 6 verifies **locally**; dispatching a workflow is blocked
+  always-on and would test the pushed tree rather than the working one.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: factory
+
+**Identifier:** `factory`
+**Repository:** `.claude/skills/factory/` (harness) · `skills/factory/` (this mirror)
+**Status:** `active`
+**Class:** `forked` — upstream `coleam00/skills`, `.claude/skills/build-dark-factory` at `ecef6ffd4caa0b23a8c79601c1215b1e2908ac72` (2026-08-25). Declared in frontmatter: `origin: fork`, `upstream: coleam00/skills — build-dark-factory @ ecef6ffd`, `forks: build-dark-factory`
+
+---
+
+### Description
+
+Builds a **dark factory** into a repository: work goes in as an issue, validated code comes out,
+nobody reads the diff. Five components in construction order — the guidance layer, the validation
+harness, the workflow-driven repo, deployment, and the trigger that makes it autonomous.
+
+Its stance is that it is **not a different way of coding with AI — it is the way the repo already
+codes with AI, with the human checkpoints removed.** Whatever process runs today goes inside: Spec
+Kit, BMAD, a PRP framework, or Odin's own roadmap → superplan → TDD → review chain. Steps stay,
+skills stay, MCP servers, rule files, subagents and commands stay.
+
+It requires a PRD as input and **deliberately does not write one**. It builds into the repo and
+**does not hand over a design document** — every phase ends with files committed and something
+demonstrably working.
+
+**Forked from `coleam00/skills`' `build-dark-factory`.** This is a fork rather than a vendoring, and
+it is excluded from `vendor-skills.sh` with the reason inline there, so no refresh fights it.
+
+### Purpose and Use Cases
+
+Fires on: a dark factory, an autonomous or self-driving repository, a software factory, an agent that
+ships its own code, an unattended or overnight coding loop, autonomous PRs, lights-out coding, a repo
+that maintains itself, or "how do we reach level 4 or 5 of AI coding autonomy". Also used to **audit,
+arm, raise the dial on, or stop** a factory that already exists.
+
+**Four Odin-specific divergences, each with an operational consequence:**
+
+1. **No question rounds.** `AskUserQuestion` is never called, in any phase (ADR-0052). The interview
+   still runs, still computes its questions, still carries one recommendation each — and then
+   *adopts the recommendation and records it* as a numbered DEC or in the plan doc's decision-forks
+   section. Upstream mandated the question tool in capitals with no fallback; a skill whose first
+   phase is a three-round interview would stop an unattended run three times before writing a line.
+2. **Plan before edits.** CLAUDE.md item 5's three preconditions apply, and the plan goes in
+   `.claude/docs/plans/` — the only directory `odin-plan-gate.sh` searches.
+3. **The governance files are protected mechanically, not by prompt.** Layer 1H of
+   `.claude/hooks/odin-safety-guard.sh` refuses a write to `MISSION.md`, `FACTORY_RULES.md` or
+   `FACTORY.md` in a factory repo. *A guard a node calls is a guard the node can skip.*
+4. **One decider, many entry points (ADR-0170).** `factory/orchestrator.sh` decides what runs next;
+   `workflows/factory-lap.yaml` runs one dispatcher tick as an Archon workflow so a lap is startable,
+   watchable, resumable and cancellable through the same surface as everything else — **and it
+   decides nothing.** An entry point may observe, refuse before spending, and report; it may not
+   compute the refusal, and it may not carry its own copy of a value `factory/config.sh` owns. This
+   was prose until the lap workflow's preflight drifted into its own stop-button test, and it is now
+   checked by `.claude/tests/factory.test.sh`.
+
+The skill also carries an explicit **output discipline** table, added because a user of the upstream
+version reported it as *"incredibly frustrating and hard to process, overwhelming to say the least"*
+— and that was the skill working, explaining itself at every step. Budget: nothing between decisions;
+two lines at a phase end; a command's output never pasted, verdict and number only.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `factory_doctor` | `.claude/skills/factory/scripts/factory_doctor.py` | Audits an existing factory — what exists, what is armed, what is missing | invoked by the skill body when auditing or arming | the target repository path |
+| `_runner` | `scripts/_runner.py` | Shared harness for the skill's own checks | called by the others | — |
+| `_audit_runner` | `scripts/_audit_runner.py` | Drives the audit pass | called by `factory_doctor` | — |
+| `_test_factory_doctor` / `_test_audit_runner` | `scripts/_test_factory_doctor.py`, `scripts/_test_audit_runner.py` | The skill's own tests | `ci-local.sh` step *Factory machinery* (`--timeout 900`) via `.claude/tests/factory.test.sh` | — |
+
+The skill also names, in the repository it builds: `factory/orchestrator.sh` (the one decider) and
+`factory/config.sh` (the single owner of configured values).
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-safety-guard.sh` Layer 1H | `PreToolUse` on `Bash\|Edit\|Write\|NotebookEdit` | a write targeting `MISSION.md`, `FACTORY_RULES.md` or `FACTORY.md` in a factory repo | **Refuses** it — the governance files are unamendable from inside the factory | none; blocked always-on |
+| `odin-plan-gate.sh` | `PreToolUse` on writes | a write with no active plan | warns interactive, blocks unattended | `.claude/docs/plans/` |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches dark-factory / lights-out intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `factory.test.sh` | the skill's machinery, including that an entry point does not compute its own refusal or carry its own copy of a `config.sh` value | always on | `ci-local.sh` step *Factory machinery*, `--timeout 900` — the longest single step in the suite | ADR-0170's one-decider invariant, now a predicate rather than prose |
+| safety-guard Layer 1H | whether the governance files may be written from inside the factory | **blocked always-on**; no posture or permission grant lifts it | in `.claude/hooks/odin-safety-guard.sh` | path match on `MISSION.md` / `FACTORY_RULES.md` / `FACTORY.md` in a factory repo |
+| the autonomy dial | how much the factory does without a human | raised **on evidence**, never by default | `.claude/rules/factory/patterns.md` | the rule namespace's own criteria |
+| the Archon lap preflight | whether a lap spends anything | refuses before spending | `workflows/factory-lap.yaml`, checked by `archon-lap.test.sh` | observes and refuses; **never computes** the refusal |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `archon` | invokes | A factory lap runs as an Archon workflow, startable and cancellable through the same surface as everything else | The workflow decides nothing; `factory/orchestrator.sh` is the only decider (ADR-0170) |
+| `decision-matrix` | invokes | Every discharged interview round is recorded as a numbered DEC instead of an `AskUserQuestion` | ADR-0052; `references/interview.md` states the discharge per round |
+| `roadmap`, `superplan`, `test-driven-development` | composes | The factory encodes whatever process the repo already runs; in this repository that is Odin's own chain | Not replaced — wrapped |
+| `agent-harness`, `agent-harness-construction` | complements | Making a repository agent-ready is the precondition; this removes the human checkpoints afterwards | Ordering: harness first |
+| `oops` | invokes | The validation harness's failures become guards | Cited in the factory's own loop |
+
+### Additional Relevant Information
+
+- **Ownership:** the fork is held by `odin-skill-manager`; the rule half is
+  `.claude/rules/factory/patterns.md`; the guard is Layer 1H of the safety guard.
+- **Related documentation:** `references/setup.md`, `references/interview.md`,
+  `references/guidance-layer.md`, `references/validation-harness.md`, `references/automation.md`,
+  `references/deployment.md`; `.claude/skills/factory/UPSTREAM.md` **and** the mirror copy (one of
+  only two forks carrying `UPSTREAM.md` in both places); ADR-0170; ADR-0052.
+- **Known limitations / technical debt:**
+  - `UPSTREAM.md` records three upstream defects that "would reach any Linux user of the upstream
+    skill" and are worth reporting upstream; they are carried as local divergence rather than fixed
+    at source.
+  - The skill is heavy: `factory.test.sh` is the suite's longest step at a 900-second bound.
+  - It requires a PRD it will not write, so an operator arriving without one is blocked at Phase 0
+    by design.
+- **Observability:** `factory_doctor` is the audit surface; the Archon run is watchable through
+  `manage-run`.
+- **Security / compliance:** this is the highest-reach skill in the corpus — it constructs a
+  repository that merges its own code. The unamendable governance files and the always-on Layer 1H
+  refusal are the security boundary, and they are mechanical precisely because a prompt-level rule
+  can be skipped by the node it is addressed to.
+- **Versioning:** unversioned here; upstream divergence pinned by sha in frontmatter and
+  `UPSTREAM.md`.
+
+---
