@@ -64,7 +64,7 @@ before quoting the number; it is a fact about a commit.
 |---|---|---|
 | Reading it | now, in the terminal, and can say "shorter" | later, cold, with none of your context |
 | Channel | the turn's prose | a durable path, plus a message pointing at it |
-| Budget | as much as the decision needs | four label lines, and structure after that |
+| Budget | as much as the decision needs | four lines plus structure |
 | Failure | too little context to decide | a claim the reader cannot resolve or act on |
 
 **An orphan has no human column.** A delegated session — launched by `odin-relay.sh`, running
@@ -93,11 +93,6 @@ own session was refused (that launders a permission decision), and carrying a fa
 been committed.
 
 ## The report contract
-
-The relay seed asks for the opening turn in **labels** — `Item:`, `Branch:`, `Evidence:`, `Next:`,
-and nothing else — rather than in four lines of prose. That is the same instruction it always
-carried, in the form that costs nothing: a prose restatement contradicted the silence instruction
-nine lines below it in the same string, and labels do not.
 
 A delegated session's turn — every turn, not only the last, because nothing marks a turn as last —
 is bounded on **narration**: lines that are neither markdown furniture, nor a label line, nor inside
@@ -160,16 +155,14 @@ its matrix at `.claude/tests/s2s.test.sh`.
 
 | Property | Value | Why |
 |---|---|---|
-| Caps | 4 narration lines, 60 narration words | The relay seed's own opening instruction, with no headroom. It was 8/120 — that instruction plus room for a verdict, a blocker and one spare — until 2026-09-09, when the owner asked for less. The headroom was the part being spent, and the spare invited a fifth line. **Not** calibrated to the measured population, in either direction: calibrating a bound to what motivated it enshrines the defect |
+| Caps | 8 narration lines, 120 narration words | Derived from the instruction the harness already ships: `odin-relay.sh` seeds every successor to restate its position "in four lines". That plus headroom for a verdict, a blocker and one spare. **Not** calibrated to the measured population — calibrating a bound to what motivated it enshrines the defect |
 | Override | `ODIN_S2S_MAX_LINES`, `ODIN_S2S_MAX_WORDS` | One place, the hook's default |
 | Posture | unattended only | An attended human is who the volume is *for*, and holds a working control. An orphan has neither |
 | Severity | **warn**, never block | A `Stop` block cannot un-print a report already emitted, spends a second turn, and — decisively — the `stop_hook_active` guard is shared across every `Stop` hook, so blocking here makes the next `Stop` self-disable `odin-unfinished-work.sh` and `odin-completion-evidence.sh` |
 | Off switch | `ODIN_S2S_REPORT_ENFORCE=off` | |
 
-Measured against the **previous** caps of 8/120, 93 of 154 delegated final turns exceeded the line
-cap and 110 of 154 the word cap. The current pair is stricter, so the fire rate is higher again;
-re-derive it rather than assuming either number.
-**That is the gap being reported, not evidence the caps are wrong** —
+Measured against those caps, 93 of 154 delegated final turns exceed the line cap and 110 of 154
+exceed the word cap. **That is the gap being reported, not evidence the caps are wrong** —
 and it is a second reason the class warns rather than blocks, since a class that refuses six turns in
 ten on the day it lands is a class that gets switched off, taking the eight voice classes in the same
 hook with it.

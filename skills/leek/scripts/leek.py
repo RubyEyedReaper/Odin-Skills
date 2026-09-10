@@ -991,8 +991,11 @@ def check_sessions(env: Env, rep: Report) -> None:
             "MCP servers are running with no live session anywhere in their ancestry",
             f"{len(orphans)} processes, {human(rss * KB)} resident: {listing}"
             + (" …" if len(orphans) > 8 else ""),
-            "Terminate each by PID after confirming it with `pgrep -af`, one at a time — never "
-            "by command-line pattern, which matches the harness's own wrapper shells. Do that "
+            "Terminate each by PID after confirming it with `pgrep -a -x <name>`, one at a time "
+            "— never by command-line pattern, which matches the harness's own wrapper shells "
+            "including the one running the probe (harness:RM-0603). Where a pattern is "
+            "unavoidable, filter your own shell: "
+            "`pgrep -af <pattern> | awk -v me=$$ -v up=$PPID '$1 != me && $1 != up'`. Do that "
             "as a separate, deliberate act; this audit does not do it.",
             impact=f"{human(rss * KB)} resident memory held by dead sessions",
         )
