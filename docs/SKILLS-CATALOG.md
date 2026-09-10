@@ -3696,3 +3696,516 @@ The report reads like
 - **Versioning:** unversioned.
 
 ---
+
+## Skill: successor
+
+**Identifier:** `successor`
+**Repository:** `.claude/skills/successor/` (harness) · `skills/successor/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+A successor is a **separate OS-level Claude session** — its own context window, its own harness, its
+own lifetime — launched by `.claude/scripts/odin-relay.sh` and reachable through `claude agents`.
+**Not a subagent:** a subagent shares the parent's lifetime, returns text, and dies with the turn; a
+successor outlives the session that spawned it, pushes commits, and is integrated by branch.
+
+**Core principle: a successor knows only what its handoff says.** Everything else it must rediscover
+at its own cost, or guess at yours. *The handoff bar is therefore the whole skill; the rest is
+procedure around it.*
+
+Rigid skill: the phases run in order, and **the bar has no optional elements.**
+
+### Purpose and Use Cases
+
+Fires for two or more independent coordinated workers, a campaign with waves and per-worker branches,
+a delegated session that has stalled or wedged, and a worker's branch that is ready to land. **One
+successor is the `handoff` skill (`/relay` is its command form); a coordinated fleet is this one.**
+
+**Not for** work that fits one session (just do it), parallel work inside one context window
+(`dispatching-parallel-agents` — subagents, not sessions), or work whose steps share mutable state:
+*parallel sessions on one checkout corrupt each other's index* (ADR-0054).
+
+**The six-element handoff quality bar** — the canonical statement, which every other skill cites
+rather than restates. *A missing element is not a gap the worker fills in; it is a wrong turn the
+worker takes confidently.*
+
+1. **Relevant skill set** — a `## Suggested skills` section naming the skills that own the work.
+2. **Assigned task and desired outcome** — what to build, and what "done" looks like as an artifact.
+3. **Current context** — progress so far, decisions already made and their reasons, constraints.
+4. **Open questions, risks, dependencies, next actions.**
+5. **Authorization scope** — an explicit `edit only: <paths>` line: what the worker may touch, and
+   what belongs to a sibling worker or the coordinator.
+6. **Standing invariants** — **restated, not assumed.**
+
+Plus the frontmatter's six fields, the `## Suggested skills` section, and qualified roadmap ids —
+**already refused by `odin-relay.sh`** (ADR-0038, ADR-0050, ADR-0056). *Cite them, do not restate
+their rules, and never re-implement the checks.*
+
+**"The successor manager" is a role, and `successor-manager` is the skill that owns it** (ADR-0105).
+Its occupant is whoever launched the sessions — the delegating session for one successor, the
+coordinator for a fleet.
+
+### Scripts
+
+This skill does not define scripts of its own. It launches through
+`.claude/scripts/odin-relay.sh` and reads fleet state through `.claude/scripts/fleet-health.sh`,
+`.claude/scripts/session-burn.sh` and `.claude/scripts/odin-autonomous.sh` — all harness scripts,
+shared with `handoff` and `successor-manager`.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-plan-gate.sh` | `PreToolUse` on writes | a write is attempted | Names `successor` among the skills in the chain that satisfies it | the plan directories |
+| `odin-voice-lint.sh` | `Stop` | every turn end | Names `successor` — a delegated session's narration bound is what the lint measures | `s2s_kinds.py` |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches delegation / fleet intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `odin-relay.sh`'s refusals | whether a handoff may launch | refuses, never warns | at launch | three of the six bar elements are mechanical: frontmatter fields, `## Suggested skills`, qualified ids (ADR-0038, ADR-0050, ADR-0056) |
+| `handoff-delegation.test.sh` | that delegation is the default rather than a follow-up step | always on | `ci-local.sh` step *Handoff delegation matrix* | — |
+| `relay-seed.test.sh`, `relay.test.sh`, `relay-handoff-test.sh` | the seed's content, the relay's behaviour, the launch directory | always on | three `ci-local.sh` steps | one refusal or seed invariant each |
+| `supervision-channels.test.sh` | Phase 3's channel order | always on | `ci-local.sh` step *Supervision channels matrix* | health first |
+| the posture requirement | whether a worker's gates block or warn | **each worker arms its own** | `odin-autonomous.sh on`, per session | **a coordinator cannot arm a child** (ADR-0051) |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `handoff` (`/relay`) | complements | One successor is that skill; a fleet is this one (ADR-0059) | **Both launch through the same script and inherit its refusals; neither re-implements them** |
+| `successor-manager` | **hands the role to** | Phase 3 is the monitoring duty; the ownership register and the five verdicts are that skill's | ADR-0105. Cited, never restated |
+| `campaign` | invoked by | A campaign decides *what* is delegated and in what order; this performs each delegation | The six-element bar is cited from there, never copied — *two copies drift and the looser copy wins silently* |
+| `gauntlet` | invoked by | Step 4 assigns campaign-shaped rows with colliding surfaces held back | Ordering: the frontier first |
+| `revive` | invoked by | A revived coordinator runs Phase 1 for its own workers | Revive launches exactly one session |
+| `endless` | invoked by | The Delegate continuation, when ≥2 items share a wave and their surfaces do not overlap | Then integrate, then resume at phase 1 |
+| `s2s` | complements | What a worker says back, and its terminal's narration bound | Lifecycle here, message in flight there |
+| `dispatching-parallel-agents` | explicitly excluded | Subagents share the parent's lifetime and die with the turn | *There is no register row and no verdict to compute* |
+
+### Additional Relevant Information
+
+- **Ownership:** the six-element bar, the five phases, and the fleet's provisioning discipline.
+- **Related documentation:** `references/fleet-runbook.md`, `references/handoff-template.md`;
+  ADR-0059 (one successor vs a fleet), ADR-0105 (the successor-manager role), ADR-0054 (parallel
+  sessions on one checkout), ADR-0051 (posture is per-session), ADR-0038/0050/0056 (the three
+  mechanical refusals).
+- **Known limitations / technical debt:**
+  - Three of the six bar elements are mechanically refused; **the other three are not**, and a
+    handoff that satisfies the relay can still send a worker down a wrong turn confidently.
+  - Each worker must arm its own posture, and nothing can do it on their behalf — a worker that skips
+    it runs with warned gates for its whole life.
+- **Observability:** `claude agents --json`, `claude logs <id>`, branch movement — after
+  `fleet-health.sh`, never before.
+- **Security / compliance:** the `edit only:` line is the access-control boundary between sibling
+  workers, and it is prose rather than an enforced permission.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: successor-manager
+
+**Identifier:** `successor-manager`
+**Repository:** `.claude/skills/successor-manager/` (harness) · `skills/successor-manager/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+Owns two things nothing else owns: **who is responsible for a delegated session**, and **how that
+session's state is decided from evidence rather than from its own report of itself.**
+
+**The stance: a session's own report of itself is never sufficient evidence.** A wedged session
+reports that it is running. A dead session reports whatever the registry last knew, because the
+registry outlives the daemon that served it — **on 2026-08-19 five sessions died together and went on
+rendering as ordinary for eight hours** (M-0014, ADR-0072). Both are the subject describing itself,
+and *neither can report its own absence.*
+
+So the verdict is computed from channels the subject does not control, in a fixed order, **and the
+order is the point.**
+
+### Purpose and Use Cases
+
+Fires when delegated sessions already exist and the question is who owns one or what is actually true
+of it — a worker that may be stalled, a fleet whose state nobody trusts, a branch to resume without
+re-running landed work.
+
+**Three signals, in order:**
+
+1. **`fleet-health.sh` first**, because the other two cannot report their own absence. **Its exit
+   code gates everything after it:** `2` means the daemon is gone and *every* session is dead
+   regardless of what the registry says; `3` means the registry is unreadable and **no verdict may be
+   claimed for anything.**
+2. **Branch movement** — `git ls-remote --heads origin <branch>` for the published sha.
+3. **Landedness by content**, never by ancestry.
+
+Out of those comes **one of five verdicts**.
+
+The boundary with `s2s` is stated crisply: *this skill decides what is **true** of a session; that one
+decides what it **says**.* The red flag "a send reports on the send" originates here and is cited
+there.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `successor-status.sh` | `.claude/skills/successor-manager/scripts/successor-status.sh` | Computes the verdict for a delegated session from the three signals | invoked by the skill body; matrix at `.claude/tests/successor-status.test.sh` (`ci-local.sh` step *Successor status matrix*) | the session id and its branch |
+| `successor-deliverable.sh` | `scripts/successor-deliverable.sh` | Establishes what a worker actually produced | invoked by the skill body; matrix at `successor-deliverable.test.sh` | the branch |
+| `fleet-health.sh` | `.claude/scripts/fleet-health.sh` | Signal 1, and the gate on the other two | called first, always | exits **forwarded unchanged** |
+| `session-burn.sh` | `.claude/scripts/session-burn.sh` | Spend, as a separate quantity from progress | consulted for escalation | ADR-0097 |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "is that worker stalled" / ownership intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `successor-status.test.sh` | the three signals, their order, and the five verdicts | always on | `ci-local.sh` step *Successor status matrix* | one case per signal and per verdict |
+| `successor-deliverable.test.sh` | what counts as a worker's deliverable | always on | `ci-local.sh` step *Successor deliverable matrix* | — |
+| `fleet-health.sh` exit 2 / exit 3 | whether any verdict may be claimed | **gates everything after it** | first signal, always | `2` → every session dead; `3` → **no verdict for anything** |
+| `supervision-channels.test.sh` | the channel order | always on | `ci-local.sh` step *Supervision channels matrix* | health first |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `successor` | receives the role from | It owns the five phases; this starts once a session exists | **Its bar is cited here, never restated — two copies of a bar drift, and the looser copy wins silently** |
+| `handoff` (`/relay`) | consulted by | One-off delegation with its own gates | *This skill is what you consult about either afterwards* |
+| `campaign` | invoked by | A campaign **asks** it and never re-derives it | Nothing here opens a daemon socket |
+| `revive` | shares channels | Precondition 5 asks a narrower question — present or absent — of the same channels | The five verdicts stay here |
+| `status` | invoked by | The fleet report defers to this skill for what is true of one session | Cited, never re-derived |
+| `s2s` | **originates** | "A send reports on the send" is this skill's red flag | True versus said |
+| `endless` | explicitly excluded | Continuation doctrine | *This skill says what happened; it never says whether to carry on* |
+| `dispatching-parallel-agents` | explicitly excluded | Subagents have no register row and no verdict | Cited as a boundary |
+
+### Additional Relevant Information
+
+- **Ownership:** the ownership register and the five verdicts.
+- **Related documentation:** `references/ownership-register.md`, `references/escalation-paths.md`;
+  ADR-0105 (the register and a verdict from channels the session does not control); ADR-0072 and
+  M-0014 (the registry outlives the daemon); ADR-0097 (the burn predicate, and the still-open
+  question of when spend alone earns an escalation).
+- **Known limitations / technical debt:**
+  - **A named seam, deliberately unfilled:** when spend alone earns an escalation is open, and
+    `escalation-paths.md` names it rather than inventing a threshold.
+  - The skill's own boundary table names `campaign` as *"harness:RM-0302, **not yet built**"* — a
+    statement that has since been overtaken, since `campaign` is a member of this catalog. Recorded
+    here rather than corrected; `.claude/skills/` is not this document's to edit.
+- **Observability:** `successor-status.sh`, `successor-deliverable.sh`, `fleet-health.sh`.
+- **Security / compliance:** reads only; changes no session state.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: superplan
+
+**Identifier:** `superplan`
+**Repository:** `.claude/skills/superplan/` (harness) · `skills/superplan/` (this mirror)
+**Status:** `active`
+**Class:** `authored` · formerly named `ultraplan`
+
+---
+
+### Description
+
+> *Ship signal, not noise. Parallel perspectives, one coherent plan, an approval gate that matches
+> the posture — human when a human is driving, self-served and recorded when none is.*
+
+A multi-agent deep-planning workflow: fan out to `planner`, `architect` and an adversarial reviewer
+**in parallel**, then synthesise their output into one approved plan document.
+
+It is the harness's default answer to "plan before editing" — CLAUDE.md item 5's third precondition —
+and `roadmap`'s Gate 4 fires it **always, before source**.
+
+### Purpose and Use Cases
+
+Fires on any implementation task where scope, architecture or approach is non-obvious; before writing
+code for a feature touching multiple files or systems; and when a written plan doc is required for
+approval.
+
+**Phase 1 fans out to three agents simultaneously.** The instruction that matters operationally is
+about context, not about planning: **fill `<CONTEXT>` with ≤10 paths, one line each, path + role —
+never file contents.** *Each agent starts its own session, so `<CONTEXT>` is paid three times — on
+top of `CLAUDE.md` and the always-on rules, which every one of those sessions loads in full before it
+reads a word of the task. Two of the three copies are pure duplication; the first is the cost of
+doing the work at all.* Every agent has its own Read and Grep; what it needs is **where to start
+looking, not the material itself.**
+
+**The skill refuses to state its own context figures**, and says why: run
+`bash .claude/scripts/context-budget.sh report` for today's numbers. *This line said `~52 KB` while
+the rules index said `38.8 KB` and a skill sample said `34.8 KB` — none of them agreeing and none of
+them produced by anything* (`harness:RM-0164`).
+
+**The announce line is a fragment, deliberately.** The skill instructs
+`superplan — fan-out: planner, architect, adversary`, and states the reason: *Odin voice does not
+lapse inside a skill (ADR-0011), and a quotable first-person sentence in skill text is the shape that
+causes the lapse.*
+
+**The approval gate matches the posture** — human when a human is driving, **self-served and
+recorded** when none is (ADR-0052).
+
+### Scripts
+
+This skill does not define any scripts.
+
+It names three harness scripts: `.claude/scripts/context-budget.sh` (today's figures, rather than a
+number in the body), `.claude/scripts/odin-autonomous.sh` (the posture the approval gate reads), and
+its own matrix `.claude/tests/superplan-template.test.sh`.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches deep-planning intent | Names this skill in the routing hint | none |
+| `odin-plan-gate.sh` | `PreToolUse` on writes | a write with no active plan | **warn** interactive, **block** unattended; a superplan document satisfies it | the plan directories; the posture ticket |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `superplan-template.test.sh` | that the plan document's template is intact | always on | `ci-local.sh` step *Superplan template matrix* | the template's required sections |
+| `odin-plan-gate.sh` | whether any write may proceed | **warn** interactive, **block** unattended | `odin-autonomous.sh on`, per session (ADR-0051) | `ODIN_PLAN_ENFORCE` overrides; plan, ADR and memory files exempt |
+| the plan-depth bar | whether the plan is deep enough to be finished | planner sends back below 4/5 | `.claude/docs/plan-depth-standard.md` (ADR-0027) | three preconditions: a named process skill, **≥3 genuine decision forks (target 3–5)**, and a **recorded scope decision** |
+| the approval gate | who approves the plan | **posture-dependent** | human when attended; **self-served and recorded** when not | ADR-0052 — `AskUserQuestion` must not stop an unattended run |
+| the `<CONTEXT>` bound | how much each fanned-out agent pays | **≤10 paths, no file contents** | inside Phase 1 | paid three times over, on top of the always-on load |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `planner`, `architect`, `plan-adversary` (agents, not skills) | **dispatches, in parallel** | Three independent perspectives, synthesised once | Simultaneous dispatch is the design; sequential would triple the wall clock without changing the cost |
+| `roadmap` | invoked by (Gate 4) | **Always, before source** | No exception in the gate table |
+| `blueprint` | hands off to | More than about 12 steps out of a superplan **is a decomposition failure reported as a step list** | The step count is the boundary |
+| `writing-plans` | complements | The decision-plan artifact and its rubric | `blueprint`'s entry documents the two-plan distinction |
+| `grilling`, `brainstorming` | invoked before | The first plan-depth precondition — a named process skill for intent | Ordering: intent, then plan |
+| `decision-matrix` | invoked during | Each enumerated fork is resolved and recorded rather than handed to the user | `.claude/rules/common/decision-authority.md` |
+| `test-driven-development`, `executing-plans`, `subagent-driven-development` | hands off to | Execution | Superplan plans; it does not build |
+
+### Additional Relevant Information
+
+- **Ownership:** the fan-out shape and the synthesis; the depth bar by
+  `.claude/docs/plan-depth-standard.md`; the posture by `odin-autonomous.sh`.
+- **Related documentation:** `.claude/docs/plan-depth-standard.md` (ADR-0027, the planner rubric —
+  send back below 4/5); ADR-0052 (a question ends the turn); ADR-0011 (voice does not lapse inside a
+  skill); `harness:RM-0164` (why the context figures are not written here).
+- **Known limitations / technical debt:**
+  - **The three-times cost is intrinsic.** Every fanned-out agent loads `CLAUDE.md` and the always-on
+    rules in full before reading the task; the `<CONTEXT>` bound is the only lever.
+  - The skill's former name, `ultraplan`, survives in older documents and transcripts.
+  - A known operational trap: the posture check reads *interactive* in a background job, so an armed
+    background session must re-arm and re-check in one command.
+- **Observability:** `bash .claude/scripts/context-budget.sh report`; the plan document itself.
+- **Security / compliance:** none specific.
+- **Versioning:** unversioned; renamed once, from `ultraplan`.
+
+---
+
+## Skill: test-driven-development
+
+**Identifier:** `test-driven-development`
+**Repository:** `.claude/skills/test-driven-development/` (harness) · `skills/test-driven-development/` (this mirror)
+**Status:** `active`
+**Class:** `forked` — upstream `obra/superpowers`, MIT (Copyright (c) 2025 Jesse Vincent); upstream HEAD last audited `b36e082` (2026-08-12)
+
+---
+
+### Description
+
+Write the test first. Watch it fail. Write minimal code to pass.
+
+**Core principle: if you didn't watch the test fail, you don't know if it tests the right thing.**
+
+**The Iron Law:** `NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST`. Write code before the test?
+Delete it. Start over. *"Violating the letter of the rules is violating the spirit of the rules."*
+
+**Forked from `obra/superpowers`.** The fork's `UPSTREAM.md` records a decision that had been left
+open: upstream replaced roughly 60 lines of rationalisation-catalogue with three- or four-line
+entries — *"I'll test after"*, *"Tests after achieve same goals"* — and carries material the retired
+file had no equivalent of, including **Principle 1, "Name the behaviour"**. The divergence table
+records which upstream hunks were adopted and which were not, and why.
+
+### Purpose and Use Cases
+
+Fires when implementing **any** feature or bugfix, before writing implementation code. Always: new
+features, bug fixes, refactoring, behaviour changes.
+
+*Thinking "skip TDD just this once"? Stop. That's rationalization.*
+
+**The upstream exception clause — "Exceptions (ask your human partner)" for throwaway prototypes,
+generated code and configuration files — is discharged in this harness rather than followed.**
+`.claude/rules/common/testing.md` owns Odin's exception policy (the coverage floor and required test
+types) and the recovery when RED was skipped, so *the skill is asking about a decision an always-on
+rule has already made.* That discharge is recorded per-line in
+`.claude/rules/common/decision-authority.md`, which cites `SKILL.md:24` and `SKILL.md:331` by path,
+line and anchor phrase.
+
+**The recovery when RED was skipped is Odin's, not upstream's**, and it is not "write the tests now
+and move on": *a test that has never been seen red asserts nothing, and one written against finished
+code usually asserts what the code does rather than what it should do.* Instead — **mutate the
+implementation and prove the tests catch it.** Flip a condition, delete a branch, drop a guard, return
+a constant, one change at a time; each mutation must turn at least one test red, then restore it. A
+mutation nothing catches names a missing case. **State in the PR that RED was skipped and that
+mutation checks stand in for it** — a repair with a cost, not an equivalent path.
+
+**No hook checks any of this.** Commit ordering is destroyed by a squash merge and by `--amend`, so
+test-first-ness is **not a repository-state predicate** — it is held by the agent doing the work.
+
+### Scripts
+
+This skill does not define any scripts.
+
+It ships `writing-good-tests.md` beside `SKILL.md` rather than a `scripts/` directory.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-surface-router.sh` | `PreToolUse` on `Write\|Edit\|NotebookEdit\|Bash` | the file being written is source or a test | Names this skill and the language rule namespace for the surface, **with no prompt involved** — which is what still fires at turn thirty | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches feature / bugfix intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `elicitation-contract.test.sh` | the discharge of the skill's "ask your human partner" clause | always on | `ci-local.sh` step *Elicitation-contract matrix* | the contract's own predicate |
+| `rule-citations.test.sh` | that `decision-authority.md`'s citations into this skill resolve — **path, line and anchor phrase** | always on | `ci-local.sh` step *Rule-citation matrix* **and** `PRE_PUSH_GATES` (5819ms) | *a vendored skill that gains ten lines leaves every bare line number resolving to real, wrong text, silently*; the row citing `:331` read `:371` for as long as nobody checked |
+| the 80% coverage floor | the minimum coverage for `projects/<slug>/` work | 80% | `.claude/rules/common/testing.md`, ADR-0123 | **The harness ships no application source, so the floor binds the vendored project trees**, each with its own coverage tooling; the harness's own bash and Python are covered by their matrices instead |
+| the Iron Law | whether production code may be written | absolute | procedural — **no hook checks it** | commit ordering does not survive a squash merge or `--amend` |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `tdd-guide` (agent) | paired with | The agent enforces write-tests-first and is used proactively | Named in `.claude/rules/common/testing.md` |
+| `oops` | receives from | Three of the six guard classes — input guard, precondition, postcondition — are written test-first | Ordering: classify there, write the test here |
+| `roadmap`, `superplan`, `blueprint` | invoked by | The build phase of every planned item | Plan first, then RED |
+| `.claude/rules/common/testing.md` | **discharged by** | Odin's exception policy and the RED-skipped recovery | *The skill is asking about a decision an always-on rule has made* |
+| `react-testing`, `e2e-testing`, `ai-regression-testing` | complements | Surface-specific test practice | Routed by surface, not by this skill |
+| `verification-before-completion` | complements | Evidence before a completion claim | Different moment in the same discipline |
+
+### Additional Relevant Information
+
+- **Ownership:** the discipline is upstream's; the exception policy, the RED-skipped recovery and the
+  coverage floor are Odin's, in `.claude/rules/common/testing.md`.
+- **Related documentation:** `writing-good-tests.md` beside the skill;
+  `skills/test-driven-development/UPSTREAM.md` in this mirror;
+  `.claude/rules/common/decision-authority.md` (the per-line discharge, with anchor phrases);
+  `.claude/rules/common/testing.md`; ADR-0123 (whose coverage floor this is).
+- **Known limitations / technical debt:**
+  - **Nothing enforces test-first-ness**, and the skill and the rule both say so. The mutation
+    recovery is what stands in for it after the fact.
+  - The upstream divergence includes material this fork has **not** adopted, listed hunk by hunk in
+    `UPSTREAM.md`; a refresh is a re-reading, not a restore.
+- **Observability:** the failing test itself; a mutation that no test catches.
+- **Security / compliance:** MIT obligations discharged by the `LICENSE` beside the skill in this
+  mirror.
+- **Versioning:** unversioned; upstream divergence pinned by sha.
+
+---
+
+## Skill: tidy
+
+**Identifier:** `tidy`
+**Repository:** `.claude/skills/tidy/` (harness) · `skills/tidy/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+> *The deliberate act, never the sweep. A path arrives; a verdict comes out. Nothing here searches
+> for candidates, and nothing here removes anything.*
+
+Decides whether something that has outlived its purpose may go. **One path per run**, and a directory
+argument is a **usage error, not a candidate list.**
+
+### Purpose and Use Cases
+
+Fires when a plan doc, report, brief or scratch file looks finished; when a `leek` finding named a
+path and the next question is what to do about it; before deleting anything when the answer is not
+already obvious; and when a **branch** is being considered for deletion — *ask, and get told no, with
+the reason.*
+
+**Four verdicts**, and exit codes are the interface (`0` remove, `10` retain, `11` refuse, `12`
+unresolved, `2` usage):
+
+| Verdict | Means | Do |
+|---|---|---|
+| `remove` | A removal ledger records the basename — **its content survived somewhere** | Run the printed **dry-run** line, read what it names, then run the **apply** line. Two commands, in that order, *both read before either runs* |
+| `retain` | No ledger names it, **so this copy may be the only one** | Keep it. If it really is spent, **write the ledger record first**, then re-run — *the record is the durable half, the file is the disposable one* |
+| `refuse` | The argument is a branch | Nothing. **Not now and not with better evidence** |
+| `unresolved` | The path resolved to nothing, or no ledger was readable | Report the gap and fix what could not be read. *A check that could not look is a finding, never a silence* |
+
+**Every verdict other than `remove` keeps the material, and that is the whole shape: a wrong retain
+costs disk, a wrong removal costs the content.**
+
+**A branch is always `refuse`, permanently, and it is nobody's to delete** — ADR-0093: *the error is
+asymmetric and force-push is blocked, so a wrongly deleted branch has no reflex that restores it.*
+
+**An open checkpoint under `.claude/docs/off-topic/` also always refuses.** It *looks* like residue
+and is an outstanding obligation; closing one is a **return** — the file is deleted by the commit
+that resumes the work, never by a sweep.
+
+**The removal is yours, not the script's.** `tidy-verdict.sh` prints commands and runs none of them.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `tidy-verdict.sh` | `.claude/skills/tidy/scripts/tidy-verdict.sh` | Returns one of four verdicts for one path, and **prints the dry-run and apply commands without running either** | invoked by the skill body; matrix at `.claude/tests/tidy-verdict.test.sh` (`ci-local.sh` step *Tidy verdict matrix*) | `<path>`, `--root <dir>`, or `<branch-name>`. Exits `0`/`10`/`11`/`12`/`2` |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "can this be deleted" / "is this still needed" intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `tidy-verdict.test.sh` | the four verdicts and their exit codes | always on | `ci-local.sh` step *Tidy verdict matrix* | one case per verdict, including the permanent branch refusal |
+| the branch refusal | whether a branch may ever be deleted through this skill | **refuse, permanently** | ADR-0093 | the argument is a branch name |
+| `plan-retention-check.sh`, `branch-retention-check.sh` | the retention policies the verdicts read against | always on | `ci-local.sh` steps *Plan retention (tree)* and *Branch retention (tree)* (`--timeout 420 --hygiene`, clean-clone, `gh`) | ledger and age predicates |
+| `runtime-retention.sh` | session-keyed runtime state | swept **mechanically on a schedule** | outside this skill | *a class nobody declared is swept by nothing — a declaration bug, not a tidy decision* |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `leek` | receives from | It finds; this decides | **This skill performs no discovery.** Two non-destructive skills by design |
+| `workflows` | defers to | Retiring a workflow is a **lifecycle transition on a manifest with its own enforced refusal**, not a filesystem removal | Never a `remove` verdict |
+| `off-topic` | refuses for | An open checkpoint is an obligation, not residue | Always `refuse` |
+| `campaign`, `gauntlet` | receives from | Close-out hands residue over as a list | *This skill removes nothing* |
+| CLAUDE.md item 8 | reads | *A plan is spent once its work is in living docs or code **and recorded in `CHANGELOG.md`*** | **This skill reads that record; it does not form the judgement** |
+| `roadmap` | explicitly excluded | Removing spent material is not planning | Cited as a boundary |
+
+### Additional Relevant Information
+
+- **Ownership:** the four verdicts; the removal ledgers themselves (`CHANGELOG.md` chief among them)
+  are owned by the contract.
+- **Related documentation:** `references/verdict-rules.md` (what counts as evidence, how the basename
+  is matched, **why history and appearance are not evidence**, and how to override a verdict
+  honestly); ADR-0110; ADR-0093; ADR-0088.
+- **Known limitations / technical debt:**
+  - The `remove` verdict rests on a **basename match** in a ledger, which is a correlate of "the
+    content survived somewhere" rather than the property itself.
+  - Because the skill never searches, nothing here will ever tell you what you *should* be asking
+    about — that asymmetry is deliberate and is why `leek` exists.
+- **Observability:** the verdict and its exit code; the printed dry-run line.
+- **Security / compliance:** the skill is non-destructive by construction; the destructive step is
+  always the operator's own command.
+- **Versioning:** unversioned.
+
+---
