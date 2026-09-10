@@ -1408,3 +1408,599 @@ The skill also names, in the repository it builds: `factory/orchestrator.sh` (th
   `UPSTREAM.md`.
 
 ---
+
+## Skill: gauntlet
+
+**Identifier:** `gauntlet`
+**Repository:** `.claude/skills/gauntlet/` (harness) · `skills/gauntlet/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+The campaign that re-arms. **A gauntlet does not end when its list does — it ends a *batch*.**
+
+The reasoning is measured, not asserted: over the 14 days ending 2026-09-02 this repository created
+385 items and closed 252 — **1.53 created per completion, with no day below 1.0**. A loop instructed
+to "run until zero open items" is therefore instructed to run forever without ever reaching a state
+it can report, which is how a run goes silent for twelve hours with no verdict. *The skill tells its
+reader to re-measure that ratio before quoting it; it is a fact about a period, not a constant.*
+
+So the unit is a **batch**: an item set frozen at a pinned base, so `campaign close` can compute a
+verdict over something that holds still, plus a **re-arm** that recomputes the frontier and rolls
+into the next batch. The loop never stops; the batch always does.
+
+Declared a **rigid** skill — the channel order, the refusals and the exit codes are not judgment
+calls.
+
+### Purpose and Use Cases
+
+Fires on: an endless gauntlet; a campaign that re-arms instead of ending; "keep going until every
+issue and roadmap item is done"; a batch that finished while new work kept arriving; a coordinator
+asking what is left across roadmap *and* tracker at once; "re-arm", "next wave", "quick wins first";
+and when a campaign looks finished and the loop must decide whether to start another.
+
+**Eight-step cycle:** arm and reconcile → frontier → plan → assign → build → integrate → verify →
+**re-arm**. Step 8 is the one nothing else has: *a closeable batch is not a finished gauntlet.*
+Step 6 gates the **merged** result — a branch green before its rebase says nothing about what lands.
+
+Step 8 also has a second half a single batch does not: **every finding becomes capturable work
+before the re-arm** — a feature or defect to `roadmap`/`to-issues`, an incident to `oops` →
+`mistake-to-gate`, a hazard to `caveat`, an unobserved effect to `mutations`, a recurring friction to
+`improve`, a durable lesson to `learn`, a third repetition to `automate`. An uncaptured finding dies
+with the batch, and findings are the next batch's fuel.
+
+**Three terminal states, and nothing else:** *batch closed, loop continues* (re-arm — not an end);
+*budget* (`session-burn.sh` exits 3, or a usage limit lands — recorded as a `revive` manifest with
+the assignment and a not-before instant, so the fleet restarts without a human); and *every
+remaining item externally blocked* — each open item carrying a `blocked-external` record with
+blocker, evidence and recommended next action, via `work-loop iterate --outcome escalate`, three
+fields each, **and then the loop ends having said why**.
+
+**Nothing here writes state.** The frontier is a *status*, and a stored status reads identically
+whether it is current or six hours old — measured in this repository at **31 of 43** issues already
+fixed while the tracker said otherwise. The plan lives in the campaign manifest, the cycle in the
+`work-loop` ledger, the restart in the `revive` manifest; this skill adds no store.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `gauntlet` | `.claude/skills/gauntlet/scripts/gauntlet.py` | `frontier` (read four channels; refuse to call an unread one empty), `rearm` (emit a wave, holding back colliding surfaces), `verify` (may the batch close, **and** what appeared since it was pinned) | `python3 -m scripts.gauntlet <sub> --root … [--explain] [--json] [--width N] [--manifest <file>]`, run from the skill directory | the roadmap, the tracker, the campaign manifest, the remote |
+| `__init__.py` | `scripts/__init__.py` | Package marker | import time | none |
+
+Exit codes, per command: `frontier` — 0 empty **and every channel read**, 1 work remains (the
+ordinary case), 2 a channel could not be read. `rearm` — 0 a wave was emitted, 2 a channel could not
+be read, 3 nothing assignable. `verify` — 0 the batch may close **and** the frontier is empty, 1
+refused (unlanded, or new work appeared), 2 undetermined.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "re-arm" / "next wave" / exhaustive-backlog intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `gauntlet-ledger-citation.test.sh` | that the ledger conformance mapping is cited rather than restated | always on | `ci-local.sh` step *Gauntlet ledger citation* | DEC-0118 — the field-by-field mapping against the source protocol's `gauntlet/state.json` / `gauntlet/ledger.jsonl` naming |
+| the frontier's channel-read refusal | whether an unread channel may be reported as empty | refuses; exit 2 | inside `frontier` | four channels, each read or declared unread. **Empty enumeration with a clean exit is the shape being refused** |
+| the surface-collision check at `rearm` | whether two items may be co-scheduled in one wave | holds colliding surfaces back | inside `rearm` | overlap between the items' declared surfaces. `endless` states this check in prose and **no code performed it** — closing that is the skill's stated reason to exist |
+| `campaign close` | whether a batch may close | refuses while any item is unlanded | called by `verify` | delegated in full; never re-derived |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `campaign` | invokes | `verify` **calls** `campaign close` for the batch verdict | Landedness by content, the remote-first channel order and the no-status refusal (ADR-0113) are cited, never re-derived |
+| `endless` | complements | This says what the frontier holds; `endless` decides what to do about it | The continuation predicates stay there |
+| `work-loop` | shares a record | The cycle's contract, twelve fields, six outcomes, four stall predicates, quality rubric, critic packet and ledger | All of it belongs there. Field mapping in `references/ledger-conformance.md` (DEC-0118) |
+| `successor`, `successor-manager` | invokes | Delegation and the truth about a live session | The five phases and the six-element bar are `successor`'s |
+| `revive` | hands off to | The budget terminal state writes a revival manifest with a not-before instant | The fleet restarts with nobody at the keyboard |
+| `roadmap` | invokes | `reconcile`, item identity, the slug rule, `next`/`waves` | Never re-derived |
+| `triage`, `to-issues` | hands off to | **A tracker row is emitted as a finding, never placed in a wave** | A hard ordering constraint |
+| `superplan`, `blueprint`, `writing-plans` | invokes | The plan-depth bar applies **per item, not per batch** | Ordering: plan each item before assigning it |
+| `tidy` | hands off to | Close-out hands residue over as a list | Deletes nothing |
+| `s2s` | cites | What a worker says back, and that a send reports on the send (ADR-0162) | Cited, not called |
+
+### Additional Relevant Information
+
+- **Ownership:** the composition order and the refusals are owned here; every capability it composes
+  is owned elsewhere and cited by name.
+- **Related documentation:** `references/rearm-cycle.md` (channels, blockedness, the ordering formula,
+  every refusal); `references/ledger-conformance.md` (DEC-0118); ADR-0113.
+- **Known limitations / technical debt:**
+  - The 1.53-per-completion figure is period-bound and the skill says so; quoting it as a constant is
+    the failure it warns against.
+  - `frontier` reads a tracker, so it depends on network reachability; unread channels exit 2 rather
+    than degrading to a partial answer, which is correct and indistinguishable from an outage without
+    reading the reason line.
+- **Observability:** `frontier --explain` and `--json`; the campaign manifest; the `work-loop` ledger.
+- **Security / compliance:** no credentials of its own; tracker access inherits the session's.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: grill-with-docs
+
+**Identifier:** `grill-with-docs`
+**Repository:** `.claude/skills/grill-with-docs/` (harness) · `skills/grill-with-docs/` (this mirror)
+**Status:** `active`
+**Class:** `forked` — upstream `mattpocock/skills` (`skills/engineering/grill-with-docs/`), MIT (Copyright (c) 2026 Matt Pocock)
+
+---
+
+### Description
+
+A relentless interview that treats every claim as unverified until a source is cited. Ordinary
+grilling sharpens what *you* think; this sharpens what is *true*, then writes it down.
+
+**Core principle: an unsourced claim is an open question wearing a confident face.**
+
+Two things separate it from `grilling` alone. Every claim under interview is checked against a
+source — the documentation, the code, the spec, the API's real behaviour — before it settles a branch
+of the design tree. And **the session produces artifacts**, not just agreement: decisions land as
+ADRs, vocabulary lands in the glossary. *An interview that resolves five forks and records none of
+them did not happen.*
+
+**Forked from `mattpocock/skills`, and there is no line of upstream's stub left in the body.**
+Upstream ships a stub; the fork's own `UPSTREAM.md` states the reason for the rewrite: a stub cannot
+assert its dependencies loaded, and upstream's own documentation names partial loading as a hazard.
+The fix for silent partial loading is a **loud first step**, which is what this fork opens with.
+
+### Purpose and Use Cases
+
+Fires when: a plan or design rests on claims about a library, API, protocol or spec nobody has read
+end to end; "the docs say…" / "I think it works like…" — assertion without citation; a requirements
+interview over a heavy document corpus; onboarding a domain whose vocabulary is not pinned down; or
+before committing to an integration whose real behaviour is assumed.
+
+**Not for** eliciting *preferences* (`grilling` — there is no source to check a preference against),
+exploring intent from scratch (`brainstorming`), or a decision with scorable criteria and no factual
+dispute (`decision-matrix`).
+
+**Step 0 asserts the dependencies loaded, every time.** The skill composes two others, and loading
+only one produces the worst outcome — a plausible interview with no paper trail, or a paper trail
+with no rigour — and the failure is **silent**. The step makes it loud: invoke both, then confirm in
+one line that you can state the **frontier** from `grilling` and the **ADR format** from
+`domain-modeling`. Cannot state one? Stop and say which did not load.
+
+**Four verdict labels, used exactly:** `supported` (source says this, and it was read this session —
+settles, cite it in the ADR); `contradicted` (source says something else — **reopens the parent
+decision, and this is the finding worth the session**); `gap` (no source found or none exists —
+branch stays open, recorded as an explicit unknown, *never as a soft yes*); `weak` (indirect, stale
+or inferential — settles only with the weakness named in the ADR). A contradicted claim pushes the
+frontier **backwards**, and that is the point, not a setback.
+
+Done when the frontier is empty **and** every settled branch cites a source.
+
+**Unattended:** `grilling`'s wait-points are discharged per
+`.claude/rules/common/decision-authority.md` — state each question with its `➡️` answer, adopt it,
+continue. **The verification gate is not discharged.** Nothing about running unattended makes an
+unsourced claim more true; if anything it removes the last human who might have said "wait, is that
+right?" A `gap` stays a gap and the plan proceeds under a stated assumption; *it is never quietly
+upgraded to `supported` because the run needed the branch closed.*
+
+### Scripts
+
+This skill does not define any scripts.
+
+It ships an `agents/` directory beside `SKILL.md` rather than a `scripts/` one.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches doc-grounded interview / "the docs say" intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| Step 0's dependency assertion | whether the interview runs at all on partial loading | stop-on-failure; not advisory | the skill's own first step | the agent must state the frontier and the ADR format from the two sub-skills |
+| `elicitation-contract.test.sh` | that the elicitation contract this and `grilling` share holds | always on | `ci-local.sh` step *Elicitation-contract matrix* | the contract's own predicate |
+| the unattended discharge | whether a wait-point may stop an unattended run | **warn** interactive, **discharged** unattended | `.claude/rules/common/decision-authority.md`, per-row | the wait-point is discharged; **the verification gate is not** |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `grilling` | **invokes — required** | The frontier/rounds interview mechanics | Ordering is absolute: assert it loaded before anything else. Partial loading fails silently, which is why step 0 exists |
+| `domain-modeling` | **invokes — required** | The ADR and glossary formats | Same assertion. **The ADR path is `.claude/docs/adr/`, not `docs/adr/`** — `domain-modeling` names the latter, which in this repository would start a second ADR tree with its own numbering, colliding with the ranges `.claude/docs/adr/README.md` indexes. *When the two disagree, this skill's line wins* |
+| `architecture-decision-records` | shares a record | Decisions the interview settles land as ADRs | Format is `domain-modeling`'s |
+| `writing-plans` | shares a record | Findings — every gap, contradiction and weak source — go to the plan doc's decision-forks section, one row per finding with its verdict label | Ordering: interview, then plan |
+| `brainstorming`, `decision-matrix` | explicitly excluded | Intent from scratch, and scorable criteria with no factual dispute | Cited as boundaries |
+
+### Additional Relevant Information
+
+- **Ownership:** held as a fork by `odin-skill-manager`; the ADR tree it writes into is owned by
+  `.claude/docs/adr/README.md`.
+- **Related documentation:** `skills/grill-with-docs/UPSTREAM.md` in this mirror;
+  `.claude/rules/common/decision-authority.md` (the per-row discharge of `grilling`'s wait-points);
+  `CONTEXT.md` (the glossary destination).
+- **Known limitations / technical debt:**
+  - The skill's correctness depends on an agent honestly reporting whether two sub-skills loaded.
+    That is an assertion, not a predicate — nothing mechanical verifies it.
+  - It carries a path override against a sub-skill it invokes (`docs/adr/` vs `.claude/docs/adr/`).
+    Two documents disagree in plain text and the resolution lives in this one; a reader of
+    `domain-modeling` alone gets the wrong answer.
+- **Observability:** the ADRs and glossary entries it produces are the trace. An interview with no
+  artifacts is the failure.
+- **Security / compliance:** MIT obligations discharged by the `LICENSE` beside the skill in this
+  mirror. It reads external documentation, so it can pull untrusted text into context.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: handoff
+
+**Identifier:** `handoff`
+**Repository:** `.claude/skills/handoff/` (harness) · `skills/handoff/` (this mirror)
+**Status:** `active`
+**Class:** `forked` — upstream `mattpocock/skills`, MIT (Copyright (c) 2026 Matt Pocock); upstream HEAD last audited `8b78b53` (2026-08-13)
+**Command form:** `/relay`
+
+---
+
+### Description
+
+Hands this session's work to a **separate successor session**. Three phases, in order: write the
+document, launch the successor, then stay on as its monitor. A handoff **ends this session's
+ownership of the work** — this session does not carry on building; it watches, integrates, and lands.
+
+**Delegation is the default, not a follow-up step.** A handoff that stops at a written document
+leaves the work in the context window it was written to escape, and the second step is the one nobody
+takes.
+
+**Forked and rewritten around the Odin harness's session and memory internals**, which upstream has
+no equivalent of. Upstream has since added `agents/openai.yaml` (Codex metadata) to every skill,
+which this fork does not carry.
+
+### Purpose and Use Cases
+
+Fires when a long-running session is out of context, when work must continue past this context
+window, or when another agent should pick the work up. One successor is this skill; a coordinated
+fleet — several workers, per-worker branches, waves — is `successor` (ADR-0059). **Both launch
+through the same script and inherit its refusals; neither re-implements them.**
+
+**Phase 1 — the document** goes to `.claude/.runtime/handoff/<ISO8601>.md`, with `-` in the time
+portion because colons are not path-safe everywhere. `.claude/.runtime/` is git-ignored and is the
+established home for harness-internal session state, so the handoff survives an OS temp sweep, stays
+out of every commit, and **never reaches a remote**.
+
+Six frontmatter fields are required (`created_at`, `project_id`, `mem_class`, `active_branch`,
+`plan_file`, `next_action`); `worktree:` and `hop:` are optional. **No trailing comments on a
+frontmatter line** — the relay's reader is shell builtins, not a YAML parser, so
+`hop: 1  # first handoff` is a hop number that reads `1  # first handoff` and is refused.
+
+Several conditions are **refused** by `.claude/scripts/odin-relay.sh` rather than warned about,
+*because the session that would read a warning is the one about to be cleared*: a `project_id` that
+does not name the project (ADR-0038); a `## Suggested skills` section that names no skills
+(ADR-0056); an unqualified roadmap id — `harness:RM-0034`, never `RM-0034`, since ids are
+per-roadmap counters and a successor has no memory of which roadmap was open (ADR-0050); a declared
+worktree that is not the directory being launched in (`harness:RM-0566`); and a `hop:` at the chain
+ceiling (`harness:RM-0434`). Ids inside fenced blocks are exempt.
+
+**The launch directory is quiet when wrong.** A successor starts in the relay's working directory;
+every `git` call in a generated brief carries `git -C <worktree>`, so commits and pushes land
+correctly **while the session's own reads, its hooks, and `odin-plan-gate.sh`'s plan search all
+follow the wrong tree.** Roster rows from earlier campaign batches show workers running in the
+coordinator's checkout with briefs that named a worktree, and nothing said so.
+
+**The chain has a ceiling.** `hop:` is how many relays produced this handoff; absent means hop 0.
+The relay refuses at `ODIN_RELAY_HOP_MAX` (default 8), because a chain that long is usually a loop
+that cannot finish rather than work nearly done — every hop pays a fresh context window to re-read
+what the last one already knew. **The count only advances if each successor writes it**, and nothing
+mechanically forces the increment: a parent cannot verify a document its child has not written yet,
+so *an omitted `hop:` restarts the chain and its bound stops meaning anything.* A reader resolves its
+predecessor by arithmetic — its own hop minus one — rather than by a path that may already have been
+swept.
+
+**What a handoff captures: ephemeral working state only.** It is not a memory tier. Durable facts
+belong in `CONTEXT.md` and `.claude/docs/adr/`; curated recall belongs in claude-mem under the active
+class. Nothing is promoted automatically — *a handoff is discardable by definition, and a fact that
+matters beyond the next session does not belong only in one.*
+
+**Phase 3 reads four channels, in order, because each alone lies:** `fleet-health.sh` **first** — the
+other three cannot report their own absence. The registry is served by the daemon, and when the
+daemon exits it keeps returning its last-known list, so **a dead session renders as `blocked`,
+indistinguishable from working** (M-0014). The script reads the daemon's control socket from disk
+instead, which the subject cannot fake once it is gone.
+
+**This skill cannot clear or end the session.** No hook event returns a field that resets context and
+`/clear` is a client command the agent cannot type (ADR-0038, ADR-0036). The relay makes clearing
+cheap; the keystroke stays the user's. *Never claim to have cleared anything.*
+
+### Scripts
+
+This skill does not define any scripts of its own. It names two harness scripts as its machinery:
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `odin-relay.sh` | `.claude/scripts/odin-relay.sh` | Validates the handoff, then launches the successor as a separate OS-level session | invoked by the skill body; `--dry-run` first, which prints the command and launches nothing | `--handoff <path>` (absolute when the successor runs in another worktree), `--name`, `--cwd <worktree>`; `ODIN_RELAY_HOP_MAX` (default 8) |
+| `fleet-health.sh` | `.claude/scripts/fleet-health.sh` | Reads the daemon's control socket from disk — the one channel a dead session cannot fake | phase 3, first of four | none |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-compact-boundary.sh` | `PostToolUse` on `TaskUpdate` | a task completes | Marks a compaction boundary; names `handoff` as the alternative when context is the constraint | a task list must exist at all (ADR-0031) |
+| `odin-plan-gate.sh` | `PreToolUse` on writes | a write is attempted | Names `handoff` among the skills whose documents are exempt from the plan requirement | the plan directories |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches out-of-context / hand-this-forward intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `odin-relay.sh`'s refusals | whether a handoff may launch at all | refuses, never warns | inside the relay, at launch | six conditions: unnamed `project_id`, empty `## Suggested skills`, unqualified roadmap id, declared-but-not-current worktree, `hop:` at ceiling, malformed frontmatter line |
+| `ODIN_RELAY_HOP_MAX` | the chain ceiling | **8** | env override | integer comparison against `hop:`; the relay names the hop it stopped at |
+| `relay.test.sh`, `relay-seed.test.sh`, `relay-handoff-test.sh`, `relay-launch-block-detection.test.sh`, `handoff-delegation.test.sh` | the relay's own behaviour, the seed's content, the launch directory, and that a blocked launch is detected | always on | five `ci-local.sh` steps | each asserts one refusal or one seed invariant |
+| `supervision-channels.test.sh` | that the four monitoring channels are read in order | always on | `ci-local.sh` step *Supervision channels matrix* | health first; the registry is not liveness |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `successor` | shares a record, and defers to | The six-element quality bar the handoff body must clear — assigned task and desired outcome, current context, open questions and risks, authorization scope, suggested skills, standing invariants — **is `successor`'s, stated once there** | Read it before writing a handoff of any size. One successor is this skill; a fleet is that one (ADR-0059) |
+| `successor-manager` | invokes | Phase 3's verdict about a live session | The registry is not liveness (M-0014) |
+| `endless` | invoked by | The Relay continuation, on the burn or context predicate | This session stops only after confirming the branch is pushed |
+| `off-topic` | shares a record | An open checkpoint under `.claude/docs/off-topic/` is in-flight state and must be named in the handoff | Otherwise the successor inherits the branch **without the debt attached to it** |
+| `roadmap` | shares a record | Every roadmap id in a handoff is written qualified | ADR-0050; the relay refuses an unqualified id outside a fenced block |
+| `revive` | complements | A fleet that must survive a shutdown writes a revival manifest rather than a handoff | Different failure mode, same destination |
+
+### Additional Relevant Information
+
+- **Ownership:** the document format is owned here; the six-element bar by `successor`; the launch
+  and its refusals by `.claude/scripts/odin-relay.sh`.
+- **Related documentation:** `skills/handoff/UPSTREAM.md` in this mirror; ADR-0077 (write, launch,
+  monitor); ADR-0059 (one successor vs a fleet); ADR-0038 and ADR-0036 (the agent cannot clear its
+  own context); ADR-0050 (qualified roadmap ids); ADR-0056 (suggested skills must name skills);
+  `.claude/docs/odin-memory-standards.md` (the `mem_class` vocabulary — read the current value from
+  `.claude/.runtime/active-mem-class` rather than guessing).
+- **Known limitations / technical debt:**
+  - **The hop count is unenforceable.** Nothing can force a successor to declare `hop: N`, and an
+    omitted one silently restarts the chain. The ceiling is real only while every link cooperates.
+  - Handoffs live under gitignored `.claude/.runtime/`, so a chain crossing worktrees cannot read its
+    predecessors' documents at all — which is why a reader resolves by arithmetic rather than path.
+  - The skill cannot complete its own stated purpose end to end: clearing the session is the user's
+    keystroke.
+- **Observability:** `claude agents --json`, `claude logs <id>`, `git ls-remote --heads origin
+  '<class>/*'` — none of them first; `fleet-health.sh` is.
+- **Security / compliance:** handoffs are gitignored and never pushed. The skill instructs redaction
+  of anything sensitive and forbids pasting raw tool output.
+- **Versioning:** unversioned; upstream divergence pinned by sha in `UPSTREAM.md`.
+
+---
+
+## Skill: impeccable
+
+**Identifier:** `impeccable`
+**Repository:** `.claude/skills/impeccable/` (harness) · `skills/impeccable/` (this mirror)
+**Status:** `active` · declared `version: 3.7.1`, `license: Apache 2.0`, `user-invocable: true`
+**Class:** `forked` — upstream `pbakaus/impeccable`, Apache-2.0, upstream HEAD last audited `7b646ba` (2026-08-14)
+
+---
+
+### Description
+
+Designs and iterates production-grade frontend interfaces: real working code, committed design
+choices, exceptional craft. It is by a wide margin the **largest** skill in the corpus — 35
+scripts and 28 reference documents, measured at this sha — and the only member that registers a `PostToolUse` hook of its
+own.
+
+Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings,
+onboarding and empty states, across UX review, visual hierarchy, information architecture, cognitive
+load, accessibility, performance, responsive behaviour, theming, typography, spacing, layout, colour,
+motion, micro-interactions, UX copy, error states, i18n and design systems.
+
+**Forked from `pbakaus/impeccable`.** The Apache-2.0 §4(b) modification statement is in the mirror's
+`UPSTREAM.md`. The recorded local changes: hook-local cache and config files are anchored to the
+project directory rather than raw `process.cwd()`; four reference documents were added that upstream
+has no equivalent of; and the harness integration upstream does not carry.
+
+### Purpose and Use Cases
+
+Invoked by sub-command — `craft`, `shape`, `audit`, `critique`, `animate`, `bolder`, `colorize`,
+`delight`, `layout`, `overdrive`, `quieter`, `typeset`, `adapt`, `clarify`, `distill`, `harden`,
+`onboard`, `optimize`, `polish`, `init`, `document`, `extract`, `live` — each with a required
+reference document. **Not for backend-only or non-UI tasks.**
+
+**A five-step setup runs before any design work, and steps 2 and 4 are marked non-optional:**
+
+1. `node scripts/context.mjs` once per session (`--target <path>` inside a monorepo). It prints the
+   project's `PRODUCT.md` (and `DESIGN.md` when present), or says it is missing. **`NO_PRODUCT_MD`
+   stops the work** until `reference/init.md` has been followed.
+2. A sub-command requires reading `reference/<command>.md`. *Without it you will skip steps the user
+   expects.*
+3. Read at least one project file — CSS, tokens, theme, a representative component.
+4. Read the matching **register** reference: `reference/brand.md` when design *is* the product
+   (marketing, landing, campaign, long-form, portfolio) or `reference/product.md` when design
+   *serves* the product (app UI, admin, dashboard, tool). *Skipping this produces generic output.*
+5. For a genuinely new project with no committed brand colours, `node scripts/palette.mjs` supplies
+   a brand seed; otherwise identity preservation wins.
+
+The design guidance is prescriptive and specific rather than general — contrast floors (4.5:1 body,
+3:1 large, and the same 4.5:1 for placeholders), a 65–75ch measure, a display-heading ceiling of
+6rem and a letter-spacing floor of −0.04em, `text-wrap: balance` on h1–h3, a semantic z-index scale
+instead of 999, exponential ease-out with no bounce, a mandatory `prefers-reduced-motion`
+alternative, and a named anti-pattern: **the cream/sand/beige body background as "the saturated AI
+default of 2026"**, with the token names that are tells in themselves.
+
+### Scripts
+
+35 files under `.claude/skills/impeccable/scripts/`. The ones an operator needs by name:
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `context.mjs` | `scripts/context.mjs` | Prints `PRODUCT.md`/`DESIGN.md`, or `NO_PRODUCT_MD`; may emit an `UPDATE_AVAILABLE` directive that never blocks the task | setup step 1, once per session | `--target <path>` |
+| `hook.mjs` | `scripts/hook.mjs` | The `PostToolUse` entry point — a thin stdin/stdout adapter that reads the hook event, runs the design detector against the touched file, and emits findings via `hookSpecificOutput.additionalContext` | registered in `.claude/settings.json` under `PostToolUse` for `Write\|Edit\|NotebookEdit` | the hook event on stdin; `envProjectDir` |
+| `hook-lib.mjs` | `scripts/hook-lib.mjs` | Where the hook's logic actually lives, so it is unit-testable without a subprocess | imported by `hook.mjs` | — |
+| `hook-lib.test.mjs` | `scripts/hook-lib.test.mjs` | The hook's tests, including cwd anchoring | `ci-local.sh` step *Impeccable hook cwd anchoring* — `node --test` | — |
+| `hook-before-edit.mjs`, `hook-admin.mjs` | `scripts/` | Pre-edit variant and hook administration | invoked by the skill body | — |
+| `detect.mjs`, `detect-csp.mjs`, `context-signals.mjs` | `scripts/` | The design detector and its signals | called by the hook | the touched file |
+| `palette.mjs` | `scripts/palette.mjs` | Brand seed colour and composition guidance, OKLCH | setup step 5, new projects only | — |
+| `critique-storage.mjs`, `pin.mjs` | `scripts/` | Persisting critiques and pinned targets | invoked by the sub-commands | — |
+| `live*.mjs` (≈18 files) | `scripts/live*.mjs` | The live browser-iteration surface — server, session, DOM, inject, insert, poll, resume, status, target, wrap, accept, complete, manual-edit evidence and commit/discard | `live` sub-command | a running browser; `reference/live.md` |
+| `modern-screenshot.umd.js` | `scripts/` | Bundled screenshot dependency | called by the live surface | — |
+| `command-metadata.json` | `scripts/` | Sub-command metadata | read by the skill | — |
+
+**The hook's contract is stated in its own header and is worth quoting:** *never break a turn, always
+exit 0.* Clean files emit a small acknowledgement unless quiet mode is enabled.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `impeccable/scripts/hook.mjs` | `PostToolUse`, matcher `Write\|Edit\|NotebookEdit` | any file write | Runs the design detector against the touched file and emits a system reminder through `hookSpecificOutput.additionalContext` when findings exist. Writes an audit log. **Always exits 0** | Node; the detector; `envProjectDir` |
+| `odin-surface-router.sh` | `PreToolUse` on writes | the surface being written is frontend | Names this skill for the file, with no prompt involved | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches design / UI / polish intent | Names this skill in the routing hint | none |
+
+This is the **only** member skill that owns a registered hook file. Every other hook in the corpus is
+harness machinery that points at skills.
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `NO_PRODUCT_MD` | whether design work may start | **stops** the work | setup step 1 | `context.mjs` cannot find a `PRODUCT.md`; the repair is `reference/init.md` |
+| `node --test scripts/hook-lib.test.mjs` | that the hook anchors its cache and config to the project directory rather than `process.cwd()` | always on | `ci-local.sh` step *Impeccable hook cwd anchoring* | the fork's own recorded divergence from upstream |
+| the hook's quiet mode | whether clean files emit an acknowledgement | acknowledgement on | per-invocation configuration | `hook-lib.mjs` |
+| `UPDATE_AVAILABLE` | whether the user is asked about updating | asks once, then continues | printed by `context.mjs` | **never blocks the current task** |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `agent-browser` | invokes | The `live` sub-command drives a real page while critiquing it | Degrades to static critique when the CLI is absent |
+| `frontend-design`, `interface-design`, `ui-ux-pro-max`, `frontend-design-direction` | complements | Neighbouring design skills in the routing map; `impeccable` is also the PostToolUse design check | Routing neighbours rather than callers |
+| `accessibility` | complements | Contrast and reduced-motion floors overlap with WCAG work | This skill states the floors inline; `accessibility` owns the standard |
+| `motion-foundations` and the motion family | complements | Motion guidance here is prescriptive; the motion skills own tokens and springs | Cited in the routing map |
+| `teach` | **deprecated alias** | `teach` is a deprecated alias for `init`: if a user types it, load `reference/init.md` and proceed as if they ran `init` | The one deprecation in the corpus, and it is an alias inside an active skill, not a deprecated skill |
+
+### Additional Relevant Information
+
+- **Ownership:** held as a fork by `odin-skill-manager`; the registered hook entry in
+  `.claude/settings.json` is harness configuration.
+- **Related documentation:** 28 files under `.claude/skills/impeccable/reference/` — one per
+  sub-command, plus `brand.md`, `product.md`, `hooks.md`, `interaction-design.md`, `codex.md`;
+  `skills/impeccable/UPSTREAM.md` in this mirror.
+- **Known limitations / technical debt:**
+  - **Surface area.** 35 scripts and 28 references make this the hardest member to change
+    safely, and the only one whose failure can add noise to every write in a session.
+  - The hook's "never break a turn, always exit 0" contract means a broken detector fails **silently**
+    — findings simply stop appearing.
+  - `allowed-tools` permits `Bash(npx impeccable *)`, so the skill can reach a published package
+    distinct from the vendored copy.
+- **Observability:** the hook's audit log (`writeAuditLog`); the system reminder emitted into the
+  turn; `hook-admin.mjs`.
+- **Security / compliance:** Apache-2.0 §4(b) statement and `LICENSE` beside the skill in this
+  mirror. The `live` surface runs a local server and drives a browser; treat it as a development-only
+  capability.
+- **Versioning:** declares `version: 3.7.1` — the only member with a patch-level version, and the one
+  whose upstream releases most obviously matter.
+
+---
+
+## Skill: improve
+
+**Identifier:** `improve`
+**Repository:** `.claude/skills/improve/` (harness) · `skills/improve/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+**The rung the ladder does not have.** This harness turns failures into enforcement in three rungs,
+all owned elsewhere; this skill takes the fourth — a **friction that recurs and that no script can
+decide.** A body that routes badly, a reference nobody reads, a procedure with a step everybody
+skips, a boundary table that omits the skill people actually reach for.
+
+An improvement here is **a change declared before it is made and reversible after.**
+
+### Purpose and Use Cases
+
+Fires on a recurring friction in a skill, or when a skill change must declare its reason, its
+falsifier, and what happens if it reddens a gate.
+
+**The handover test runs before anything else**, and it is quoted from `mistake-to-gate` §2 in that
+skill's own words rather than paraphrased:
+
+> **Is there a predicate over repository state that is true exactly when the friction is present?**
+
+**Yes** → it is a gate. Invoke `mistake-to-gate` and stop — one sentence, no analysis, no partial
+work here first. **No** → it is this skill's. *The question is quoted rather than paraphrased on
+purpose: two bodies that paraphrase a shared border drift into disagreeing about it, and nothing in
+this harness detects two skills claiming one scenario.*
+
+**The trigger is recurrence, read at run time.** One annoyance is a preference; recurrence is
+evidence. The register is read with `mistakes.py report`, and the body carries an explicit
+prohibition: **never write a count from that register into prose** — a number in a body is wrong by
+the next occurrence, *and this repository has shipped that exact defect more than once.* A key
+already at the promotion threshold is not this skill's; that is `mistake-to-gate` §11's, both halves.
+
+**Five fields.** Declared *before* the change: **reason, expected benefit, affected skills,
+validation criteria.** Written into whatever closes it: **outcome.**
+
+Two carry the weight. **Validation criteria must name a falsifier** — a command or observation that
+would show the improvement did *not* work; if one cannot be stated, the change is a preference, so
+say so and land it as one, or not at all. **Outcome is what makes the other four cost something**: an
+improvement whose outcome is never recorded is indistinguishable from one that was never made.
+
+The fields live in the commit body — plus an ADR when a contract moves, plus `CHANGELOG.md` when
+something is removed. **There is no improvement ledger and there will not be one**: a second store of
+recurring problems diverges from `MISTAKES.md` within a week and nothing says which is right.
+
+### Scripts
+
+This skill does not define any scripts.
+
+It reads `mistake-to-gate`'s register through
+`python3 .claude/skills/mistake-to-gate/scripts/mistakes.py report .`, optionally `--key <key>`.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches recurring-friction / skill-change intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `skill-artifact-check.sh` | that the five-field record has ever been written | **exempt** — `artifact_status: never-run` | the exemption prints on every green run | the declared reason, verbatim: *the record is five fields in the commit body, which no glob can match, and the mechanism has never run: **0 of the 30 commits touching `.claude/skills` since `improve` landed at `b5aaf902`** (2026-08-26) carry them, measured 2026-09-01. Retro-fitting them would mean rewriting published history, and a record written now from memory is a function of who remembered. The obligation binds forward from here* |
+| the falsifier requirement | whether a change may be called an improvement at all | required | inside the skill's validation-criteria field | a command or observation that would show it did not work; absent one, it is a preference |
+| the revert-on-red rule | what happens when the change reddens a gate | **revert**, not patch forward | ADR-0109 | the gate's own verdict |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `mistake-to-gate` | **gated by, and reads** | The handover test is that skill's §2 question, quoted; the recurrence register is `MISTAKES.md` | **This skill reads that register and never writes it.** A key at threshold belongs to §11, not here |
+| `oops` | reads from | `oops` is the front door for an incident and appends the counted row | Ordering: incident there, recurring friction here |
+| `rules-distill` | hands off to | A pattern now in two or more skills, or a key at threshold, is a rule at a declared tier with a row in `DISTILLATIONS.md` | Not this skill's output |
+| `skill-creator`, `writing-skills` | complements | Ordinary authoring or restructuring | This fires on recurring friction, **not on every edit** |
+| `not-impressed` | explicitly excluded | A verdict on a diff delivered by a fresh context | Different question entirely |
+| `systematic-debugging`, `diagnosing-bugs` | explicitly excluded | A friction is not a defect | *Diagnose first — you cannot improve a mechanism you have not identified* |
+
+### Additional Relevant Information
+
+- **Ownership:** the five fields are owned here; the recurrence register and the promotion ladder by
+  `mistake-to-gate`; the rule tier by `rules-distill`.
+- **Related documentation:** `references/change-record.md`, `references/revert-protocol.md`;
+  ADR-0109 (declared before, reversible after; reverts on a red gate rather than patching forward).
+- **Known limitations / technical debt:**
+  - **Zero instances**, declared in frontmatter and quoted above: 0 of 30 eligible commits carry the
+    five fields. Like `decision-mapping`, this is a routed, documented, unexercised mechanism, and the
+    exemption is the honest record of that rather than a hidden gap.
+  - The record lives in commit bodies, which **no glob can match**, so no gate can ever check content
+    — only that the mechanism has or has not run, by declaration.
+- **Observability:** `mistakes.py report .` for the trigger; the commit body for the record.
+- **Security / compliance:** none specific.
+- **Versioning:** unversioned.
+
+---
