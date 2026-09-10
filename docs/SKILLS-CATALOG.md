@@ -4209,3 +4209,459 @@ that resumes the work, never by a sweep.
 - **Versioning:** unversioned.
 
 ---
+
+## Skill: using-superpowers
+
+**Identifier:** `using-superpowers`
+**Repository:** `.claude/skills/using-superpowers/` (harness) · `skills/using-superpowers/` (this mirror)
+**Status:** `active`
+**Class:** `forked` — upstream `obra/superpowers`, MIT (Copyright (c) 2025 Jesse Vincent); upstream HEAD last audited `b36e082` (2026-08-12)
+
+---
+
+### Description
+
+The skill-first discipline itself: **invoke relevant or requested skills before any response or
+action**, including before clarifying questions. *If there is even a 1% chance a skill applies, invoke
+it to check.*
+
+It is the one member whose **full text is injected at session start** rather than loaded on demand,
+which makes it the corpus's entry point rather than one of its entries.
+
+Its instruction-priority ladder is what makes it safe to inject: **user instructions
+(`CLAUDE.md`/`AGENTS.md`, direct requests) outrank superpowers skills, which outrank default system
+behaviour.** *If the instructions file says "don't use TDD" and a skill says "always use TDD", follow
+the instructions. The user is in control.*
+
+**Forked from `obra/superpowers`, with the body otherwise upstream's.** Two local changes, both
+structural rather than editorial:
+
+1. **Activation adapted to a vendored `SessionStart` hook.** Upstream assumes its own installer wires
+   activation; Odin injects the skill's text from `.claude/hooks/superpowers-session-start.sh`.
+2. **Two platform reference files retained that upstream has since removed** —
+   `references/claude-code-tools.md` and `references/copilot-tools.md`. **Both are reachable from the
+   injected session-start text, so dropping them breaks the injection rather than merely losing a
+   document.**
+
+The 2026-08-15 audit measured +88 lines upstream against −195 lines here across four shared files, and
+upstream has added `references/hermes-tools.md`, which this fork does not carry. *Refreshing needs
+care in both directions: adopt upstream's edits, but do not let the refresh delete the two retained
+reference files.*
+
+### Purpose and Use Cases
+
+Fires at the start of **any** conversation. Its operative content is a decision flow and two tables:
+
+- **Skill priority when several could apply:** *process skills first* (`brainstorming`,
+  `systematic-debugging`) — these determine **how** to approach the task — then implementation
+  skills. "Let's build X" → brainstorming first. "Fix this bug" → systematic-debugging first.
+- **Skill types:** *rigid* (TDD, systematic-debugging) — follow exactly, do not adapt away the
+  discipline; *flexible* (patterns) — adapt to context. **The skill itself says which it is.**
+- **A red-flags table of twelve rationalisations**, each with the reality: *"This is just a simple
+  question" → questions are tasks; "Let me explore the codebase first" → skills tell you HOW to
+  explore; "I remember this skill" → skills evolve, read the current version; "The skill is overkill"
+  → simple things become complex.*
+- **Never read a skill file manually with file tools** — always use the platform's skill-loading
+  mechanism, so the skill is properly activated.
+- It carries a `<SUBAGENT-STOP>`: a subagent dispatched to execute a specific task skips it.
+
+### Scripts
+
+This skill does not define any scripts.
+
+Its activation is `.claude/hooks/superpowers-session-start.sh`, a harness hook.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `superpowers-session-start.sh` | `SessionStart` | every session start | **Injects this skill's full text into the session**, together with the two retained platform reference files | those two reference files must exist; matrix at `superpowers-session-start.test.sh` |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | every prompt | The mechanical half of the same discipline — reads intent and names the skills that should fire | none |
+| `odin-surface-router.sh` | `PreToolUse` on writes | every edit | The other mechanical half — reads the **surface** and names skills with no prompt involved | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `superpowers-session-start.test.sh` | that the injection works and its references resolve | always on | `ci-local.sh` step *Superpowers session-start* | the hook's output and the two retained files |
+| `skill-invocability-check.sh` | that a routed skill can actually be invoked | always on | `ci-local.sh` step *Routed skills are invocable*, clean-clone | `disable-model-invocation` must be absent |
+| `skill-routing-check.sh`, `skill-gate-test.sh`, `skill-reachability-check.sh` | that intent reaches a skill at all | always on | three `ci-local.sh` steps | routing-surface coverage |
+| the instruction-priority ladder | which instruction wins when two conflict | **user first, skills second, defaults last** | stated in the injected text | a conflict is resolved in the user's favour, explicitly |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| **every skill in the harness** | routes to | This is the discipline that makes any of them fire | Injected at session start, so it is the only member that is always resident |
+| `brainstorming`, `systematic-debugging` | prioritises | Process skills before implementation skills | *These determine HOW to approach the task* |
+| `find-skills`, `skill-repo` | invokes | Discovering a skill that might apply | The 1% rule's escape hatch |
+| `test-driven-development` | classifies | Named as an example of a **rigid** skill | *Follow exactly; do not adapt away the discipline* |
+| `odin-skill-manager` | classified by | Its two retained reference files are the fork evidence a refresh must not delete | Refresh protection is derived from this mirror |
+
+### Additional Relevant Information
+
+- **Ownership:** upstream's body, held as a fork; the injection hook is harness machinery.
+- **Related documentation:** six platform reference files under `references/` —
+  `claude-code-tools.md`, `codex-tools.md`, `copilot-tools.md`, `gemini-tools.md`, `pi-tools.md`,
+  `antigravity-tools.md`; `skills/using-superpowers/UPSTREAM.md` in this mirror.
+- **Known limitations / technical debt:**
+  - **This skill costs context on every session, unconditionally**, because it is injected rather
+    than routed. That is the deliberate trade for the discipline it enforces.
+  - Two of its reference files exist **only here**; a careless refresh deletes them and silently
+    breaks the session-start injection. `UPSTREAM.md` warns in both directions.
+- **Observability:** the injected block at session start; the session-start matrix.
+- **Security / compliance:** MIT obligations discharged by the `LICENSE` beside the skill in this
+  mirror.
+- **Versioning:** unversioned; upstream divergence pinned by sha and measured in lines.
+
+---
+
+## Skill: verification-before-completion
+
+**Identifier:** `verification-before-completion`
+**Repository:** `.claude/skills/verification-before-completion/` (harness) · `skills/verification-before-completion/` (this mirror)
+**Status:** `active`
+**Class:** `forked` — upstream `obra/superpowers`, MIT (Copyright (c) 2025 Jesse Vincent); upstream HEAD last audited `b36e082` (2026-08-12)
+
+---
+
+### Description
+
+**Claiming work is complete without verification is dishonesty, not efficiency.**
+
+**Core principle: evidence before claims, always.** *Violating the letter of this rule is violating
+the spirit of this rule.*
+
+**The Iron Law:** `NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE`. *If you haven't run the
+verification command in this message, you cannot claim it passes.*
+
+**Forked from `obra/superpowers`**, and the divergence is unusual: **the overwhelming majority of
+what looks like local divergence is upstream deletion.** Upstream has trimmed the skill — the "Why
+This Matters" failure-memory list and "The Bottom Line" section are gone, −25 lines relative to this
+fork, with no upstream additions. *A refresh here would remove content, not add it.*
+
+### Purpose and Use Cases
+
+Fires before **any** variation of a success or completion claim, any expression of satisfaction, any
+positive statement about work state, before committing, PR creation or task completion, before moving
+to the next task, and before delegating to agents.
+
+**The gate function is five steps, and skipping any one is named as lying rather than verifying:**
+identify what command proves the claim → run the **full** command, fresh and complete → read the full
+output, check the exit code, count failures → verify the output confirms the claim → only then make
+it.
+
+**The common-failure table is the operational core**, because each row names a substitute that feels
+sufficient and is not:
+
+| Claim | Requires | Not sufficient |
+|---|---|---|
+| Tests pass | Test command output: 0 failures | A previous run, "should pass" |
+| Linter clean | Linter output: 0 errors | A partial check, extrapolation |
+| Build succeeds | Build command: exit 0 | Linter passing, logs looking good |
+| Bug fixed | Test the **original symptom**: passes | Code changed, assumed fixed |
+| Regression test works | Red-green cycle verified | The test passing once |
+| **Agent completed** | **VCS diff shows changes** | **The agent reporting "success"** |
+| Requirements met | Line-by-line checklist | Tests passing |
+
+**Red flags that mean stop:** "should", "probably", "seems to"; expressing satisfaction before
+verification ("Great!", "Perfect!", "Done!"); trusting agent success reports; *"just this once"*;
+being tired and wanting the work over; **any wording implying success without having run
+verification.**
+
+The rule is explicitly written to apply to **paraphrases, synonyms and implications** as well as
+exact phrases — *"different words so the rule doesn't apply" → spirit over letter.*
+
+### Scripts
+
+This skill does not define any scripts.
+
+The command it demands is always the caller's own — the test, build, or lint command that proves the
+specific claim.
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-completion-evidence.sh` | `Stop` | a turn ends making a completion claim | **The mechanical half of this skill** — requires evidence behind the claim | matrix at `completion-evidence.test.sh` |
+| `odin-unfinished-work.sh` | `Stop` | a turn ends with work outstanding | Reports what remains rather than letting the turn close silently | matrix at `unfinished-work.test.sh` |
+| `odin-surface-router.sh` | `PreToolUse` on writes | any edit | Names this skill for surfaces where a claim is about to be made | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches "is it done" / pre-commit intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `completion-evidence.test.sh` | that a completion claim carries evidence | always on | `ci-local.sh` step *Completion-evidence matrix* | the `Stop` hook's own predicate |
+| `unfinished-work.test.sh` | that outstanding work is reported at turn end | always on | `ci-local.sh` step *Unfinished-work matrix* | — |
+| the Iron Law | whether a claim may be made at all | absolute; **no exceptions** | procedural, backed by the `Stop` hook | *if you haven't run the command in this message, you cannot claim it passes* |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `verification-loop` | hands off to | *This is a **gate mindset**; that is a structured multi-phase build/type/lint/test/security/diff workflow producing a formal VERIFICATION REPORT* | The skill body draws this distinction itself |
+| `test-driven-development` | complements | The red-green cycle is the verification a regression test requires | *"I've written a regression test" without red-green is a named failure* |
+| `requesting-code-review`, `finishing-a-development-branch` | precedes | Before a PR or a merge | Ordering: verify, then request review |
+| `successor`, `successor-manager` | reinforces | **"Agent completed" requires a VCS diff, not the agent's report** | The same stance `successor-manager` derives its verdicts from |
+| `endless`, `gauntlet` | invoked by | Phase 6 / step 6 of each loop | Locally, on the working tree |
+
+### Additional Relevant Information
+
+- **Ownership:** upstream's body, held as a fork; the `Stop`-hook enforcement is Odin's.
+- **Related documentation:** `skills/verification-before-completion/UPSTREAM.md` in this mirror;
+  `.claude/rules/common/git-workflow.md` (*never report work as verified on the strength of a remote
+  run you did not run locally first*).
+- **Known limitations / technical debt:**
+  - The retained "Why This Matters" section cites **24 failure memories** and a partner saying *"I
+    don't believe you"* — upstream has deleted it, so a refresh would silently remove the strongest
+    part of the argument.
+  - The `Stop` hook can require *evidence-shaped* output; it cannot verify that the command quoted
+    was actually run in this turn.
+- **Observability:** the verification command's own output; the `Stop` hook's finding.
+- **Security / compliance:** MIT obligations discharged by the `LICENSE` beside the skill in this
+  mirror.
+- **Versioning:** unversioned; upstream divergence pinned by sha, and **negative** in line terms.
+
+---
+
+## Skill: work-loop
+
+**Identifier:** `work-loop`
+**Repository:** `.claude/skills/work-loop/` (harness) · `skills/work-loop/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+A Loop is **bounded work with a declared contract**, iterations that each end in exactly one of six
+outcomes, and **a ledger a fresh session can resume from without repeating a single completed
+action.**
+
+### Purpose and Use Cases
+
+Fires when a bounded work cycle needs a contract and a resumable ledger — declaring what one iteration
+is, recording which outcome ended it, detecting a stalled loop mechanically, or resuming a loop a dead
+session left half-done.
+
+**The contract is twelve fields, declared before the first iteration and refused if any is missing or
+empty:** purpose, owner, starting state, inputs, expected outputs, success criteria, failure criteria,
+dependencies, iteration limit, timeout behaviour, escalation path, quality rubric.
+
+**The quality rubric is the twelfth field and the one that makes "better" checkable rather than
+asserted.** A weighted list of dimensions, each naming **the command that produces its number**, plus
+baseline, target, weight, failure threshold, direction, and whether it is a hard gate. *`open` refuses
+a dimension with no evidence command — a dimension you cannot write a command for is a judgment, and
+a judgment belongs in review rather than in a rubric.*
+
+**A hard-gate failure outranks any weighted total, including one that went up.** `score` exits **6**
+in that case — distinct from malformed (1) and ok (0) — *and still prints the improved total, because
+a verdict that hid the improvement would be as unreadable as one that accepted it.*
+
+**The engine reads the evidence commands and never runs one.** Executing a contract-supplied string
+from inside the engine was **vetoed**: *a subprocess there is not a tool call and would sit outside
+every always-on guard* (DEC-0091, ADR-0143). `open` refuses a command that cannot parse, one whose
+program resolves nowhere, and one carrying an unresolved placeholder.
+`--baseline-evidence <dimension>=<path>` takes a transcript **the caller produced**, refuses it unless
+the declared baseline appears in it, and records that dimension `measured` rather than `declared`.
+
+**The iteration record is what a later reader has instead of the session that wrote it.** The engine
+**derives** what it can and **refuses** what it cannot check, *because the alternative — more optional
+fields — is the defect itself:* one coordinator ledger held **29 iterations** whose `note` and
+`recommended_next` were both already unusable.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `loop` | `.claude/skills/work-loop/scripts/loop.py` | The engine: `open` (declare the contract and the rubric), `iterate` (record an outcome), `score` (one measurement per dimension, weighted total, hard gates, one verdict), `resume` | `python3 -m scripts.loop <sub>` from the skill directory; engine tests are the `ci-local.sh` step *Work-loop engine tests* (`py_tests work-loop`) | `--outcome`, `--decision`, `--blocker`, `--evidence`, `--recommended-next`, `--baseline-evidence <dim>=<path>`. Exits: `0` ok, `1` malformed, **`6` hard gate breached**, **`7` `iterate --decision retain`** |
+| `__init__.py` | `scripts/__init__.py` | Package marker | import time | none |
+| `blocker-record-check.sh` | `.claude/scripts/blocker-record-check.sh` | That an `escalate` outcome carries all three of blocker, evidence and recommended-next | `ci-local.sh` step *Blocker record*, with its matrix | the ledger |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-task-gate.sh` | `PreToolUse` on writes, `PostToolUse` on `TaskCreate\|TaskUpdate` | task bookkeeping | Names `work-loop` in its guidance — an iteration and a task list are the same bookkeeping seen twice | ADR-0031 |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches bounded-cycle / stalled-loop / resume intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `py_tests work-loop` | the engine's own correctness | always on | `ci-local.sh` step *Work-loop engine tests* | the twelve fields, six outcomes, four stall predicates |
+| `blocker-record-check.sh` + its matrix | that an escalation is actionable | always on | `ci-local.sh` steps *Blocker record* and *Blocker record matrix* | all three of `--blocker`, `--evidence`, `--recommended-next` |
+| the twelve-field refusal | whether a loop may open at all | **refuses on any missing or empty field** | inside `open` | field presence |
+| the evidence-command refusal | whether a rubric dimension may exist | refuses a dimension with no command, an unparseable command, a program that resolves nowhere, or an unresolved placeholder | inside `open` | *a judgment belongs in review rather than in a rubric* |
+| `score` exit 6 | whether a hard-gate breach may be outranked by a rising total | **it may not** | distinct exit code | the breach outranks; the improved total is still printed |
+| `iterate --decision retain` exit 7 | the retain decision's own hard gate | distinct exit code | inside `iterate` | — |
+| the engine's no-subprocess rule | whether the engine may run a contract-supplied string | **vetoed** | DEC-0091, ADR-0143 | *a subprocess there is not a tool call and would sit outside every always-on guard* |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `endless` | complements | That decides whether another cycle should start; this describes one cycle | *This skill never decides whether another should start* |
+| `gauntlet` | shares a record | The cycle's contract, outcomes, stall predicates, rubric, critic packet and ledger belong here; `gauntlet` maps its own naming onto them | `references/ledger-conformance.md`, DEC-0118 |
+| `off-topic` | complements | **`pause` ends this cycle; a displacement suspends work inside a run that is still live**, often in a session that opened no contract at all | Two different senses of stopping |
+| `out-of-scope` | complements | An iteration's scope is the contract's; **that skill's deferral record is not a seventh outcome** | A precise refusal to extend the vocabulary |
+| `verification-loop` | explicitly excluded | Polling until an exit code flips needs no contract and no ledger | Cited as a boundary |
+| `executing-plans` | explicitly excluded | The plan is the sequence; **a Loop is a cycle with a limit** | Cited as a boundary |
+| `workflows` | explicitly excluded | *A chain is emitted once, in order. A Loop iterates* | Cited as a boundary |
+| wall-clock scheduling | **excluded entirely** | *Nothing here schedules, triggers, or wakes anything* | Stated as "not this skill, at all" |
+
+### Additional Relevant Information
+
+- **Ownership:** the contract, the six outcomes, the rubric and the ledger.
+- **Related documentation:** `references/loop-contract.md` (field by field, with what goes wrong when
+  each is absent), `references/quality-rubric.md` (the eight keys, the arithmetic, what a `measured`
+  provenance does and does not prove, and this repository's default dimension set — DEC-0090),
+  `references/iteration-record.md`, `references/stall-detection.md`, `references/critic-pass.md`;
+  ADR-0103; ADR-0143 and DEC-0091 (the subprocess veto).
+- **Known limitations / technical debt:**
+  - **The engine cannot run its own evidence commands**, by decision, so a rubric's numbers are only
+    as good as the transcripts the caller supplies — which is why `measured` and `declared` are
+    distinguished at all.
+  - A ledger is only resumable to the extent the iteration records were written honestly; the engine
+    refuses what it can check and nothing more.
+- **Observability:** the ledger; `score`'s verdict and its distinct exit codes.
+- **Security / compliance:** the no-subprocess veto is a security decision — an engine-run string
+  would bypass every always-on guard in the harness.
+- **Versioning:** unversioned.
+
+---
+
+## Skill: workflows
+
+**Identifier:** `workflows`
+**Repository:** `.claude/skills/workflows/` (harness) · `skills/workflows/` (this mirror)
+**Status:** `active`
+**Class:** `authored`
+
+---
+
+### Description
+
+**The lifecycle of a reusable chain.** A chain document under `.claude/docs/workflows/` says *which
+skills fire in which order* (ADR-0021, superseded on the storage question by ADR-0104); this skill
+owns the other half — **who owns the chain, which version is current, and whether it is still the
+right one** — by validating, versioning, superseding and retiring the manifest the chain document
+carries.
+
+**It does not write the chain's prose, and it never executes a step.**
+
+### Purpose and Use Cases
+
+Fires when a reusable workflow chain is being defined, validated, versioned, superseded or retired —
+including finding a chain nobody owns and nobody can say is current.
+
+**Three non-goals, decided rather than merely absent:**
+
+- **No general workflow engine.** `run` resolves a manifest and emits its ordered steps for the agent
+  to follow; it executes nothing. *A runtime that executes manifest-supplied strings is a second
+  harness growing inside the first* (ADR-0102).
+- **A workflow never dispatches a remote run.** `.claude/rules/common/security.md` §*Run CI Locally,
+  Never Remotely* blocks that always-on; **this skill does not restate what the guard blocks, and adds
+  no path around it.**
+- **This skill schedules nothing.** No periodic trigger, no cron, no nightly registration.
+
+**The lifecycle:** `draft` → (`validate`) → `active` → (`revise`/`version`) → `active` →
+(`retire --reason` or `retire --superseded-by`) → `retired`, and **`run` on a retired chain is
+refused.** A definition needs ten lifecycle fields present with `status: draft`; a revision must
+**bump the version, because the manifest is an interface**; a supersede requires that the new id
+exists and is not itself retired.
+
+### Scripts
+
+| Script Name | File Path | Description | Execution Context | Inputs / Configuration |
+|---|---|---|---|---|
+| `workflow` | `.claude/skills/workflows/scripts/workflow.py` | The engine: `validate`, `run` (emit steps; open a run record), `status` (one row per workflow — id, version, lifecycle state, owner), `retire` | `python3 -m scripts.workflow <sub>` from the skill directory; engine tests are the `ci-local.sh` step *Workflows engine tests* (`py_tests workflows`) | `validate [--id ID] [--json]`, `run ID [--dry-run]`, `retire ID --reason … \| --superseded-by NEW`. Findings on stderr |
+| `__init__.py` | `scripts/__init__.py` | Package marker | import time | none |
+
+### Hooks
+
+| Hook Name | Type | Trigger Conditions | Behavior / Side Effects | Dependencies |
+|---|---|---|---|---|
+| `odin-safety-guard.sh` | `PreToolUse` on `Bash\|Edit\|Write\|NotebookEdit` | `gh workflow run`, `gh run rerun`, a `dispatches` API call | **Blocks always-on (Layer 1D)**; names `workflows` in its guidance | none; no posture lifts it |
+| `odin-surface-router.sh` | `PreToolUse` on writes | the file being written is a workflow chain document | Names this skill for the surface | none |
+| `odin-skill-gate.sh` | `UserPromptSubmit` | prompt matches chain-lifecycle intent | Names this skill in the routing hint | none |
+
+### Gates
+
+| Gate Name | Controls | Default State | Rollout Strategy | Evaluation Logic |
+|---|---|---|---|---|
+| `workflow.py validate` | that a chain's manifest is well-formed and current | always on | invoked by the skill; engine tests in `ci-local.sh` | ten lifecycle fields; findings on stderr, `--json` for machine use; exit 0 clean |
+| `workflow-trigger-check.sh` | that **no workflow file in `.github/workflows/` carries an automatic trigger** | always on | `ci-local.sh` step *Workflow triggers are inert* **and** `PRE_PUSH_GATES` (114ms) | an **allow-set of one name** (`workflow_dispatch`) rather than a block-list — *a block-list silently permits every trigger GitHub adds after it was written* (ADR-0117) |
+| `workflow-trigger.test.sh` | the trigger checker's matrix | always on | `ci-local.sh` step *Workflow trigger matrix* | — |
+| safety-guard Layer 1D | whether a run may be dispatched remotely | **blocked always-on** | `.claude/hooks/odin-safety-guard.sh` | `gh workflow run`, `gh run rerun`, `dispatches`. **Reading a run — `gh run view\|list\|watch` — is unrestricted** |
+| the retirement refusal | whether a retired chain may run | **refused** | inside `run` | lifecycle state |
+| the version bump | whether a revision may keep its version | must bump | inside `validate` after a revision | *the manifest is an interface* |
+
+### Integrations with Other Skills
+
+| Integrated Skill | Nature | Reason | Coupling Notes |
+|---|---|---|---|
+| `.claude/scripts/ci-local.sh` | complements | **The repository's gate chain is one script with an exit code, not a manifest** | Explicitly not this skill's subject |
+| `dynamic-workflow-mode` | complements | Whether a task-local harness is warranted at all is a judgment about **whether to build**; this is the lifecycle of one already built | Cited as a boundary |
+| `automate` | receives from | An automation at the `routed` level becomes a step in a chain, and its rollback bumps the chain's manifest version | Ordering: level decided there, manifest changed here |
+| `endless` | explicitly excluded | This emits one chain's steps once; continuation across items is a different problem | Cited as a boundary |
+| `tidy` | complements | **Retiring a workflow is a lifecycle transition with its own enforced refusal, not a filesystem removal** | `tidy` defers to this skill and never issues a `remove` verdict for a chain |
+| `roadmap` | explicitly excluded | *A workflow is how a class of work is done, never which work is next* | Cited as a boundary |
+| the chain's owning skill | defers to | **The prose says how the work is done; this skill only asserts that the manifest in the same file is well-formed and current** | A precise division inside one file |
+
+### Additional Relevant Information
+
+- **Ownership:** the manifest and its lifecycle; the chain's prose belongs to the skill that owns the
+  work.
+- **Related documentation:** `references/lifecycle.md`, `references/manifest-schema.md`; ADR-0021
+  (chain documents), ADR-0104 (superseding it on the storage question), ADR-0102 (no general workflow
+  engine), ADR-0117 (no automatic triggers; the allow-set of one).
+- **Known limitations / technical debt:**
+  - **`run` emits steps for an agent to follow and verifies nothing about their execution** — the
+    manifest is a contract with a reader, not a runtime.
+  - The workflow files under `.github/workflows/` are **kept deliberately** as the specification the
+    local scripts are checked against, and as a human's visible escape hatch — which means the
+    repository ships files that intentionally never run.
+  - A consequence worth stating: **`main` has no required status checks**, because nothing reports
+    one. The gate moved to the push (`.claude/scripts/pre-push`), not away.
+- **Observability:** `status` — one row per workflow; `validate --json`.
+- **Security / compliance:** the remote-dispatch prohibition is a security boundary enforced
+  always-on, and the trigger checker uses an allow-set precisely so it cannot be outgrown.
+- **Versioning:** the **manifest** is versioned, and a revision must bump it — one of the few
+  versioned artefacts in the corpus.
+
+---
+
+## Appendix — how this document was derived
+
+Every entry above was written from the skill's own files. The commands that produced the structural
+sections, so a reader can re-derive rather than trust:
+
+```sh
+# membership and class
+ls -1 projects/Odin-Skills/skills
+bash projects/Odin-Skills/scripts/sync-from-odin.sh --check --odin "$PWD"
+. .claude/scripts/lib/skill-provenance.sh && sp_list "$PWD"     # name  class  origin  mirrored
+
+# which hooks name a skill  (grep -qwF, not an anchored alternation — see the note below)
+for m in $(ls -1 projects/Odin-Skills/skills); do
+  for h in .claude/hooks/*.sh; do grep -qwF -- "$m" "$h" && printf '%s\t%s\n' "${h##*/}" "$m"; done
+done
+
+# which ci-local.sh step runs a skill's gate
+grep -nE '^\s*step ' .claude/scripts/ci-local.sh
+
+# which gates run before a push, with their declared costs
+sed -n '/PRE_PUSH_GATES=(/,/^)/p' .claude/scripts/pre-push
+```
+
+**One caveat about that second command, recorded because it changed a number in this document.** The
+natural way to write a whole-word name sweep — `grep -E '(^|[^a-z-])NAME([^a-z-]|$)'` — returns
+**zero matches** under `ugrep`, which is what `grep` resolves to on the host this was written on. The
+same file and term match under `[^a-z-]NAME[^a-z-]` and under `-w`. A sweep written the first way
+reports a hook as naming no skills, silently; it produced a "36 of 39" reading of
+`odin-skill-gate.sh` where the true answer is 39 of 39. **Use `grep -qwF`.**
+
+---
