@@ -10,6 +10,17 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`not-impressed`** — the hostile-prior review of machine-generated code, whose one verdict is
+  whether the code is **overdeveloped**: `ship`, `trim`, or `rebuild`. It dispatches the
+  `adversarial-reviewer` agent rather than reviewing inline, because a reviewer sharing the author's
+  context inherits the author's rationalisations. Odin-authored. It shipped here and was never
+  recorded — found by the 2026-09-11 skills audit, which is also why this entry names the omission
+  rather than backdating it.
+
+- **`workflows`** — the lifecycle of a reusable chain document: define, version, retire. Local only;
+  it never dispatches a remote run. Odin-authored, and in the same condition as the row above:
+  shipped, mirrored, and absent from this ledger until the audit looked.
+
 - **`odin-skill-manager`** — the skill that owns where a skill came from and what may be done to
   it: classification, mirror membership, packaging, upstream freshness, refresh and publication.
   Authoring a skill body stays with `skill-creator` and `writing-skills`; this is the half that

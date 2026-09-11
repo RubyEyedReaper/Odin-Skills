@@ -3,9 +3,11 @@
 Every skill in this repository is either **authored for Odin** (no upstream exists) or a **fork**
 (a real upstream exists and Odin's copy diverges from it). Nothing else ships here: the Odin harness
 also vendors third-party skills it has never modified, and redistributing those is not this
-repository's job. (84 = the harness's 122 skill directories minus the 38 mirrored here; measured
-2026-09-06, not inherited — a count here is a dated measurement, never a standing fact; see
-[`adr/0003`](adr/0003-mirror-membership-rule.md).)
+repository's job. (88 = the harness's 127 skill directories minus the 39 mirrored here; measured
+2026-09-11, not inherited — a count here is a dated measurement, never a standing fact, and this one
+had drifted on **both** operands while their difference stayed plausible; see
+[`adr/0003`](adr/0003-mirror-membership-rule.md). Re-derive rather than trusting it:
+`ls -d ../../.claude/skills/*/ | wc -l` minus `ls -d skills/*/ | wc -l`.)
 
 `scripts/validate-skills.sh` cross-checks this table against `skills/` and
 `.claude-plugin/plugin.json`, so a skill added without a row here fails CI.
@@ -86,7 +88,7 @@ a fix for it. Harness item `harness:RM-0070`.
 
 | Excluded | Reason |
 |---|---|
-| The 82 unmodified vendored skills | Not owned, not forked — redistributing them is a different repository with a different licensing story |
+| The unmodified vendored skills — every harness skill that is not a member here | Not owned, not forked — redistributing them is a different repository with a different licensing story. The size is the dated subtraction at the top of this file, never a second figure |
 | Skills refreshed against upstream | This repository mirrors Odin's current local content; it is not where upstream refreshes happen |
 
 ## Source of truth

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # validate-skills.sh — the gate for this repository.
 #
-# Eleven checks, each one a mistake that is otherwise silent until an installer
+# Twelve checks, each one a mistake that is otherwise silent until an installer
 # hits it: a skill whose frontmatter name does not match its directory is simply
 # never invocable, a manifest that has drifted from disk installs nothing, a
 # fork missing its upstream LICENSE is a license violation rather than a typo,
-# and a doc linking a repository that is not public 404s for every visitor.
+# a doc linking a repository that is not public 404s for every visitor, and a
+# published doc stating this mirror's size is wrong by the next skill that
+# lands (adr/0003 — membership is a rule, never a count).
 #
 # Usage: scripts/validate-skills.sh [--root DIR]
 # Exit:  0 clean, 1 with one 'FAIL: <reason>' line per violation.
@@ -236,6 +238,66 @@ if [[ -f "$PROVENANCE" ]]; then
     fail "docs/PROVENANCE.md heading carries a standing count: $line"
   done < <(grep -nE '^#{1,6} .*\([0-9]+\)[[:space:]]*$' "$PROVENANCE" | cut -d: -f2-)
 fi
+
+# ---------------------------------------------------------------------------
+# Check 12: a live published doc states this mirror's size as a standing number
+#
+# Check 11 covers PROVENANCE.md HEADINGS. This covers the same defect in prose,
+# which is where it actually kept happening: README claimed "Authored here (7)"
+# and "Forked and modified (10)" against 28 and 11, PUBLISHING claimed "Of the
+# 17 published skills, 7 are Odin's own, 9 are forks" at three separate sites,
+# and PROVENANCE's subtraction had drifted on BOTH operands while their
+# difference stayed plausible. Four findings of one class (#1238-#1241).
+#
+# THE EXEMPTION IS A DATED MEASUREMENT, which is the honest form this repository
+# already uses: "measured 2026-09-11" says the number was true once and does not
+# claim to be true now. The window is the line and its two neighbours, because
+# the date wraps — a line-scoped exemption reported PROVENANCE.md:6 as a finding
+# when its own date sat on line 7.
+#
+# CORPUS IS DELIBERATELY NARROW. CHANGELOG.md and docs/adr/ are HISTORY: a ledger
+# entry recording that the mirror once held 17 skills is correct forever, and a
+# detector firing on it is the false-positive generator that gets a gate
+# disabled. docs/SKILLS-CATALOG.md states its own dated-measurement rule inline.
+#
+# MEASURED BEFORE IT WAS WRITTEN, which is the bar a detector has to clear: over
+# this corpus the predicate produces ZERO findings on the repaired tree and
+# fires on all six recorded occurrences, including check 11's heading shape.
+# A first, broader draft matched 82 lines in 5969 — almost all of them ADR
+# history and numbered lists — and was discarded rather than tuned.
+#
+# STATED RESIDUE: a count of something OUTSIDE this tree is invisible here and
+# should be. "17 per-skill repositories exist" is a claim about GitHub, which no
+# predicate over these files can check; PUBLISHING.md states it as a dated
+# measurement with the deriving `gh` command beside it.
+# ---------------------------------------------------------------------------
+COUNT_CLAIM_DOCS=(README.md CONTRIBUTING.md INIT.md docs/PUBLISHING.md docs/PROVENANCE.md)
+for rel in "${COUNT_CLAIM_DOCS[@]}"; do
+  [[ -f "$ROOT/$rel" ]] || continue
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    fail "$rel states this mirror's size as a standing number (derive it, or date the measurement): $line"
+  done < <(awk '
+    { line[NR] = $0 }
+    END {
+      noun  = "(skills?|members?|authored|forked|published|mirrored)"
+      fwd   = "[0-9]+[ \t]*([A-Za-z0-9_]+[ \t]+)?([A-Za-z0-9_]+[ \t]+)?" noun
+      rev   = noun "[^\n]{0,24}\\([ \t]*[0-9]+[ \t]*\\)"
+      fence = 0
+      for (i = 1; i <= NR; i++) {
+        if (line[i] ~ /^[ \t]*```/) { fence = !fence; continue }
+        if (fence) continue
+        # a dated measurement is not a standing claim; the date may wrap
+        win = line[i-1] " " line[i] " " line[i+1]
+        if (win ~ /20[0-9][0-9]/) continue
+        s = line[i]
+        gsub(/`[^`]*`/, "", s)          # an inline-code span is an identifier, not a claim
+        low = tolower(s)
+        if (low ~ fwd || low ~ rev) printf "%d:%s\n", i, s
+      }
+    }
+  ' "$ROOT/$rel")
+done
 
 # ---------------------------------------------------------------------------
 if [[ $FAILURES -gt 0 ]]; then

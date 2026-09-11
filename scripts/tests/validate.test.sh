@@ -179,6 +179,56 @@ printf '# Provenance\n\n### Decision — something (2026-08-17)\n\n| `alpha` | o
   > "$r/docs/PROVENANCE.md"
 expect_pass "PROVENANCE heading with a date passes" "$r"
 
+# --- check 12: a live published doc states the mirror's size in prose --------
+#
+# Each BLOCK case is a REAL site this campaign repaired (#1238-#1241). The ALLOW
+# cases are the near misses that must keep passing, and they carry the weight:
+# a detector over prose that fires on a history entry or a numbered list is the
+# one that gets the whole gate disabled. A broader first draft matched 82 lines
+# in 5969 and was discarded rather than tuned.
+
+r="$(fixture readme-typed-count)"
+printf '# Odin Skills\n\n**Authored here (7)** — `alpha`\n' > "$r/README.md"
+expect_fail "README states the authored count in prose" "standing number" "$r"
+
+r="$(fixture readme-typed-count-parenthesised)"
+printf '# Odin Skills\n\n**Forked and modified (10)** — `beta`\n' > "$r/README.md"
+expect_fail "README states the fork count behind intervening words" "standing number" "$r"
+
+r="$(fixture publishing-typed-count)"
+mkdir -p "$r/docs"
+printf '# Publishing\n\nOf the 17 published skills, 7 are Odin own.\n' > "$r/docs/PUBLISHING.md"
+expect_fail "PUBLISHING states the split in prose" "standing number" "$r"
+
+r="$(fixture provenance-undated-subtraction)"
+printf '# Provenance\n\n84 = the harness 122 skill directories minus the 38 here.\n\n| `alpha` | odin-authored |\n| `beta` | fork |\n' \
+  > "$r/docs/PROVENANCE.md"
+expect_fail "PROVENANCE subtraction with no date" "standing number" "$r"
+
+# ALLOW: a dated measurement whose date WRAPS onto the next line. The first
+# version of this check was line-scoped and reported the shipped PROVENANCE.md
+# as a finding for exactly this reason.
+r="$(fixture provenance-wrapped-date)"
+printf '# Provenance\n\n88 = the harness 127 skill directories minus the 39 mirrored here;\nmeasured 2026-09-11, not inherited.\n\n| `alpha` | odin-authored |\n| `beta` | fork |\n' \
+  > "$r/docs/PROVENANCE.md"
+expect_pass "a dated measurement whose date wraps passes" "$r"
+
+# ALLOW: a fenced block is sample output, not a claim about this tree.
+r="$(fixture readme-count-in-fence)"
+printf '# Odin Skills\n\n```sh\nls -d skills/*/ | wc -l   # 39 skills\n```\n' > "$r/README.md"
+expect_pass "a count inside a fenced block passes" "$r"
+
+# ALLOW: an inline-code span is an identifier, not a statement (C-0013's lesson).
+r="$(fixture readme-count-in-code-span)"
+printf '# Odin Skills\n\nRun `ls -d skills/*/ | wc -l` — never 39 skills typed out.\n' > "$r/README.md"
+expect_fail "prose beside a code span is still checked" "standing number" "$r"
+
+# ALLOW: the CHANGELOG is history. An entry recording that the mirror once held
+# 17 skills is correct forever, and firing on it is how a gate gets disabled.
+r="$(fixture changelog-history-count)"
+printf '# Changelog\n\n- Initial repository: the 12 skills Odin authored (5) or forked (7).\n' > "$r/CHANGELOG.md"
+expect_pass "a count in CHANGELOG history passes" "$r"
+
 # --- check 8: dangling symlinks ---------------------------------------------
 r="$(fixture dangling-symlink)"
 ln -s ../../nowhere/data "$r/skills/alpha/data"

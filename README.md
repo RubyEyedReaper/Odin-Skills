@@ -11,14 +11,19 @@ maintainer of.
 
 ## What's in it
 
-**Authored here (7)** — `decision-matrix` · `endless` · `mistake-to-gate` · `oops` · `roadmap` ·
-`successor` · `superplan`
+Every skill Odin **authored** or **forked and maintains**. Membership is a rule, not a list
+([`adr/0003`](docs/adr/0003-mirror-membership-rule.md)) — so neither the names nor the count are
+typed here, because both drifted the moment a skill landed and nobody hand-edited this paragraph.
+Read them from disk:
 
-**Forked and modified (10)** — `agent-browser` · `blueprint` · `decision-mapping` ·
-`grill-with-docs` · `handoff` · `impeccable` · `rules-distill` · `test-driven-development` ·
-`using-superpowers` · `verification-before-completion`
+```sh
+ls -d skills/*/ | wc -l                                  # members
+sed -n '/^| `/p' docs/PROVENANCE.md | wc -l              # rows that account for them
+```
 
-Origins, upstream licenses, and the exact local delta for every fork: [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
+The table naming every member, its class, its upstream, its licence and the exact local delta for
+each fork is [`docs/PROVENANCE.md`](docs/PROVENANCE.md) — one place, checked by
+`scripts/validate-skills.sh` against `skills/` and `.claude-plugin/plugin.json` in both directions.
 
 ## Install
 

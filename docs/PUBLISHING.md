@@ -7,7 +7,7 @@ ADR-0061, and [`adr/0001-distribution-monorepo-and-per-skill-repos.md`](adr/0001
 | Shape | Where | Published |
 |---|---|---|
 | The distribution monorepo — this tree, installable as one Claude Code plugin | <https://github.com/RubyEyedReaper/Odin-Skills> | 2026-08-17, first push `aa75b29e9c05b7e0be83c9e6155396644d4c3fb8`, 21 commits on `main` |
-| One repository per skill, `skill-<name>`, for taking a single skill without the bundle | `https://github.com/RubyEyedReaper/skill-<name>` — 17 of them | 2026-08-17, all public, one per directory under `skills/` |
+| One repository per skill, `skill-<name>`, for taking a single skill without the bundle | `https://github.com/RubyEyedReaper/skill-<name>` — **17 exist, all public, measured 2026-09-11** | 2026-08-17 onward. **Fewer than the monorepo carries**: the per-skill shape is published on demand, so a member with no `skill-<name>` repository is expected rather than missing. Derive both sides before concluding anything: `ls -d skills/*/ \| wc -l` against `gh repo list RubyEyedReaper --limit 200 --json name --jq '[.[]\|select(.name\|startswith("skill-"))]\|length'` |
 
 Development is coordinated in the Odin harness under `projects/Odin-Skills/`. **Nothing published is
 ever edited in place**: a published repository is corrected by re-running the publishing script, and
@@ -72,8 +72,19 @@ to an unsatisfied class is publishing someone else's work under Odin's terms:
 | A fork that declares neither | `UPSTREAM.md` alone | **refused, before any network call** |
 
 The root `NOTICE` travels with every fork because it carries the Apache-2.0 §4(d) notice text, which
-exists nowhere else in the tree. Of the 17 published skills, 7 are Odin's own, 9 are forks carrying
-an upstream `LICENSE`, and `rules-distill` is the declared-absence case.
+exists nowhere else in the tree. The split across the three rows above is **derived, never typed** —
+it moved four times while this paragraph claimed one set of figures:
+
+```sh
+ls -d skills/*/       | wc -l   # members
+ls skills/*/UPSTREAM.md | wc -l # forks: a fork is the copy that declares an upstream
+ls skills/*/LICENSE   | wc -l   # forks shipping their upstream's own licence
+ls skills/*/NOTICE    | wc -l   # forks whose upstream published none — the declared-absence case
+```
+
+`rules-distill` is the declared-absence case, and naming it here is safe in a way a count is not:
+a skill that stops being that case stops having a `skills/rules-distill/NOTICE`, which check 6
+refuses.
 
 `--dry-run` prints every `git` and `gh` command for both modes and touches no network — useful
 before the first publish of a new skill. `--verify` clones the published repository and diffs it
@@ -139,8 +150,8 @@ update path — one per changed skill.
 From a standalone clone of the monorepo:
 
 ```sh
-bash scripts/tests/validate.test.sh   # 19/19
-bash scripts/validate-skills.sh       # OK: 17 skills validated
+bash scripts/tests/validate.test.sh   # every case passes; read the count from the run
+bash scripts/validate-skills.sh       # OK: N skills validated, where N is what is on disk
 ```
 
 `scripts/sync-from-odin.sh --check` needs a harness checkout at `../..` and refuses without one.
