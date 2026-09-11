@@ -27,8 +27,26 @@ TASK_RE = re.compile(r"^#{2,4}\s+(Task\s+(\d+)\s*[:.–—-]\s*.+?)\s*$", re.I)
 TASK_REF_RE = re.compile(r"\bTask\s+(\d+)\b", re.I)
 FENCE_RE = re.compile(r"^\s*```")
 
+#: Inline-code spans, stripped before a placeholder is matched.
+#:
+#: A backticked span in a plan is an IDENTIFIER — a path, a command, a skill name — not prose the
+#: executor has to resolve. Matching a placeholder word inside one reads a name as an unfinished
+#: thought. The shape that found this: a plan whose Task 4 builds a skill *named* `todo` was refused
+#: six times over, every finding quoting a real and fully resolved file path, because r"\bTODO\b" is
+#: matched with re.I. The plan was correct; the detector could not tell a name from a marker.
+#:
+#: Same principle the always-on safety guard already applies in the other direction — it removes
+#: quoted spans before matching a command word, so that writing about a destructive command is not
+#: issuing it. Here: naming a thing is not deferring it.
+#:
+#: THE COST, stated rather than hidden: a genuine marker written inside backticks is now invisible
+#: to this check. That is the same trade the guard makes, and it falls the right way — a plan that
+#: fences its only unresolved marker is rarer than a plan that names a file.
+INLINE_CODE_RE = re.compile(r"`[^`]*`")
+
 #: Text that means "someone will decide this later" — the defining property of a plan
-#: that cannot be executed cold. Matched case-insensitively against non-fenced lines.
+#: that cannot be executed cold. Matched case-insensitively against non-fenced lines,
+#: with inline-code spans removed first.
 PLACEHOLDER_PATTERNS = (
     (r"\bTBD\b", "TBD"),
     (r"\bTODO\b", "TODO"),
@@ -147,8 +165,9 @@ def check_text(text):
                 "gets bored", heading, start + 1))
 
         for index, line in body:
+            prose = INLINE_CODE_RE.sub(" ", line)
             for pattern, label in PLACEHOLDER_PATTERNS:
-                if re.search(pattern, line, re.I):
+                if re.search(pattern, prose, re.I):
                     findings.append(_finding(
                         "placeholder",
                         "placeholder %r — a cold executor cannot resolve it: %s"

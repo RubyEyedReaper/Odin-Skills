@@ -136,6 +136,32 @@ class TestPlaceholders(unittest.TestCase):
     def test_a_checkbox_list_is_not_a_placeholder(self):
         self.assertNotIn("placeholder", codes(check_text(GOOD)))
 
+    def test_a_placeholder_word_inside_inline_code_is_an_identifier(self):
+        """A backticked span is a name, not an unfinished thought.
+
+        The recorded occurrence: a plan whose Task 4 built a skill *named* `todo` was refused six
+        times over, every finding quoting a real and fully resolved path. The plan was correct and
+        the detector could not tell a name from a marker, so the work was blocked by a gate that
+        had nothing to say about it.
+        """
+        text = GOOD.replace(
+            "- Modify: `src/api.py`",
+            "- Modify: `.claude/skills/todo/scripts/todo.py`",
+        )
+        self.assertNotIn("placeholder", codes(check_text(text)))
+
+    def test_a_placeholder_word_in_prose_is_still_a_finding(self):
+        """The near miss that must keep failing — the case above must not disarm the check.
+
+        Asserted beside its sibling deliberately: an exemption is only safe when the thing it
+        exempts and the thing it must not are checked in the same place.
+        """
+        text = GOOD.replace(
+            "**Exit criteria:** `GET /widget`",
+            "**Exit criteria:** TODO once `GET /widget` settles",
+        )
+        self.assertIn("placeholder", codes(check_text(text)))
+
     def test_finding_names_the_task_and_line(self):
         text = GOOD.replace("- Modify: `src/api.py`", "- Modify: TBD")
         finding = next(f for f in check_text(text) if f["code"] == "placeholder")
