@@ -30,6 +30,10 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `roadmap` | Standing inventory + dependency graph; waves computed from the graph rather than stored |
 | `projects` | One operating model for a project subtree — a routing table over the skills that already own each phase, plus the switch ritual and the per-project artifact checklist that nothing owned |
 | `workflows` | Lifecycle of a reusable workflow — define, version, supersede, retire; the runner refuses a retired manifest and an empty set |
+| `goal` | A committed end-goal record a loop reads rather than re-deriving — a falsifiable `Done when` command, an explicit out-of-scope list, and no status field, because status is computed at read time |
+| `todo` | A facade over the two task routes the harness already accepts, so the work-loop ledger fallback is discoverable. It adds no store of its own and a gate refuses a rival one |
+| `project-manager` | The read-only portfolio layer over a `projects/` tree — active or dormant, unlanded branches, roadmap staleness, own-gate-list health. It joins existing probes and never re-derives their verdicts |
+| `gate-manager` | What a finding becomes — a mechanical gate, a review criterion, or a recorded residue, never a fourth — plus the inventory in which every gate this repository runs can say where it came from |
 | `work-loop` | The cycle contract and its resumable ledger — eleven declared fields, six outcomes that describe the iteration and never the session, four mechanical stall predicates |
 | `successor` | Fleet-scale delegation to other Claude sessions — a six-element handoff bar, five ordered phases, and coordinator-owned integration |
 | `successor-manager` | Ownership of a delegated session and a verdict computed from channels it does not control — daemon health first, then branch movement, then landedness by content |

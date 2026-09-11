@@ -10,6 +10,20 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **Four skills from the 2026-09-11 harness campaign** — `goal` (a committed end-goal record a loop
+  reads rather than re-deriving, with a falsifiable `Done when` command and no status field),
+  `todo` (a facade over the two task routes the harness already accepts, adding no store of its
+  own), `project-manager` (the read-only portfolio layer over a `projects/` tree) and `gate-manager`
+  (what a finding becomes — gate, review criterion, or recorded residue — plus the inventory in
+  which every gate can say where it came from). All four Odin-authored, so they belong here by the
+  membership rule in [`adr/0003`](docs/adr/0003-mirror-membership-rule.md).
+
+### Changed
+
+- **`.claude-plugin/marketplace.json`'s plugin description no longer counts.** It read "Thirteen
+  skills" against 43, in the one file check 12 cannot see because it is JSON rather than scanned
+  Markdown. It now states the set as a rule and names where to read it.
+
 - **`not-impressed`** — the hostile-prior review of machine-generated code, whose one verdict is
   whether the code is **overdeveloped**: `ship`, `trim`, or `rebuild`. It dispatches the
   `adversarial-reviewer` agent rather than reviewing inline, because a reviewer sharing the author's

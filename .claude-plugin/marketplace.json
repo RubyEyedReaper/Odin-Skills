@@ -5,14 +5,14 @@
     "url": "https://github.com/RubyEyedReaper"
   },
   "metadata": {
-    "description": "Skills owned by the Odin harness — authored here or forked and modified.",
+    "description": "Skills owned by the Odin harness \u2014 authored here or forked and modified.",
     "version": "0.1.0"
   },
   "plugins": [
     {
       "name": "odin-skills",
       "source": "./",
-      "description": "Thirteen skills the Odin harness authors or maintains: decision scoring, roadmap planning, blueprint decomposition, mistake-to-gate hardening, interface polish, doc-verified grilling, session handoff, and the planning and verification workflow.",
+      "description": "Every skill the Odin harness authors or maintains: decision scoring, roadmap planning, blueprint decomposition, mistake-to-gate hardening, gate inventory, goal records, portfolio and project routing, interface polish, doc-verified grilling, session handoff and fleet orchestration, and the planning and verification workflow. The set is a rule, not a number \u2014 read it from `.claude-plugin/plugin.json`.",
       "version": "0.1.0",
       "license": "(MIT AND CC-BY-SA-4.0 AND Apache-2.0)",
       "author": {
