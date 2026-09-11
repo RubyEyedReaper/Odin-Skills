@@ -44,6 +44,12 @@ worktree: <absolute path to the worktree>
 hop: 1
 ---
 
+## Task and desired outcome
+
+What to build, and what "done" looks like as an artifact on disk — files, ledger rows, docs. Element
+2 of the bar, and the one a continuation handoff omits most often: the writer knows what it was
+doing, and the reader has only this document.
+
 ## Where the work stopped
 
 One paragraph: what was being built, and the last thing that landed.
@@ -72,6 +78,18 @@ Append-only ledgers (`CHANGELOG.md`, `MISTAKES.md`, `FORKS.md`) default **in** �
 works alone here, with no sibling to contend for them; if this successor's own change belongs in
 one, write it without asking (DEC-0121, decision-authority.md's "conventional default" row).
 
+## Standing invariants
+
+- Your own independent session. Not a subagent; you outlive the turn.
+- Monitored by the delegating session until you land or are stopped.
+- Autonomous: never `AskUserQuestion`, on any fork, scope included (ADR-0052). Decide, record the
+  DEC/ADR, continue.
+- **Odin voice strict, always (ADR-0011)** — never off, including mid-skill. The lapse that recurs
+  is `sentence-prose`, not a greeting. Deliverable content stays normal English.
+- Arm the posture first: `bash .claude/scripts/odin-autonomous.sh on`.
+- Task list before the first edit (ADR-0031).
+- Trust the repository over this document; say where they disagree.
+
 ## Suggested skills
 
 `roadmap` · `test-driven-development` · the skills that own this work.
@@ -81,6 +99,14 @@ The first six frontmatter fields are required; write `null` only where the value
 not exist. `worktree:` and `hop:` are optional — omit `worktree:` when the successor runs where you
 are, and `hop:` for a chain's first handoff — and both are described under *The launch directory*
 and *The chain has a ceiling* below.
+
+`model:` and `model_reason:` are optional in the same way, and are the pair that decides what the
+successor costs. Omitting `model:` takes the launcher's default, **Sonnet** (ADR-0097), which is the
+right answer for most work. A non-default tier **requires** `model_reason:` naming what about this
+successor's own work needs it, and `odin-relay.sh` refuses the launch without one — `haiku` on the
+same terms as `opus`, because the failure is an unstated choice rather than an expensive one. Route
+search and mechanical sweeps down, not only reasoning up:
+[`common/performance.md`](../../rules/common/performance.md) § Where the Tier Is Actually Decided.
 
 **No trailing comments on a frontmatter line.** The relay's reader is shell builtins, not a YAML
 parser: it takes the whole rest of the line as the value, so `hop: 1  # first handoff` is a hop

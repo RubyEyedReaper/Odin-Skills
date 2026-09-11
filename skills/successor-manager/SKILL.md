@@ -15,11 +15,71 @@ Delegation itself already has an owner. Route there instead.
 |---|---|---|
 | Provisioning, launching, integrating, tearing down; the six-element handoff bar | `successor` | It owns the five phases. This skill starts once a session exists and asks what is true of it. Its bar is cited here, never restated — two copies of a bar drift, and the looser copy wins silently. |
 | Handing **this** session forward, once | `/relay` | One-off delegation with its own gates. One successor is `/relay`; a fleet is `successor`; this skill is what you consult about either afterwards. |
-| Planning a multi-successor campaign, waves, campaign closure | `campaign` — harness:RM-0302, **not yet built** | Waves are a different item. The seam is named, not filled: this skill classifies the sessions a campaign launched; it does not decide what a campaign contains or when it is finished. |
+| Planning a multi-successor campaign, waves, campaign closure | `campaign` | Waves are a different question. This skill classifies the sessions a campaign launched; it does not decide what a campaign contains or when it is finished. The console below routes into it. |
 | Parallel work inside one context window | `dispatching-parallel-agents` | Subagents. They share the parent's lifetime, return text, and die with the turn — there is no register row and no verdict to compute. |
 | What a session *says* to another session, and what a delegated session's terminal should carry | `s2s` (ADR-0162) | This skill decides what is TRUE of a session; that one decides what it SAYS. The red flag below — a send reports on the send — is where that skill's stance comes from. |
 | Whether to keep going at all | `endless` | Continuation doctrine. This skill says what happened; it never says whether to carry on. |
 | Cost of a session that is progressing but expensive | ADR-0097 | The burn predicate and `.claude/scripts/session-burn.sh` are on `main` (PR #487); what is still open is when spend alone earns an escalation. Named as a seam in [escalation-paths.md](references/escalation-paths.md); nothing here duplicates them. |
+
+## The orchestration console
+
+The table above says what this skill does **not** own. This one says what a coordinator **runs**, and
+it is the positive direction of the same boundary: eleven skills, each owning one phase of a fleet's
+life. The console **routes into** them and invokes nothing it owns — a row that absorbed its owner's
+procedure would be a second copy of it, drifting from the first the moment either changed.
+
+Read it as a decision table. The left column is a condition observable from where a coordinator
+stands; the right column is what that skill alone decides.
+
+| When | Fire | What it owns, and nobody else does |
+|---|---|---|
+| Nothing is assigned yet — what should the fleet work on | `roadmap` | The item set, the dependency graph, and `waves` — parallel layers computed from the graph, never stored |
+| The work spans several `projects/*` subtrees, or one is dormant | `projects` | The switch ritual and the per-project artifact checklist (ADR-0106). `project-manager` is the read-only portfolio join over it |
+| An item is picked and the approach is non-obvious | `superplan` | The plan doc, its ≥3 decision forks, and the recorded scope decision. Gate 4 of the roadmap chain |
+| One unit of work must become an iteration with a stated end | `work-loop` | The twelve-field cycle contract, six iteration-scoped outcomes, and the resumable ledger (ADR-0103) |
+| Several delegated sessions are one piece of work | `campaign` | The manifest that freezes a wave's item set, and `close`, which refuses while any item is unlanded **and refuses separately when landedness could not be determined** (ADR-0113) |
+| The backlog must be driven to exhaustion across many sessions | `gauntlet` | The frontier computed at read time, batch freezing, and the re-arm. It refuses "run until zero" by name |
+| Two or more independent workers must exist | `successor` | Provision, launch, monitor, integrate, tear down — all five phases, and the six-element handoff bar |
+| This one session must hand its work forward | `handoff` (`/relay`) | The document, the launch, and staying on as monitor. One successor; a fleet is the row above |
+| A worker must report back, or be told something | `s2s` | What a session **says**: a durable deliverable path, a message that is a pointer to it, an orphan's terminal bounded on narration |
+| An item lands and the loop must decide whether to carry on | `endless` | The three checkpoints and the three continuations, burn predicate first. It never decides *what* to work on |
+| A chain of these must be named, versioned or retired | `workflows` | The lifecycle of a reusable chain document. Local only — never a remote dispatch |
+
+**Around all eleven: `factory`.** It is the invariant set for a repository that merges its own code
+— the unamendable governance files, gates that are code, the dispatcher's fixed priority, moving the
+autonomy dial on evidence. A coordinator **consumes** those invariants; it never wraps itself in
+them. Wrapping this harness in a factory puts `CLAUDE.md`'s own governance under Layer 1H's
+always-on write refusal, and the harness could no longer edit the contract a campaign exists to
+improve.
+
+**This skill's own row is the verdict**, which is why it is not in the table: every other row
+launches, plans or reports, and this one asks what is *true* of what they launched.
+
+### One command that composes the console's read-only half
+
+```sh
+bash .claude/skills/successor-manager/scripts/orchestrate.sh          # the fleet, one screen
+bash .claude/skills/successor-manager/scripts/orchestrate.sh --json   # one document
+```
+
+`fleet-health.sh` runs **first** and its exit code gates everything after it — `2` means every
+session is dead whatever a later probe reports, and `3` means **no verdict may be claimed for
+anything**, so the run stops there rather than printing rows nobody may act on. It composes existing
+probes and computes nothing of its own.
+
+### The tier a launch chooses by saying nothing
+
+A launched session defaults to **Sonnet** (ADR-0097). Omitting `model:` takes that default and is
+the right answer for most work; naming a non-default tier **requires** `model_reason:`, and
+`odin-relay.sh` refuses the launch without one — symmetrically, so `haiku` is refused on the same
+terms as `opus`. The failure being guarded is an unstated choice, not an expensive one.
+
+What this costs when nobody says it: 74 of 200 handoffs in one workspace declared `model: opus` and
+**none** declared sonnet or haiku, measured 2026-09-03 — a shipped default defeated by copying a
+previous brief. A coordinator sizing a wave picks the tier per worker: search and mechanical sweeps
+go to `haiku`, ordinary build work takes the default, and cross-branch judgment earns `opus` with the
+reason written down. Full rule, both detectors, and what stays unchecked:
+[`common/performance.md`](../../rules/common/performance.md) § Where the Tier Is Actually Decided.
 
 ## The stance
 

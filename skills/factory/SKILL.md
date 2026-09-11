@@ -65,6 +65,14 @@ reasoning; these are the operational consequences.
    `.claude/docs/goals/<slug>.md`, which is editable, versioned and checked by
    `.claude/scripts/goal-check.sh`. In this repository that record is
    `.claude/docs/goals/discovered-issues-closed.md`. Odin-only: upstream has no goal artifact.
+6. **A consumer of the orchestration console, never its wrapper.** A coordinator reaches this skill
+   through `successor-manager`'s console, which routes eleven skills and names `factory` as the
+   invariant set around all of them. Nothing is re-exported here: `roadmap` still owns the item set,
+   `campaign` still owns wave closure, `endless` still owns whether to carry on. **Odin itself is not
+   wrapped in a factory** — item 3's Layer 1H lock is always-on, so a factory rooted at this
+   repository would put `CLAUDE.md`'s own governance under a write refusal, and the harness could no
+   longer edit the contract a campaign exists to improve. The factory's subject is a project, never
+   the harness that builds it.
 
 ---
 

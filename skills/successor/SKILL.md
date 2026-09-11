@@ -59,6 +59,28 @@ their rules, and never re-implement the checks.
 
 Template: `references/handoff-template.md`.
 
+### The bar has two fillings, and this table is the only place they are reconciled
+
+Two copyable blocks exist — `handoff`'s skeleton, for one successor continuing this session's work,
+and `references/handoff-template.md`, for a worker in a wave. They are one **schema** with two
+fillings, and for most of their life they were neither: the skeleton carried no element 2 and no
+element 6, so the skill most sessions fire described a document that fails this bar (#1246,
+harness:RM-0614). The headings differ where the two genuinely say different things; what may not
+differ is which elements are present.
+
+| # | Element | In `handoff`'s skeleton | In `references/handoff-template.md` |
+|---|---|---|---|
+| 1 | Relevant skill set | `## Suggested skills` | `## Suggested skills` |
+| 2 | Task and desired outcome | `## Task and desired outcome` | `## Task and desired outcome` |
+| 3 | Current context | `## Where the work stopped` | `## Current context` |
+| 4 | Open questions, risks, dependencies | `## Open questions, risks, dependencies` | `## Open questions, risks, dependencies` |
+| 5 | Authorization scope | `## Authorization scope` | `## Authorization scope` |
+| 6 | Standing invariants | `## Standing invariants` | `## Standing invariants` |
+
+`.claude/tests/handoff-delegation.test.sh` reads this table and asserts both blocks carry every
+heading in their own column. Editing a heading in either block without editing its cell here turns
+that case red — which is the point: a third set of section names is how the first two diverged.
+
 ### Standing invariants — in every handoff, in these words
 
 - The successor runs in **its own independent session**, not as anyone's subagent.
@@ -91,7 +113,12 @@ the collision surfaces at integration when it is most expensive.
 
 ### 2. Launch
 
-`odin-relay.sh --handoff <absolute path> --name <worker>`, once per worker, **`--dry-run` first**.
+`odin-relay.sh --handoff <absolute path> --name <worker>`, once per worker, **`--dry-run` first**. A
+worker's tier is chosen here and nowhere else: `--model`, or `model:` in that worker's handoff, and a
+non-default tier carries `model_reason:` or the relay refuses the launch. The default is **Sonnet**
+(ADR-0097) — a wave of search or sweep workers belongs on `haiku`, and `opus` is for the worker doing
+cross-branch judgment, with the reason written into its brief rather than inherited from the
+coordinator's own session.
 Handoffs live under gitignored `.claude/.runtime/handoff/`, so a worker in another worktree cannot
 see a relative path — pass an absolute one.
 
