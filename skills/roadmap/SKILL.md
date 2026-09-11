@@ -28,7 +28,9 @@ gates with observable predicates below, not suggestions.
 - An item finishes, or nothing reconciled in `RECONCILE_AFTER_DAYS` (7) days — ask `due`, never restate it
 
 **Not** for: how to build one item (`superplan`; `blueprint` for multi-PR), phase
-narrative (`PLAN.md`), or vocabulary (`CONTEXT.md`, owned by `domain-modeling`).
+narrative (`PLAN.md`), vocabulary (`CONTEXT.md`, owned by `domain-modeling`), or where the whole
+run is going (`goal` — this skill orders items; a goal record such as
+`.claude/docs/goals/discovered-issues-closed.md` says which orderings count as progress).
 
 Capturing a defect found mid-run is this skill's job; **whether capturing it is the right answer at
 all** is `out-of-scope`'s — it scores fixing it now against routing it here, and an item captured

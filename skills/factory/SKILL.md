@@ -37,7 +37,7 @@ committed and something demonstrably working.
 
 ## Odin-specific, before anything else
 
-Four things this fork changes about how the upstream skill behaves. `UPSTREAM.md` carries the
+Five things this fork changes about how the upstream skill behaves. `UPSTREAM.md` carries the
 reasoning; these are the operational consequences.
 
 1. **No question rounds.** `AskUserQuestion` is never called, in any phase (ADR-0052). The interview
@@ -58,6 +58,13 @@ reasoning; these are the operational consequences.
    was prose here until the lap workflow's preflight drifted into its own stop-button test, and it
    is now checked by `.claude/tests/factory.test.sh`. The rule half is
    `.claude/rules/factory/patterns.md`.
+5. **`MISSION.md` cites the goal record; it never restates it.** A factory's mission is unamendable
+   by the agent (item 3 above), so a destination copied into it cannot be corrected by the run that
+   discovers it is wrong — the agent would have to violate the lock to fix its own objective. The
+   mission names a `goal` slug instead, and the destination lives in
+   `.claude/docs/goals/<slug>.md`, which is editable, versioned and checked by
+   `.claude/scripts/goal-check.sh`. In this repository that record is
+   `.claude/docs/goals/discovered-issues-closed.md`. Odin-only: upstream has no goal artifact.
 
 ---
 

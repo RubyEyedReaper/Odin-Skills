@@ -138,4 +138,5 @@ it there.
 | Is that worker stalled, dead or landed | `successor-manager` |
 | Restarting the fleet after a shutdown or a limit | `revive` |
 | What work exists, and its graph | `roadmap` |
+| What the whole gauntlet is for, and when re-arming stops being worth it | `goal` — the frontier is ordered by contribution to `.claude/docs/goals/discovered-issues-closed.md`, and a batch that cannot move it is a finding rather than a wave |
 | Verify a change to this skill | `cd .claude/skills/gauntlet && python3 -m unittest discover -s tests -t . -v` — confirm a **non-zero** collected count |

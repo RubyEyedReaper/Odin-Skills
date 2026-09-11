@@ -21,6 +21,7 @@ completed action.
 | Recording that a mid-run task displaced work, and what condition means the return is owed | `off-topic` | `pause` ends this cycle; a displacement suspends work inside a run that is still live, and often in a session that opened no contract at all. |
 | Deciding whether a defect found inside an iteration is fixed now or routed and left | `out-of-scope` | An iteration's scope is the contract's; that skill scores what to do with work outside it, and its deferral record is not a seventh outcome. |
 | A reusable chain of skills and its lifecycle | `workflows` | A chain is emitted once, in order. A Loop iterates. |
+| What the loop was opened *for*, outliving every iteration in it | `goal` — `.claude/docs/goals/discovered-issues-closed.md` | `success criteria` is per-iteration and is discarded when the contract closes. An iteration that moves nothing toward the goal is a `revise`, not a `complete`. |
 
 ## The contract
 

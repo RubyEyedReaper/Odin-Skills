@@ -154,3 +154,4 @@ registered keeps Layer 1F's concurrency guard armed against the main checkout (A
 | Why sessions and not subagents | `.claude/docs/adr/0059-successor-skill.md` |
 | One successor, no fleet | `/relay`, `.claude/commands/relay.md` |
 | What a worker reports back, and what its terminal carries instead | `s2s` — a send reports on the send (ADR-0162) |
+| The destination a fresh session inherits along with its next task | `goal` — the handoff carries the slug `discovered-issues-closed`, never a copy of the text |

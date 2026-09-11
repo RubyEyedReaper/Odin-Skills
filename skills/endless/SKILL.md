@@ -161,5 +161,6 @@ the interval to how fast that state actually changes.
 | Fan out and integrate | `successor` |
 | Hand this session forward | `/relay` |
 | An incident from the iteration | `oops` → `mistake-to-gate` |
+| Where this loop is going, after the item in hand lands | `goal` — `.claude/docs/goals/discovered-issues-closed.md` |
 | Why a native loop skill, not the vendored catalog | `.claude/docs/adr/0060-endless-skill.md` |
 | Why routing had to become surface-shaped | `.claude/docs/adr/0051-turn-triggered-skill-routing.md` |
