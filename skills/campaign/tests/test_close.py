@@ -82,6 +82,91 @@ class CloseRefuses(unittest.TestCase):
             self.assertEqual(code, EXIT_BLOCKED)
 
 
+
+class DroppedIsTerminal(unittest.TestCase):
+    """A dropped item is resolved, not outstanding.
+
+    `dropped` is the roadmap's verdict for an item whose premise retired — the work was
+    investigated and found not to need doing. Every campaign manifest's `close_out` says
+    so in its own words: done with a landed sha, *or* dropped with the reason. Treating it
+    as a blocker leaves a correctly-resolved batch unable to close for as long as it
+    exists, and the only escapes are a false `done` (which writes a sha for work that
+    never landed) or editing the frozen item set to hide it.
+    """
+
+    def test_a_dropped_item_does_not_block_the_close(self):
+        with Campaign() as c:
+            c.add_worker(
+                "harness:RM-0001", "skills/one", landed=True, roadmap_status="done"
+            )
+            c.add_worker("harness:RM-0002", "skills/two", roadmap_status="dropped")
+            c.write_roadmap()
+            code, out, err = run_cli(
+                "close", "--root", c.root, "--manifest", c.manifest()
+            )
+            self.assertEqual(code, EXIT_OK, out + err)
+
+    def test_a_dropped_item_is_named_in_the_report_rather_than_passing_silently(self):
+        """Terminal is not the same as landed. A close that hides which items were
+        dropped reads as though every one of them shipped."""
+        with Campaign() as c:
+            c.add_worker(
+                "harness:RM-0001", "skills/one", landed=True, roadmap_status="done"
+            )
+            c.add_worker("harness:RM-0002", "skills/two", roadmap_status="dropped")
+            c.write_roadmap()
+            code, out, err = run_cli(
+                "close", "--root", c.root, "--manifest", c.manifest()
+            )
+            report = out + err
+            self.assertEqual(code, EXIT_OK, report)
+            self.assertIn("harness:RM-0002", report)
+            self.assertIn("dropped", report)
+
+    def test_a_dropped_item_needs_no_landed_sha(self):
+        """Nothing landed, so there is no sha to demand. The `done`-with-no-evidence
+        blocker must not fire on a disposition that never produces one."""
+        with Campaign() as c:
+            c.add_worker(
+                "harness:RM-0001", "skills/one",
+                roadmap_status="dropped", evidence="",
+            )
+            c.write_roadmap()
+            code, out, err = run_cli(
+                "close", "--root", c.root, "--manifest", c.manifest()
+            )
+            self.assertEqual(code, EXIT_OK, out + err)
+
+    def test_json_marks_the_dropped_item_apart_from_the_landed_one(self):
+        with Campaign() as c:
+            c.add_worker(
+                "harness:RM-0001", "skills/one", landed=True, roadmap_status="done"
+            )
+            c.add_worker("harness:RM-0002", "skills/two", roadmap_status="dropped")
+            c.write_roadmap()
+            code, out, _ = run_cli(
+                "close", "--root", c.root, "--manifest", c.manifest(), "--json"
+            )
+            self.assertEqual(code, EXIT_OK)
+            doc = json.loads(out)
+            verdicts = {row["item"]: row["verdict"] for row in doc["rows"]}
+            self.assertEqual(verdicts["harness:RM-0002"], "dropped")
+            self.assertEqual(verdicts["harness:RM-0001"], "landed")
+            self.assertEqual(doc["dropped"], ["harness:RM-0002"])
+
+    def test_an_unlanded_item_still_blocks_when_a_dropped_one_is_present(self):
+        """The near miss: making `dropped` terminal must not make everything terminal."""
+        with Campaign() as c:
+            c.add_worker("harness:RM-0001", "skills/one", roadmap_status="dropped")
+            c.add_worker("harness:RM-0002", "skills/two")
+            c.write_roadmap()
+            code, out, err = run_cli(
+                "close", "--root", c.root, "--manifest", c.manifest()
+            )
+            self.assertEqual(code, EXIT_BLOCKED)
+            self.assertIn("harness:RM-0002", out + err)
+
+
 class ClosePermits(unittest.TestCase):
     def test_every_item_landed_permits_the_close(self):
         with Campaign() as c:

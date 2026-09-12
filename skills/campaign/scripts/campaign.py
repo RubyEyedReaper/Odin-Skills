@@ -53,6 +53,14 @@ EXIT_USAGE = 64
 #: and a classifier without the second invents the first silently.
 LANDED, OPEN, UNDETERMINED = "landed", "open", "undetermined"
 
+#: `dropped` is terminal and is NOT `landed`. An item whose premise retired was resolved
+#: without producing a sha, which every manifest's own `close_out` allows in its own
+#: words: done with a landed sha, *or* dropped with the reason. Folding it into `landed`
+#: would report work as shipped that never shipped; leaving it under `open` leaves a
+#: correctly-resolved batch permanently uncloseable, and the only escapes from that are a
+#: false `done` or editing the frozen item set to hide the row.
+DROPPED = "dropped"
+
 #: Keys that assert a state rather than record a decision. Refused wherever they appear —
 #: on the campaign and on a worker row alike. `evidence` is in the set because the landed
 #: sha is the roadmap's to hold; copied here it is a second source of truth that drifts.
@@ -328,6 +336,15 @@ def row_verdict(
         return settle(UNDETERMINED, f"no roadmap item `{item}` — its status is unknown")
 
     status = entry.get("status")
+    if status == "dropped":
+        # No sha to demand and no landedness to compute: nothing was built. The title is
+        # carried through because a close that says only "dropped" tells a later reader
+        # the count and not the reason.
+        title = (entry.get("title") or "").strip()
+        return settle(
+            DROPPED,
+            f"roadmap status is `dropped` — {title}" if title else "roadmap status is `dropped`",
+        )
     if status != "done":
         return settle(OPEN, f"roadmap status is `{status}`, not `done`")
     evidence = (entry.get("evidence") or "").strip()
@@ -470,6 +487,7 @@ def cmd_close(args) -> int:
     rows, overall = compute(args, doc)
     blockers = [row for row in rows if row["verdict"] == OPEN]
     unknown = [row for row in rows if row["verdict"] == UNDETERMINED]
+    dropped = [row for row in rows if row["verdict"] == DROPPED]
     residue = residue_of(rows)
 
     if args.json:
@@ -478,11 +496,19 @@ def cmd_close(args) -> int:
             "verdict": "closeable" if overall == LANDED else "refused",
             "rows": rows,
             "blockers": [row["item"] for row in blockers],
+            "dropped": [row["item"] for row in dropped],
             "undetermined": [row["item"] for row in unknown],
             "residue": residue,
             "close_out": doc.get("close_out", []),
         }, indent=1, sort_keys=True))
 
+    # Printed on every run, blocked or clear, and before the blockers: a dropped row is
+    # the one disposition a close permits without anything having shipped, so it is the
+    # one a reader most needs named rather than counted. Suppressed under --json, where
+    # stdout carries one document and a stray line makes the whole of it unparseable.
+    if not args.json:
+        for row in dropped:
+            print(f"dropped: {row['item']} on {row['branch']} — {row['reason']}")
     for row in blockers:
         print(
             f"blocked: {row['item']} on {row['branch']} — {row['reason']}",
