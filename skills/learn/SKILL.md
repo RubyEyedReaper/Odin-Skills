@@ -25,6 +25,10 @@ record in one of them is two fields and a discipline for moving them.
 | Context bloat, cache buildup, memory surfacing from the wrong project | `leek` | Those are hygiene failures in the environment, not questions about a record's truth. |
 | What to work on next | `roadmap` | Knowledge is not a backlog. |
 
+**Bridges to:** `rules-distill` — the disclaimer above is half the story. The other half is
+[The enforced handoff](#the-enforced-handoff): a record that reaches `enforced` is not itself a
+rule, but it is exactly the shape of evidence `rules-distill`'s third source reads.
+
 ## The two fields
 
 Added to a record in a tier that already exists:
@@ -70,6 +74,25 @@ demands and the mistake each rung invites:
 
 The three rungs from `reproduced` up **require** `verified_by`. A record claiming one without a
 command is malformed, not merely unverified.
+
+## The enforced handoff
+
+`enforced` is the top rung, and the top rung is not this skill's terminal state — it is
+`rules-distill`'s **third** evidence source (harness:RM-0617). That skill already carries two,
+deliberately unmerged: a principle in 2+ skills, or a `MISTAKES.md` key at the promotion threshold.
+An `enforced` record is neither — it is a fact already proven to hold by a gate that fails when the
+fact stops being true — so without this handoff it had no route into a rule at all.
+
+The handoff needs no new tooling: `verify` already reports a record's rung.
+
+```sh
+cd .claude/skills/learn && python3 -m scripts.capture_bar verify --record <path-to-enforced-record>
+```
+
+`rules-distill`'s Phase 1 runs this per candidate found at `· enforced` in the memory index, exactly
+as it already runs `mistakes.py report` for its occurrence predicate. A record still reporting
+`enforced` is evidence source C; one that has demoted is not — the same "the command decides, not
+the calendar" rule this skill applies everywhere else.
 
 ## The capture bar
 
