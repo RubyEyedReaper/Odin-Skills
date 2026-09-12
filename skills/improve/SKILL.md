@@ -7,7 +7,9 @@ artifact_status_reason: >-
   never run: 0 of the 30 commits touching .claude/skills since improve landed at b5aaf902
   (2026-08-26) carry them, measured 2026-09-01. Retro-fitting them would mean rewriting published
   history, and a record written now from memory is a function of who remembered. The obligation
-  binds forward from here.
+  binds forward from here. ADR-0109 names this exact silence and accepts it on purpose ("Silence is
+  not a signal... measured by leek, not here") — this exemption is that acceptance, not an oversight
+  an audit should re-flag.
 ---
 
 # Improve — the rung the ladder does not have
@@ -16,6 +18,12 @@ This harness turns failures into enforcement in three rungs, and they are all ow
 the fourth: a **friction that recurs and that no script can decide**.
 
 An improvement here is a change **declared before it is made and reversible after**.
+
+This skill's own frontmatter has carried `artifact_status: never-run` since it landed, and an audit
+pass (harness:RM-0615, issue #1247) read that as an unenforced procedure. It is not one: ADR-0109's
+own Consequences section names this exact state and accepts it — *"silence is not a signal... if
+this skill turns out to be unused, that shows up in `leek`'s never-used-skill sweep, not here."*
+Read ADR-0109 before treating a long-running `never-run` exemption here as a defect.
 
 ## What this is not for
 

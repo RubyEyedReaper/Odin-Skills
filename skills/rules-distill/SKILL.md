@@ -13,6 +13,10 @@ Applies the "deterministic collection + LLM judgment" principle: scripts collect
 
 **Two evidence sources, two predicates, deliberately not merged.** A principle appearing in 2+ skills answers *what is cross-cutting in the catalog*; a failure-mode key with 4+ recorded occurrences answers *what keeps breaking*. Overloading one predicate onto the other would make a four-occurrence incident invisible unless it also happened to appear in two skills.
 
+**Bridges to:** `learn` — a third source, added for harness:RM-0617, answers a different question
+again: *what has a `learn` record already proven true by a gate*. See
+[Phase 1e](#1e-collect-enforced-evidence--the-third-source) below.
+
 ## When to Use
 
 - Periodic rules maintenance (monthly or after installing new skills)
@@ -62,7 +66,19 @@ or wrong scan target is an error, never a clean scan of nothing. Fix the path; n
 partial inventory, because a distillation run that examined nothing reports "no candidates" exactly
 like one that examined everything.
 
-#### 1d. State the inventory
+#### 1e. Collect enforced evidence — the third source
+
+```bash
+grep '· enforced' ~/.claude/projects/<scope>/memory/MEMORY.md   # the always-loaded index (odin-memory-standards.md)
+cd .claude/skills/learn && python3 -m scripts.capture_bar verify --record <path-per-hit>
+```
+
+A record still reporting `enforced` (not `demoted`) is a candidate under predicate C — independent
+of both other predicates, exactly as they are independent of each other. This source can be empty;
+an empty result is recorded the same way an empty occurrence scan is (§ Save Results), never
+skipped.
+
+#### 1f. State the inventory
 
 ```
 Rules Distillation — Phase 1: Inventory
@@ -70,6 +86,7 @@ Rules Distillation — Phase 1: Inventory
 Skills:   {N} files scanned
 Rules:    {M} files ({K} headings, {A} always-on)
 Mistakes: {P} keys at promotion band across {O} owners
+Enforced: {E} learn records at rung enforced
 
 Proceeding to cross-read analysis...
 ```
@@ -118,15 +135,20 @@ You are an analyst who cross-reads skills to extract principles that should be p
 - Skills: {full text of skills in this batch}
 - Existing rules: {full text of all rule files, each with its tier}
 - Mistake evidence: {rows for every key at promotion band, with context and artifact}
+- Enforced evidence: {every `learn` record still at rung `enforced`, from Phase 1e}
 
 ## Extraction Criteria
 
-Include a candidate if criteria 2–4 hold AND **either** evidence predicate is satisfied:
+Include a candidate if criteria 2–4 hold AND **any** evidence predicate is satisfied:
 
 - **A. Corpus predicate — appears in 2+ skills.** A principle found in only one skill stays in that skill.
 - **B. Occurrence predicate — a failure-mode key with 4+ recorded occurrences.** Independent of A: a
   condition that has broken four times is a rule regardless of how many skills mention it. The draft
   must be true of every occurrence in the rows, not just the most recent.
+- **C. Enforced predicate — a `learn` record at rung `enforced`.** Independent of A and B: a fact
+  already proven by a gate that fails when the fact stops holding needs no further corroboration.
+  The draft must be true of the record's own `verified_by` command, and the candidate's evidence
+  names the record.
 
 Then:
 
@@ -134,8 +156,8 @@ Then:
 3. **Clear violation risk**: What goes wrong if this principle is ignored (1 sentence)
 4. **Not already in rules**: Check the full rules text — including concepts expressed in different words
 
-Record which predicate produced each candidate in `source`. A candidate satisfying both is stronger
-evidence, not a duplicate.
+Record which predicate produced each candidate in `source`. A candidate satisfying more than one is
+stronger evidence, not a duplicate.
 
 ## Matching & Verdict
 
@@ -153,7 +175,7 @@ For each candidate, compare against the full rules text and assign a verdict:
 ```json
 {
   "principle": "1-2 sentences in 'do X' / 'don't do Y' form",
-  "source": "corpus (2+ skills) / occurrence (MISTAKES key) / both",
+  "source": "corpus (2+ skills) / occurrence (MISTAKES key) / enforced (learn record) / combination",
   "evidence": ["skill-name: §Section", "MISTAKES.md M-0007 ci-gate/stale-reference"],
   "violation_risk": "1 sentence",
   "verdict": "Append / Revise / New Section / New File / Already Covered / Too Specific",
@@ -400,4 +422,4 @@ Landed on docs/rules-distill-2026-03-18; results at .claude/.runtime/rules-disti
 - **Anti-abstraction safeguard**: The filter (an evidence predicate, actionable behavior test, violation risk) prevents overly abstract principles from entering rules.
 - **Fail closed, always**: every scan that finds nothing is an error. A promotion engine that can report "no promotions due" without having looked is worse than no engine, because it is trusted.
 - **Decide and record; never stop**: reviewability comes from the diff and the recorded reason, not from a prompt waiting for a human who may not return (ADR-0052).
-- **Two sources, two predicates**: what recurs in the catalog and what keeps breaking are different questions with different thresholds.
+- **Three sources, three predicates**: what recurs in the catalog, what keeps breaking, and what a gate already proved true are different questions with different thresholds.

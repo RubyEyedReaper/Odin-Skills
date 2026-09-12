@@ -20,7 +20,10 @@ artifact_status_reason: >-
   no decision map has ever been committed — .claude/docs/plans holds no *-map.md, measured
   2026-09-01. Writing one so this gate goes green would be manufacturing an instance to satisfy a
   detector, which is the detector working backwards. The exemption lifts the first time a real
-  decision map is charted.
+  decision map is charted. ADR-0127 names this skill by name and accepts this exact state ("a
+  commit body cannot be globbed, and no decision map has ever been committed — rather than having
+  an instance manufactured for them") — this exemption is that acceptance, not an oversight an
+  audit should re-flag.
 ---
 
 # Decision Mapping — chart the way before planning it
@@ -28,6 +31,12 @@ artifact_status_reason: >-
 A loose idea has arrived: too big for one agent session, and wrapped in fog. The way from here to the
 **destination** is not visible yet. This skill charts that way as a **decision map** — a single
 committed markdown file — then works its **decision tickets** one at a time until the route is clear.
+
+This skill's own frontmatter has carried `artifact_status: never-run` since the artifact mandate
+landed, and an audit pass (harness:RM-0616, issue #1248) read that as a defect. It is not one:
+ADR-0127 names `decision-mapping` by id and accepts this exact state — a committed decision map has
+never existed in this tree, and manufacturing one to clear the finding would be the detector working
+backwards. Read ADR-0127 before treating a long-running `never-run` exemption here as an oversight.
 
 The destination varies per effort, and naming it is the first act of charting: a spec to hand off, a
 decision to lock before planning starts, or a change made in place. The map is domain-agnostic.
