@@ -178,14 +178,36 @@ registry_verdict() {  # registry_verdict <session-id> -> live | failed
 
 NOW=$(date +%s)
 
-resolve_ref() {  # resolve_ref <branch> -> the local ref that can be read, or ""
-  local b="$1" r
+resolve_ref() {  # resolve_ref <root> <branch> -> the local ref that can be read, or ""
+  local root="$1" b="$2" r
   for r in "refs/remotes/origin/$b" "refs/heads/$b"; do
-    if ge_git -C "$ROOT" rev-parse --verify --quiet "${r}^{commit}" >/dev/null 2>&1; then
+    if ge_git -C "$root" rev-parse --verify --quiet "${r}^{commit}" >/dev/null 2>&1; then
       printf '%s' "$r"; return 0
     fi
   done
   printf '%s' ""
+}
+
+# resolve_row_root <worktree> -> the repository that owns this row, on stdout; "" if undetermined.
+#
+# A row's `worktree` names a directory; the repository that owns it is whatever
+# `git -C <worktree> rev-parse --show-toplevel` says — for a submodule checkout (`projects/KinNest`,
+# with its own remote) that is the submodule's own root, never the harness root a coordinator
+# happens to pass as --root (harness:RM-0579, #1194). An absent field is not the undetermined case:
+# it is every row written before this field existed, and --root is its documented, unchanged
+# fallback. A field that IS declared but names a directory that does not exist, or is not a git
+# repository, is the undetermined case — never a silent fall-back to --root, which would make a
+# KinNest row's absence from the Odin root read as a verdict about the KinNest worker.
+resolve_row_root() {
+  local wt="$1"
+  if [ -z "$wt" ]; then
+    printf '%s' "$ROOT"; return 0
+  fi
+  [ -d "$wt" ] || return 1
+  local top
+  top="$(ge_git -C "$wt" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ -n "$top" ] || return 1
+  printf '%s' "$top"
 }
 
 # shellcheck source=../../../scripts/lib/branch-landedness.sh
@@ -215,6 +237,7 @@ for f in "${rows[@]}"; do
   matched=$((matched+1))
 
   branch="$(field "$f" branch)"
+  worktree="$(field "$f" worktree)"
   model="$(field "$f" model)";           [ -n "$model" ]      || model="-"
   integrator="$(field "$f" integrator)"; [ -n "$integrator" ] || integrator="-"
   # WHICH CHANNEL REPORTS THIS ROW'S LIVENESS — declared, never guessed from the role's name. An
@@ -239,8 +262,13 @@ for f in "${rows[@]}"; do
     # The gate has spoken. The registry is not consulted, the refs are not consulted, and no row
     # gets a kinder verdict than the daemon's absence allows.
     verdict=failed; moved="?"; landedness="not-consulted"
+  elif ! row_root="$(resolve_row_root "$worktree")"; then
+    # Declared but unresolvable: a directory that no longer exists, or is not a git repository. Not
+    # a fallback to --root — that would let a KinNest row's absence from the Odin root pass as a
+    # verdict about the KinNest worker, which is #1194 itself, one layer down.
+    verdict=undetermined; moved="?"; landedness="repo-unresolvable:$worktree"
   else
-    if remote_line="$(ge_git -C "$ROOT" ls-remote --heads origin "$branch" 2>/dev/null)"; then
+    if remote_line="$(ge_git -C "$row_root" ls-remote --heads origin "$branch" 2>/dev/null)"; then
       remote_sha="${remote_line%%$'\t'*}"
     else
       remote_sha="?"
@@ -254,9 +282,9 @@ for f in "${rows[@]}"; do
       moved="no"
     fi
 
-    ref="$(resolve_ref "$branch")"
+    ref="$(resolve_ref "$row_root" "$branch")"
     if [ -n "$ref" ]; then
-      landedness="$(bl_classify "$ROOT" "$ref" "$BASE")"
+      landedness="$(bl_classify "$row_root" "$ref" "$BASE")"
       # THE AUTHOR DATE, NOT THE COMMITTER DATE (DEC-0095, ADR-0148). This is asking "has this
       # worker made progress recently", and a rebase is not progress by the worker: it preserves
       # the author date and rewrites the committer date. Under the committer date a stalled worker
@@ -273,8 +301,8 @@ for f in "${rows[@]}"; do
       # error -- a branch with no commits of its own is handled by the `no-commits` arm below --
       # so it falls back to the tip's author date, and a value that is not a number still falls
       # back to `launched_at` exactly as before.
-      progress="$(ge_git -C "$ROOT" log --format=%at "$BASE..$ref" 2>/dev/null | sort -n | tail -1)"
-      case "$progress" in ''|*[!0-9]*) progress="$(ge_git -C "$ROOT" log -1 --format=%at "$ref" 2>/dev/null)" ;; esac
+      progress="$(ge_git -C "$row_root" log --format=%at "$BASE..$ref" 2>/dev/null | sort -n | tail -1)"
+      case "$progress" in ''|*[!0-9]*) progress="$(ge_git -C "$row_root" log -1 --format=%at "$ref" 2>/dev/null)" ;; esac
       case "$progress" in ''|*[!0-9]*) progress="$launched_at" ;; esac
 
       # NO WORK YET IS NOT WORK THAT LANDED. A branch whose content is entirely in the base is
@@ -291,7 +319,7 @@ for f in "${rows[@]}"; do
       # this probe could not obtain is not zero: that is `undetermined`, fail closed, exactly as the
       # unreadable-remote arm below already does.
       if [ "$landedness" = "landed" ]; then
-        if ahead="$(ge_git -C "$ROOT" rev-list --count "$BASE..$ref" 2>/dev/null)" \
+        if ahead="$(ge_git -C "$row_root" rev-list --count "$BASE..$ref" 2>/dev/null)" \
            && [ -n "$ahead" ] && [ -z "${ahead//[0-9]/}" ]; then
           [ "$ahead" -eq 0 ] && landedness="no-commits"
         else
