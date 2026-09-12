@@ -61,6 +61,21 @@ LANDED, OPEN, UNDETERMINED = "landed", "open", "undetermined"
 #: false `done` or editing the frozen item set to hide the row.
 DROPPED = "dropped"
 
+#: Verdicts that mean "this item is not coming back" — the campaign's terminal set, and THE one
+#: definition of it. `landed` shipped; `dropped` had its premise retire and will never produce a
+#: sha. Every consumer asking "how much is left" reads `open` out of the status payload rather than
+#: counting rows against a set of its own: three copies of this predicate existed across two shell
+#: engines and this module, two of them still reading `verdict != "landed"`, and the disagreement
+#: revived a coordinator every twenty minutes for a campaign that had closed
+#: (ci-gate/policy-copied-into-a-second-place, M-0155).
+TERMINAL = (LANDED, DROPPED)
+
+
+def open_count(rows: list[dict]) -> int:
+    """How many rows are still outstanding. The only implementation."""
+    return sum(1 for row in rows if row.get("verdict") not in TERMINAL)
+
+
 #: Keys that assert a state rather than record a decision. Refused wherever they appear —
 #: on the campaign and on a worker row alike. `evidence` is in the set because the landed
 #: sha is the roadmap's to hold; copied here it is a second source of truth that drifts.
@@ -467,10 +482,19 @@ def cmd_status(args) -> int:
     doc = _prepare(args)
     rows, overall = compute(args, doc)
     if args.json:
-        print(json.dumps(
-            {"campaign": doc.get("campaign"), "verdict": overall, "rows": rows},
-            indent=1, sort_keys=True,
-        ))
+        # `open` is published, never left for a caller to derive. Two shell engines already prefer
+        # this key and fell back to counting rows themselves when it was absent; publishing it is
+        # what retires those copies.
+        print(json.dumps({
+            "campaign": doc.get("campaign"),
+            "verdict": overall,
+            "open": open_count(rows),
+            "counts": {
+                verdict: sum(1 for row in rows if row["verdict"] == verdict)
+                for verdict in (LANDED, DROPPED, OPEN, UNDETERMINED)
+            },
+            "rows": rows,
+        }, indent=1, sort_keys=True))
     else:
         print(f"campaign: {doc.get('campaign')}  verdict: {overall}")
         for row in rows:
@@ -497,6 +521,7 @@ def cmd_close(args) -> int:
             "rows": rows,
             "blockers": [row["item"] for row in blockers],
             "dropped": [row["item"] for row in dropped],
+            "open": open_count(rows),
             "undetermined": [row["item"] for row in unknown],
             "residue": residue,
             "close_out": doc.get("close_out", []),
