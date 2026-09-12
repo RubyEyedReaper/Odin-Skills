@@ -228,3 +228,60 @@ class TheFixturesStayHome(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StatusPublishesTheOpenCount(unittest.TestCase):
+    """`open` is published here so no caller derives it.
+
+    Three consumers counted rows themselves — `fleet-revive.sh`, `fleet-heartbeat.sh` and this
+    module — and two of them counted `verdict != "landed"`, which reads a dropped item as
+    outstanding. That disagreement revived a coordinator every twenty minutes for a campaign that
+    had closed. The count belongs to the engine that owns the verdicts.
+    """
+
+    def test_json_carries_an_open_count(self):
+        with Campaign() as c:
+            c.add_worker(
+                "harness:RM-0001", "skills/one", landed=True, roadmap_status="done"
+            )
+            c.add_worker("harness:RM-0002", "skills/two")
+            c.write_roadmap()
+            code, out, _ = run_cli(
+                "status", "--root", c.root, "--manifest", c.manifest(), "--json"
+            )
+            self.assertEqual(code, 0)
+            doc = json.loads(out)
+            self.assertEqual(doc["open"], 1)
+
+    def test_a_dropped_row_is_not_counted_open(self):
+        with Campaign() as c:
+            c.add_worker(
+                "harness:RM-0001", "skills/one", landed=True, roadmap_status="done"
+            )
+            c.add_worker("harness:RM-0002", "skills/two", roadmap_status="dropped")
+            c.write_roadmap()
+            code, out, _ = run_cli(
+                "status", "--root", c.root, "--manifest", c.manifest(), "--json"
+            )
+            self.assertEqual(code, 0)
+            doc = json.loads(out)
+            self.assertEqual(doc["open"], 0)
+            self.assertEqual(doc["counts"]["dropped"], 1)
+            self.assertEqual(doc["counts"]["landed"], 1)
+
+    def test_an_undetermined_row_is_counted_open(self):
+        """The near miss: terminal is `landed` and `dropped`, not `anything but open`. A row nobody
+        could determine is outstanding — concluding otherwise is how a check that could not look
+        reports a clear result."""
+        with Campaign() as c:
+            c.add_worker(
+                "harness:RM-0001", "skills/one", landed=True, roadmap_status="done"
+            )
+            c.add_worker("harness:RM-0002", "skills/two", in_roadmap=False)
+            c.write_roadmap()
+            code, out, _ = run_cli(
+                "status", "--root", c.root, "--manifest", c.manifest(), "--json"
+            )
+            doc = json.loads(out)
+            self.assertEqual(doc["counts"]["undetermined"], 1)
+            self.assertEqual(doc["open"], 1)
