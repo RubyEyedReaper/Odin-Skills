@@ -133,7 +133,7 @@ re-planned by the next session.
 ```sh
 cd .claude/skills/roadmap
 python3 -m scripts.roadmap add --title "<task 1 title>" --kind feature --parent RM-00NN
-python3 -m scripts.roadmap set RM-00NN --link plan=<path-to-plan.md>
+python3 -m scripts.roadmap set RM-00NN --plan docs/plans/<plan>.md
 python3 -m scripts.roadmap set RM-00XX --deps RM-00YY      # the plan's edges
 python3 -m scripts.roadmap waves --limit 3                 # confirm the layering
 ```
