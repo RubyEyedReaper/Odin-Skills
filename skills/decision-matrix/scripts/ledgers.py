@@ -55,6 +55,14 @@ _RECORD_RE = re.compile(r"^DEC-(\d{4})-.*\.md$")
 _ROW_RE = re.compile(r"^\|\s*(DEC-\d{4})\s*\|")
 _DEC_ID_RE = re.compile(r"^dec_id:\s*(\S+)\s*$", re.MULTILINE)
 _LINK_RE = re.compile(r"\]\(([^)]+)\)")
+# A GFM header-separator row: pipes around cells of only `-`, `:` and whitespace, at least
+# one `-` per cell. `render_index` emits the minimal "|---|---|---|---|" form, but a
+# markdown formatter run over the generated file afterwards pads it to "| --- | --- |" or
+# adds alignment colons (":---", "---:") — same row under GFM, different bytes. Matching
+# only the minimal form (harness:RM-0636) read a formatter-touched, 130-record index as 0
+# rows: every record then failed as "no row in README.md", burying the one true failure
+# (the file is stale and wants a re-render) under 130 fabricated ones.
+_SEP_RE = re.compile(r"^\|(?:[ :-]*-[ :-]*\|)+$")
 
 # scripts/ -> decision-matrix/ -> skills/ -> .claude/ -> repo root
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -231,7 +239,7 @@ def _index_rows(readme: Path) -> dict:
     in_table = False
     for i, line in enumerate(lines, start=1):
         stripped = line.lstrip()
-        if stripped.startswith("|--"):
+        if _SEP_RE.match(stripped.rstrip()):
             in_table = True
             continue
         if in_table and not stripped.startswith("|"):
