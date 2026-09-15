@@ -11,6 +11,7 @@ for a wrong path is the failure mode this system was built after (audit F10), so
 enumeration is asserted to be an error, never a pass.
 """
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -193,6 +194,40 @@ class Siblings(unittest.TestCase):
     def test_a_key_is_never_its_own_sibling(self):
         rows = mistakes.parse_log(log(row("M-0001", "input/x"), row("M-0002", "input/x")))
         self.assertEqual(mistakes.siblings(rows, "input/x"), [])
+
+
+class OopsSkillCitesTheThreshold(unittest.TestCase):
+    """`oops`'s band table is prose, not code, so it cannot import `DEFAULT_THRESHOLD` — this is
+    the mechanical half of that citation (`ci/rule-enforcement.md` § One Policy, One
+    Implementation). A future edit to either side that stops stating the same number fails here.
+
+    The table's "Count so far" column is read via `mistakes.py report` — run at oops step 3,
+    BEFORE this incident's own row is appended at step 9 (`cmd_append`, which counts the new row
+    and prints `band()` on the post-append total). So the table's promotion row states the PRIOR
+    row count at which appending one more row reaches `DEFAULT_THRESHOLD`: `DEFAULT_THRESHOLD - 1`,
+    not `DEFAULT_THRESHOLD` itself. (harness:RM-0375 shipped the `- 1` omitted once already —
+    coordinator review caught it before integration.)
+    """
+
+    PROMOTION_ROW = re.compile(r"\|\s*≥(\d+)\s*\|\s*promotion\s*\|")
+
+    def _oops_skill_path(self):
+        return Path(__file__).resolve().parents[2] / "oops" / "SKILL.md"
+
+    def test_band_table_promotion_row_matches_default_threshold_minus_one(self):
+        path = self._oops_skill_path()
+        text = path.read_text(encoding="utf-8")
+        match = self.PROMOTION_ROW.search(text)
+        self.assertIsNotNone(
+            match, "%s: no '| ≥N | promotion |' row found — table shape changed" % path)
+        expected = mistakes.DEFAULT_THRESHOLD - 1
+        self.assertEqual(
+            int(match.group(1)), expected,
+            "%s states promotion at prior-count >= %s; appending this incident's own row makes "
+            "that the %dth occurrence, so the row must read >= DEFAULT_THRESHOLD - 1 (= %d, "
+            "DEFAULT_THRESHOLD is %d)"
+            % (path, match.group(1), mistakes.DEFAULT_THRESHOLD, expected,
+               mistakes.DEFAULT_THRESHOLD))
 
 
 class Owners(unittest.TestCase):

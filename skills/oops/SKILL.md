@@ -100,11 +100,17 @@ It prints the count, the band, the prior rows, and any sibling key in the same c
 near-duplicate spelling of yours — take the existing spelling when one is offered, because a second
 spelling of one failure mode is two keys that each stay under the threshold forever.
 
-| Count so far | Band | What this OOPS must do |
+The command above runs **before** step 9 appends this incident's own row, so "Count so far" is the
+count of *prior* rows only — this incident is not yet one of them. The boundary below is therefore
+one less than `mistakes.py`'s own `DEFAULT_THRESHOLD` (currently 4): appending this occurrence as
+the row that follows is what actually reaches the threshold. The threshold itself lives in one
+place, the script — this table only names the response prior-count triggers.
+
+| Count so far (prior rows) | Band | What this OOPS must do |
 |---:|---|---|
 | 0 | logged | Run normally. One incident, one condition, one guard. |
 | 1–2 | attention | Run normally, **and** read the prior rows first. The commit says why the earlier guard did not cover this occurrence — if you cannot answer that, the earlier guard was keyed on a correlate and *that* is the incident. |
-| ≥3 | promotion | This occurrence takes the key to the threshold. It is no longer a mistake, it is a missing rule: hand the whole thing to `mistake-to-gate`, which lands the check, the rule text, and the closure. |
+| ≥3 | promotion | Appending this occurrence's own row (step 9) reaches `DEFAULT_THRESHOLD`. It is no longer a mistake, it is a missing rule: hand the whole thing to `mistake-to-gate`, which lands the check, the rule text, and the closure. |
 
 Say the band out loud. It changes what the rest of this procedure is allowed to end with.
 
