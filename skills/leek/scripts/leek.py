@@ -78,6 +78,14 @@ RUNAWAY_MIN_ETIMES = 7200
 RUNAWAY_MIN_RSS_KB = 1_500_000
 RUNAWAY_CPU_RATIO = 0.30            # cumulative CPU / elapsed: above this it is looping
 
+# harness:RM-0589 — the filed audit named five registered sessions 3.4-8 days old as the
+# finding. Three days sits just under that observed floor, so the sessions that motivated
+# this bound cross it without also catching an ordinary overnight `endless`/`gauntlet`
+# worker, which runs in hours. A wall-clock age, not a spend threshold: `session-burn.sh`
+# already owns cost (a different quantity — cheap sessions sit idle for weeks, expensive
+# ones finish in an hour) and is a sibling roadmap item's subject, not this one's.
+SESSION_STALE_AGE_SECONDS = 3 * 86400
+
 HOOK_MAX_BYTES = 24 * KB            # a hook runs on every matching event
 HOOK_OUTPUT_BOUND = re.compile(r"\|\s*(head|tail|cut -c|fold)\b|\bhead -c\b|%\.[0-9]+s")
 HOOK_SWALLOW_MIN = 8                # below this it is the idiom, not a pattern
@@ -247,6 +255,9 @@ class Env:
         self.proc_cmd = os.environ.get(
             "LEEK_PROC_CMD", "ps -eo pid,ppid,etimes,rss,times,user,args"
         )
+        # The daemon's own account of who exists (harness:RM-0589) — injected the same way
+        # as `proc_cmd` so the matrix never touches the live fleet.
+        self.sessions_cmd = os.environ.get("LEEK_SESSIONS_CMD", "claude agents --json")
         self.now = int(time.time())
         # `tokens` and `components/skills-unused` both need one pass over every
         # transcript. Memoized so `--check all` pays for that pass once — twelve
@@ -1036,6 +1047,126 @@ def check_sessions(env: Env, rep: Report) -> None:
                 "healthy server between requests looks like. Cross-check against the "
                 "orphaned-MCP finding above.",
                 scope="session", impact=human(proc["rss"] * KB) + " resident while idle",
+            )
+
+    check_session_listing(env, rep)
+
+
+def read_sessions(env: Env) -> list[dict] | None:
+    """Parse the injected session listing (`claude agents --json`'s shape: an array of
+    session objects). Returns None on any exit or parse failure — "could not look" is a
+    distinct answer from "looked, found nothing" (harness:RM-0589)."""
+    rc, out = run_ro(env.sessions_cmd)
+    if rc != 0:
+        return None
+    try:
+        parsed = json.loads(out)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(parsed, list):
+        return None
+    return parsed
+
+
+def register_ids(env: Env) -> set[str] | None:
+    """Every id the ownership register knows about, from either form
+    (`ownership-register.md` § session_id is required: `.sessionId` and the short `.id`
+    both join). Returns None when the register directory itself is absent — that is a
+    channel that could not answer, never "nobody is registered"
+    (`skills/lifecycle.md` — undetermined is never folded into a default)."""
+    register_dir = env.root / ".claude" / ".runtime" / "successor-register"
+    if not register_dir.is_dir():
+        return None
+    ids: set[str] = set()
+    for path in register_dir.iterdir():
+        if not path.is_file():
+            continue
+        ids.add(path.name)
+        for line in read_text(path).splitlines():
+            parts = line.split("\t", 1)
+            if len(parts) == 2 and parts[0].strip() == "session_id":
+                ids.add(parts[1].strip())
+    return ids
+
+
+def check_session_listing(env: Env, rep: Report) -> None:
+    """A registered session outliving its work is a finding, not a state (harness:RM-0589).
+    Two independent predicates, kept separate because their severities and remediations
+    differ: a vanished `cwd` is a defect regardless of age; an old background session is a
+    judgement call the age bound encodes."""
+    sessions = read_sessions(env)
+    if sessions is None:
+        rep.unavailable(
+            "sessions", "evidence-unavailable", env.sessions_cmd,
+            f"`{env.sessions_cmd}` produced no parseable session listing",
+        )
+        return
+
+    owners = register_ids(env)
+
+    for s in sessions:
+        name = s.get("name") or s.get("id") or s.get("sessionId") or "unknown"
+        started_at = s.get("startedAt")
+        age_s = (env.now - started_at / 1000) if isinstance(started_at, (int, float)) else None
+        age_desc = f"{age_s / 86400:.1f}d" if age_s is not None else "unknown"
+
+        cwd = s.get("cwd")
+        if cwd and not Path(cwd).is_dir():
+            rep.add(
+                "high", "sessions", "session-cwd-vanished", name,
+                "A registered session's working directory no longer exists",
+                f"session={name} id={s.get('id', s.get('sessionId', 'unknown'))} "
+                f"age={age_desc} cwd={cwd} state={s.get('state', 'unknown')}",
+                "The worktree or checkout this session was launched into is gone. Confirm "
+                "with the fleet before acting — this audit does not stop or reap it "
+                "(ADR-0088) — then retire its ownership-register row if one exists.",
+                scope="session",
+            )
+
+        stale = age_s is not None and age_s >= SESSION_STALE_AGE_SECONDS
+        sid = s.get("sessionId")
+        short_id = s.get("id")
+        if stale and s.get("kind") == "background":
+            if owners is None:
+                owner_desc = "owner=unknown (register unreadable)"
+            elif (sid and sid in owners) or (short_id and short_id in owners):
+                worker = None
+                for path in (env.root / ".claude" / ".runtime" / "successor-register").iterdir():
+                    if path.name in (sid, short_id):
+                        for line in read_text(path).splitlines():
+                            parts = line.split("\t", 1)
+                            if len(parts) == 2 and parts[0].strip() == "worker":
+                                worker = parts[1].strip()
+                        break
+                owner_desc = f"owner={worker or short_id or sid} (registered)"
+            else:
+                owner_desc = "owner=none (no register row)"
+            rep.add(
+                "medium", "sessions", "session-stale-age", name,
+                f"A background session has been {s.get('state', 'running')} for longer "
+                f"than {SESSION_STALE_AGE_SECONDS // 86400} days",
+                f"session={name} id={short_id or sid} age={age_desc} "
+                f"state={s.get('state', 'unknown')} {owner_desc}",
+                "Age alone is a judgement call, not a defect — confirm with the owner "
+                "before acting; an unowned session has nobody who would notice it.",
+                scope="session",
+            )
+        elif stale:
+            # #1210's five named sessions include an INTERACTIVE one (37.9% of that
+            # window's tokens) — `kind != background` is not "nobody is stuck", so this
+            # must still be reached. Its own code and a lower severity, because a human
+            # may be present at a terminal in a way nothing is at a background worker;
+            # the id/state fields are absent on every recorded interactive row, so the
+            # name falls back through sessionId/id/name to "unknown" rather than KeyError.
+            rep.add(
+                "low", "sessions", "session-stale-interactive", name,
+                f"An interactive session has been open for longer than "
+                f"{SESSION_STALE_AGE_SECONDS // 86400} days",
+                f"session={name} id={short_id or sid or 'unknown'} age={age_desc} "
+                f"kind={s.get('kind', 'unknown')} state={s.get('state', 'unknown')}",
+                "A human may be present at this terminal for as long as they like — this "
+                "is a lower-priority prompt to confirm, never a defect on its own.",
+                scope="session",
             )
 
 
