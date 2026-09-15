@@ -21,7 +21,8 @@ description: Use when a raster — PNG, JPG, WebP, screenshot, mockup crop — m
 
 ```sh
 bash scripts/doctor.sh          # 0 ready · 1 launcher missing · 3 tools could not resolve
-bash scripts/i2c.sh <image> --name <Pascal> --kind icon|logo|illustration --out <dir> [flags]
+bash scripts/i2c.sh <image> --name <Pascal> --kind icon|logo|illustration --out <dir> --auto [--color currentColor]
+bash scripts/i2c.sh <image> --name <Pascal> --kind icon|logo|illustration --out <dir> [flags]   # hand-tuned
 bash scripts/typecheck.sh <dir> # strict tsc over every .tsx + writes index.ts
 ```
 
@@ -29,9 +30,25 @@ bash scripts/typecheck.sh <dir> # strict tsc over every .tsx + writes index.ts
 failed stage and names it. Any vtracer parameter passes through as `--set key=value`. Exit 1 = a check refused; 2 = usage or tool failure. Nothing is installed
 globally — pins live in `scripts/toolchain.sh`.
 
-## Starting flags — a prior, not a formula
+## Start with `--auto`
 
-Start from the row that matches the asset; the refusal table below says what to change next.
+`--auto` takes only what the asset is — `--kind`, `--color currentColor` for a glyph, and optionally
+`--crop`/`--bg` — and chooses everything else. It measures the keyed source's edge (`edges.edge_ramp`)
+to decide the prep once (a blurred glyph is sharpened; a colour mark is flood-keyed), then runs a
+fixed grid of at most 36 candidates in one process — smoothing and, for a ≤ 40 px glyph, `--scale 16`;
+palette and `filter_speckle`, each with its colour-region borders voted smooth and without, and for a
+≤ 80 px colour source `--scale` 3–4 — and keeps the **smallest SVG that passes every check and QA bar**,
+preferring a smoothed colour trace whenever one passes. The winner is re-run through the
+ordinary stages; `qa.json` carries the whole grid under `search`. Nothing passing is exit 1 with the
+nearest miss named. Measured: 7–85 s per asset; bounded at 300 s. A tuning flag beside `--auto` is
+refused. Why the grid varies only trace-side axes: [references/tracing-presets.md](references/tracing-presets.md#auto).
+
+Held-out assets no flag was tuned on (`evals/heldout/`): 5/20 pass on the rows below, 13/20 under `--auto`.
+
+## Starting flags — when tuning by hand
+
+A prior, not a formula. Start from the row that matches the asset, or from the flags `--auto` recorded;
+the refusal table below says what to change next.
 
 | Asset | Flags |
 |---|---|
@@ -71,10 +88,12 @@ Generated component shape and a11y contract: [references/component-contract.md](
 
 ## Worked evals
 
+`evals/heldout/run.sh [dir] [-- --auto]` — ten assets nothing was tuned on, clean and degraded; the
+pass rate is the record, and nothing is tuned by reading its per-asset results (its README).
 `evals/rubytech/run.sh` — four currentColor glyphs and a colour mark that must pass, and a full
 logo lockup (tagline in ~9px type) that **must be refused at the budget**. `evals/degraded/run.sh`
-— the same assets half-size, blurred, noisy and JPEG-soft: glyphs must pass and agree with a frozen
-clean trace, and the noisy colour mark must pass inside the logo budget. Rerun both after any pin, preset, flag or
+— the same assets half-size, blurred, noisy and JPEG-soft, run under `--auto` with no hand flags: glyphs must pass and agree with a frozen
+clean trace, and the noisy colour mark must pass inside the logo budget. Rerun all three after any pin, preset, grid, flag or
 threshold change; commit a regeneration on its own.
 
 ## Red flags

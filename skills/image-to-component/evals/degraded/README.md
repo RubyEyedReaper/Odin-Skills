@@ -7,8 +7,8 @@ cannot move the input under the eval.
 
 | Source | Expectation |
 |---|---|
-| `src/{computer,gear,controller,wrench}-icon.low.png` | pass every stage as a `currentColor` glyph; `agreement_iou` ≥ 0.68 against `truth/` |
-| `src/rubytech-mark.low.png` | pass at `--scale 2 --colors 64 --set filter_speckle=7` — see below |
+| `src/{computer,gear,controller,wrench}-icon.low.png` | pass every stage under `--auto` as a `currentColor` glyph, no hand flags; `agreement_iou` ≥ 0.68 against `truth/` |
+| `src/rubytech-mark.low.png` | pass under `--auto`, no hand flags, inside the logo budget — see below |
 | `src/wrench-icon.alpha.png` | pass with `--bg auto`: a transparent border is not keyed. `--smooth auto` sees its hard edge and smooths the outline |
 | `src/wrench-icon.alpha.png` at `--smooth 7` | pass — the Gaussian route `auto` replaced, kept as the comparison |
 | `src/wrench-icon.alpha.png` at `--smooth 3` | **refused** at QA by `staircase`, and by nothing else — its steps are kept, and `jaggedness` passes it (#1353) |
@@ -134,6 +134,77 @@ sharpened asset, and a sharper outline turns more; both stay inside their bounds
 300–450 bytes, the detail that came back.
 
 The swept alternatives and why each lost are in `references/tracing-presets.md` (`--sharpen R`).
+
+## After — `--auto`, no hand flags
+
+`run.sh` gives the five assets only `--kind` and, for glyphs, `--color currentColor`. The flags are the
+search's (`qa.json` → `search`).
+
+| asset | chose | iou | mae | edge_f1 | jaggedness | agreement_iou | svg_bytes | hand-tuned agreement / bytes |
+|---|---|---|---|---|---|---|---|---|
+| computer-icon.low | ×8 `--sharpen 0.8 --smooth 1.5` | 0.9526 | – | 0.9965 | 4.08 | 0.6936 | 2574 | 0.6936 / 2574 |
+| gear-icon.low | ×8 `--sharpen 0.8 --smooth 0.5` | 0.9629 | – | 0.9967 | 2.84 | 0.8267 | 2045 | 0.8237 / 2084 |
+| controller-icon.low | ×8 `--sharpen 0.8 --smooth 1.5` | 0.9664 | – | 0.9926 | 2.05 | 0.8301 | 1602 | 0.8301 / 1602 |
+| wrench-icon.low | ×8 `--sharpen 0.8`, smooth auto | 0.9609 | – | 0.9924 | 2.04 | 0.8670 | 1296 | 0.8720 / 1395 |
+| rubytech-mark.low | ×2, 64 colours, `filter_speckle=7` | 0.9628 | 11.35 | 0.8458 | 7.17 | 0.8872 | 32524 | 0.887 / 36123 |
+
+Every asset passes with no flag chosen by hand, and every glyph clears `AGREEMENT_MIN`. The search picks
+the tuned point exactly for two glyphs; for the gear and the wrench it picks the smallest passing
+smoothing, which agrees +0.003 and −0.005 against truth and saves 39 and 99 bytes. For the mark it drops
+`layer_difference=12` — 3.6 KB smaller, `mae` 11.35 instead of 11.08, same agreement. Compare sheets:
+the gear keeps its inner ring and hub, the wrench its jaw and eye, the mark every facet and the
+controller glyph. Wall-clock 22–27 s per asset (the degraded glyphs are ≤ 40 px, so the grid also runs
+×16), 3 min 24 s for the whole eval.
+
+## After — colour regions voted smooth
+
+The grid now tries every colour setting with its quantized regions' borders voted smooth
+(`--smooth` 0.5 × scale, `scripts/regions.py`) and prefers one that passes. The mark:
+
+| run | iou | mae | edge_f1 | jaggedness | agreement_iou | paths | svg_bytes |
+|---|---|---|---|---|---|---|---|
+| `--auto` before, ×2 / 64 / speckle 7 | 0.9628 | 11.35 | 0.8458 | 7.17 | 0.8872 | 108 | 32524 |
+| same flags `--smooth 1` | 0.9628 | 11.66 | 0.8660 | 5.99 | 0.8870 | 108 | 33717 |
+| **`--auto` now**, ×2 / 96 / speckle 7 / `--smooth 1` | 0.9643 | 11.80 | 0.8568 | 7.07 | 0.8853 | 98 | 31122 |
+
+The search takes the smallest smoothed candidate that passes, which is 96 colours rather than 64: fewer
+paths and bytes, edge_f1 +0.011, agreement −0.002. Compare sheets: facet borders and the hexagon's
+rim run clean where the unsmoothed trace steps along the noise; the controller's buttons are round;
+no facet disappears. `jaggedness` is not a reliable judge here — voting at 0.75, 1, 1.5 and 2 px gave
+7.05, 5.99, 7.43 and 6.46, non-monotonic, because the render's luma contours cross the noisy shading
+inside every facet as well as the borders — so the sheet decides, and `mae` bounds how far it may go.
+Wall-clock for the mark 39 s (36 candidates).
+
+## The computer glyph's gap
+
+Under `--auto` the degraded computer agreed 0.694 against a measured ceiling of 0.75; every other glyph
+was within 0.03 of its own. Its difference against `truth/`, region by region: the frame is fat on
+its **inner** side all the way round, and the leaf is oversized — the dim teal screen and the leaf's
+glow, blurred into the cyan stroke, were being counted as coverage. Global soft matte divided distance
+by the 95th-percentile subject distance, and with that much mid-bright interior the percentile landed
+low, so every mid-distance pixel crossed the α 128 cut.
+
+What was tried, all four degraded glyphs under `--auto`, agreement with `truth/`:
+
+| peak percentile | coverage gamma | computer | gear | controller | wrench | mean |
+|---|---|---|---|---|---|---|
+| 0.95 | 1 | 0.6936 | 0.8267 | 0.8301 | 0.8670 | 0.8044 |
+| 0.99 | 1 | 0.7056 | 0.8246 | 0.8297 | 0.8771 | 0.8093 |
+| 0.995 | 1 | 0.7304 | 0.8266 | 0.8272 | 0.8733 | 0.8144 |
+| 1.0 | 1 | 0.7217 | 0.8337 | 0.8357 | 0.8694 | 0.8151 |
+| **0.99** | **1.15** | **0.7316** | **0.8282** | **0.8459** | **0.8885** | **0.8236** |
+| 0.99 | 1.3 | 0.7225 | 0.8127 | 0.8495 | 0.8782 | 0.8157 |
+| 0.95 | 1.3 | 0.7190 | 0.8204 | 0.8477 | 0.8888 | 0.8190 |
+| 0.95 | 1.6 (hand flags, ×8) | 0.7488 | 0.8041 | 0.8398 | 0.8395 | 0.8081 |
+| 0.95 | 2 (hand flags, ×8) | 0.7588 | 0.7749 | 0.8028 | 0.7930 | 0.7824 |
+
+0.99 / 1.15 is the only setting that raises every glyph; it is what `keying.py` ships. The computer's
+gap to its ceiling falls from 0.056 to 0.018 and is **not closed**: gamma 1.6–2 reaches 0.749–0.759 on
+the computer, but costs the gear, controller and wrench up to 0.07 and fails the computer's own QA at
+×8, so it is a per-image threshold, which is what the ceiling already assumes and a pipeline cannot
+pick. The remaining difference in the sheet is the leaf, still oversized where its glow meets the
+screen. Clean RubyTech glyphs move by at most 0.002 own-QA IoU and agree 0.964–0.984 with their own
+earlier traces — thinner by the halo, and all regenerate passing. Held-out pass rate unchanged at 13/20.
 
 ## Hard-alpha sources — `--smooth auto`
 

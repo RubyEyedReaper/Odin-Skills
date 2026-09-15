@@ -18,6 +18,12 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component` auto** — `i2c.sh --auto` searches a bounded grid (smoothing, palette,
+  speckle, and scale for small sources) and keeps the smallest SVG that passes QA and the budget,
+  recording the whole search in `qa.json`; a held-out eval of ten mockup assets nothing was tuned on
+  (clean and degraded) goes from 5/20 on the starting flags to 13/20 under `--auto`; colour-region
+  borders are smoothed before tracing; the global soft matte no longer counts a dim glow as stroke.
+
 - **`image-to-component` edges** — a `staircase` QA bound that refuses a hard source's kept one-pixel
   steps at any `--scale`; `--smooth auto` as the default, smoothing a hard edge along its own outline
   so holes and 2 px features survive; `--sharpen` for blurred sources of 32 px or less; the degraded

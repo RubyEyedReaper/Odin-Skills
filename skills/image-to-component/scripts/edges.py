@@ -44,6 +44,28 @@ def hard_edge_fraction(buf: bytes, width: int, height: int) -> float | None:
     return None if crossings == 0 else hard / crossings
 
 
+def edge_ramp(buf: bytes, width: int, height: int) -> float | None:
+    """How wide the boundary is: partially covered pixels per alpha-128 crossing; None when there are none.
+
+    A hard staircase scores 0, an anti-aliased edge about 0.5–1.1 (one partial pixel per side at
+    most), a blurred or JPEG-soft edge 1.6 and up — measured on the keyed RubyTech and degraded
+    sources (`evals/degraded/README.md`). `autogrid.derive_prep` reads it to decide whether a glyph
+    source was blurred enough that its holes need `--sharpen`.
+    """
+    alpha = buf[3::4]
+    partial = sum(1 for v in alpha if EXTREME * 2 <= v <= 255 - EXTREME * 2)
+    crossings = 0
+    for y in range(height):
+        row = y * width
+        for x in range(width):
+            inside = alpha[row + x] >= ALPHA_VISIBLE
+            if x + 1 < width and (alpha[row + x + 1] >= ALPHA_VISIBLE) != inside:
+                crossings += 1
+            if y + 1 < height and (alpha[row + width + x] >= ALPHA_VISIBLE) != inside:
+                crossings += 1
+    return None if crossings == 0 else partial / crossings
+
+
 def smoothing_for(smooth: str, edge: str, scale: float) -> tuple[str, float]:
     """What `--smooth` means for a silhouette: ("outline", σ source px) or ("gaussian", radius px).
 

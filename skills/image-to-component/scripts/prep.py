@@ -22,7 +22,9 @@ against the trace input, because that would hide exactly the loss quantization i
            boundary; global keying mattes every pixel by coverage (see keying.soft_matte).
 --mono     trace input is a black-on-white opaque silhouette (alpha >= 128): vtracer's binary
            mode ignores alpha, so an RGBA input traces as one full square.
---smooth   how the silhouette is smoothed before it is thresholded: an upscaled small glyph
+--smooth   for a colour trace (`--colors`), a number is the radius in upscaled px over which each palette
+           region's border is voted smooth (`regions.vote`); `auto` leaves the regions as quantized.
+           For a `--mono` silhouette: how it is smoothed before it is thresholded: an upscaled small glyph
            otherwise traces its pixel staircase as wobble. A number is a Gaussian radius on the
            upscaled alpha. `auto` follows the source's edge (`edges.smoothing_for`): a hard edge is
            smoothed along its own outline at source resolution (`outline.py`) and rasterised 4×
@@ -46,7 +48,7 @@ import sys
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
-from . import edges, keying, outline
+from . import edges, keying, outline, regions
 
 PAD = 2
 SUPERSAMPLE = 4
@@ -94,6 +96,25 @@ def quantize(img: Image.Image, colors: int) -> Image.Image:
     return rgb
 
 
+def smooth_regions(img: Image.Image, radius: float) -> Image.Image:
+    """Vote the quantized colour regions' borders smooth (`regions.vote`), a Gaussian of `radius` px per label."""
+    if radius <= 0:
+        return img
+    alpha = list(img.getchannel("A").get_flattened_data())
+    pixels = list(img.convert("RGB").get_flattened_data())
+    palette: dict[tuple[int, int, int], int] = {}
+    labels = [regions.TRANSPARENT if a < 128 else palette.setdefault(px, len(palette)) for px, a in zip(pixels, alpha)]
+
+    def blur(mask: bytes, width: int, height: int, r: float) -> bytes:
+        return Image.frombytes("L", (width, height), mask).filter(ImageFilter.GaussianBlur(r)).tobytes()
+
+    colours = {index: colour for colour, index in palette.items()}
+    voted = regions.vote(labels, *img.size, radius, blur)
+    out = Image.new("RGBA", img.size)
+    out.putdata([px + (0,) if label == regions.TRANSPARENT else colours[label] + (255,) for px, label in zip(pixels, voted)])
+    return out
+
+
 def _background(spec: str, img: Image.Image) -> tuple[int, int, int] | None:
     if spec == "auto":
         return keying.border_background(img.tobytes(), *img.size)
@@ -105,15 +126,67 @@ def _background(spec: str, img: Image.Image) -> tuple[int, int, int] | None:
 
 
 def trace_input(reference: Image.Image, mono: bool, smooth: tuple[str, float], colors: int,
-                source: Image.Image | None = None) -> Image.Image:
+                source: Image.Image | None = None, regions_radius: float = 0.0) -> Image.Image:
     if mono:
         method, amount = smooth
         if method == "outline":
             return outline_silhouette(source, reference.size, amount)
         return silhouette(reference, amount)
     if colors:
-        return quantize(reference, colors)
+        return smooth_regions(quantize(reference, colors), regions_radius)
     return reference
+
+
+class NothingLeft(Exception):
+    """Keying removed every pixel: the tolerance swallowed the subject. args[0] is the ground keyed."""
+
+
+def _open(src: str, crop: str | None) -> Image.Image:
+    img = Image.open(src).convert("RGBA")
+    return img.crop(_parse_box(crop)) if crop else img
+
+
+def keyed_source(src: str, crop: str | None, bg_spec: str, key: str, matte: str,
+                 tolerance: int) -> tuple[Image.Image, str]:
+    """Open, crop, key and trim: (the keyed source at source resolution, its edge character).
+
+    Raises OSError/ValueError for an unreadable input or a bad --bg, NothingLeft when keying emptied it.
+    `auto.py` calls this once and runs every candidate from its result.
+    """
+    img = _open(src, crop)
+    bg = _background(bg_spec, img)
+    if bg is not None:
+        keyer = keying.key_flood if key == "flood" else keying.key_global
+        original = img.tobytes()
+        keyed = keyer(original, *img.size, bg, tolerance)
+        if matte == "soft":
+            keyed = keying.soft_matte(original, keyed, *img.size, bg, tolerance, key=key)
+        img = Image.frombytes("RGBA", img.size, keyed)
+    bbox = img.getchannel("A").getbbox()
+    if bbox is None:
+        raise NothingLeft(bg)
+    left, top, right, bottom = bbox
+    img = img.crop((max(left - PAD, 0), max(top - PAD, 0),
+                    min(right + PAD, img.width), min(bottom + PAD, img.height)))
+    return img, edges.classify(img.tobytes(), *img.size)
+
+
+def finish(img: Image.Image, sharpen: float, scale: float) -> tuple[Image.Image, Image.Image]:
+    """(the sharpened source at source resolution, the reference: that source upscaled)."""
+    if sharpen > 0:
+        alpha = img.getchannel("A")
+        blurred = alpha.filter(ImageFilter.GaussianBlur(sharpen))
+        img = img.copy()
+        img.putalpha(Image.frombytes("L", img.size, keying.sharpen_alpha(alpha.tobytes(), blurred.tobytes(), SHARPEN_AMOUNT)))
+    source = img
+    if scale != 1.0:
+        img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
+    return source, img
+
+
+def region_radius(smooth: str, mono: bool) -> float:
+    """A colour trace's `--smooth`: `auto` leaves its regions as quantized, a number votes their borders."""
+    return 0.0 if mono or smooth == "auto" else float(smooth)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -135,48 +208,22 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        img = Image.open(args.src).convert("RGBA")
-        if args.crop:
-            img = img.crop(_parse_box(args.crop))
-        bg = _background(args.bg, img)
+        img, edge = keyed_source(args.src, args.crop, args.bg, args.key, args.matte, args.tolerance)
+        smooth = edges.smoothing_for(args.smooth, edge, args.scale)
     except (OSError, ValueError) as exc:
         print(f"prep: {exc}", file=sys.stderr)
         return 2
-    if bg is not None:
-        keyer = keying.key_flood if args.key == "flood" else keying.key_global
-        original = img.tobytes()
-        keyed = keyer(original, *img.size, bg, args.tolerance)
-        if args.matte == "soft":
-            keyed = keying.soft_matte(original, keyed, *img.size, bg, args.tolerance, key=args.key)
-        img = Image.frombytes("RGBA", img.size, keyed)
-
-    bbox = img.getchannel("A").getbbox()
-    if bbox is None:
-        print(f"prep: nothing left after keying background {bg}; lower --tolerance", file=sys.stderr)
+    except NothingLeft as exc:
+        print(f"prep: nothing left after keying background {exc.args[0]}; lower --tolerance", file=sys.stderr)
         return 1
-    left, top, right, bottom = bbox
-    img = img.crop((max(left - PAD, 0), max(top - PAD, 0),
-                    min(right + PAD, img.width), min(bottom + PAD, img.height)))
-    edge = edges.classify(img.tobytes(), *img.size)
-    try:
-        smooth = edges.smoothing_for(args.smooth, edge, args.scale)
-    except ValueError as exc:
-        print(f"prep: {exc}", file=sys.stderr)
-        return 2
     if args.edge_report:
         with open(args.edge_report, "w", encoding="utf-8") as fh:
             fh.write(edge + "\n")
     if args.mono:
         print(f"prep: {edge} edge, smooth {smooth[0]} {smooth[1]:g}", file=sys.stderr)
-    if args.sharpen > 0:
-        alpha = img.getchannel("A")
-        blurred = alpha.filter(ImageFilter.GaussianBlur(args.sharpen))
-        img.putalpha(Image.frombytes("L", img.size, keying.sharpen_alpha(alpha.tobytes(), blurred.tobytes(), SHARPEN_AMOUNT)))
-    source = img
-    if args.scale != 1.0:
-        img = img.resize((round(img.width * args.scale), round(img.height * args.scale)), Image.LANCZOS)
+    source, img = finish(img, args.sharpen, args.scale)
     img.save(args.dst)
-    trace_input(img, args.mono, smooth, args.colors, source).save(args.trace_input)
+    trace_input(img, args.mono, smooth, args.colors, source, region_radius(args.smooth, args.mono)).save(args.trace_input)
     return 0
 
 

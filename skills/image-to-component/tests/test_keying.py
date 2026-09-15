@@ -88,15 +88,26 @@ class SoftMatte(unittest.TestCase):
 
     def test_global_key_mattes_every_pixel_by_coverage(self):
         # --key global has no enclosed detail to protect, so alpha is coverage everywhere: a pixel
-        # halfway to the subject's colour is half covered, however far it is from the ground.
-        # Subject distances 200 (x9) and 100 (x1): the 95th percentile is 200, floor 0.
+        # halfway to the subject's colour is about half covered, however far it is from the ground.
+        # Subject distances 200 (x9) and 100 (x1): the peak is 200, floor 0. Coverage 0.5 is lifted
+        # to the power COVERAGE_GAMMA, so it lands just under the 128 cut: 255 * 0.5 ** 1.15 = 115.
         values = [0, 0, 0, 200, 200, 200, 200, 100, 200, 200, 200, 200, 200]
         buf = grey_row(values)
         keyed = keying.key_global(buf, len(values), 1, (0, 0, 0), 40)
         out = keying.soft_matte(buf, keyed, len(values), 1, (0, 0, 0), 40, key="global")
-        self.assertEqual(alpha_at(out, len(values), 7, 0), 128)
+        self.assertEqual(alpha_at(out, len(values), 7, 0), 115)
         banded = keying.soft_matte(buf, keyed, len(values), 1, (0, 0, 0), 40)
         self.assertEqual(alpha_at(banded, len(values), 7, 0), 255)
+
+    def test_global_peak_is_the_near_maximum_subject_distance(self):
+        # 49 subject pixels at distance 100 and one at 200. A 95th-percentile peak reads 100 and calls
+        # the whole dim body fully covered; the 99th reads 200, so a glow at half the stroke's
+        # brightness is half covered instead of fattening the stroke.
+        values = [0] * 10 + [100] * 49 + [200]
+        buf = grey_row(values)
+        keyed = keying.key_global(buf, len(values), 1, (0, 0, 0), 40)
+        out = keying.soft_matte(buf, keyed, len(values), 1, (0, 0, 0), 40, key="global")
+        self.assertEqual(alpha_at(out, len(values), 20, 0), 115)
 
     def test_enclosed_ground_coloured_detail_stays_opaque(self):
         # Flood keying leaves the ring's ground-coloured centre opaque; it is within 3 px of the
