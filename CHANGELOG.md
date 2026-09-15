@@ -8,6 +8,14 @@ sync; entries below record what changed in this distribution.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`scripts/sync-from-odin.sh` compares what git would publish** — tracked files plus untracked ones
+  that are not ignored, on each side that is a git work tree. A local eval run's git-ignored outputs
+  under a skill no longer read as drift, and a real sync no longer copies them into the mirror; a
+  side that is not a git work tree falls back to every file on disk and says so. Matrix:
+  `scripts/tests/sync-from-odin.test.sh`. (#11)
+
 ### Added
 
 - **`image-to-component` quality pass** — soft-matte keying, a jaggedness QA metric, a degraded-source

@@ -11,6 +11,13 @@
 # are packaging, not skill content, and the harness has no copy of them to sync
 # back. All three are gate inputs, so losing one here re-reddens validate-skills.sh.
 #
+# What is compared is what git would publish: tracked files plus untracked ones
+# that are not ignored (`git ls-files --cached --others --exclude-standard`),
+# on each side that is a git work tree. A local eval run's ignored outputs are
+# not skill content, and reading them as drift blocked a harness push until
+# somebody deleted them by hand (Odin-Skills#11). A side that is not a git work
+# tree falls back to every file on disk, and --check says so.
+#
 # Usage:
 #   scripts/sync-from-odin.sh [--odin DIR]           copy harness -> skills/
 #   scripts/sync-from-odin.sh --check [--odin DIR]   report drift, change nothing
@@ -26,7 +33,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --check) CHECK=1; shift ;;
     --odin) ODIN="$2"; shift 2 ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -67,8 +74,50 @@ COPIED=0
 # then deletes the file on the next real sync.
 # __pycache__/*.pyc are build residue that appears in the harness the moment a
 # skill's tests are run — comparing it reports drift nobody caused, which is how
-# a drift check gets ignored.
-EXCLUDE=(-x UPSTREAM.md -x LICENSE -x NOTICE -x __pycache__ -x '*.pyc' -x .DS_Store)
+# a drift check gets ignored. Usually git-ignored as well; excluded here too so
+# the fallback without git agrees.
+is_excluded() {
+  case "/$1" in
+    */UPSTREAM.md|*/LICENSE|*/NOTICE|*/.DS_Store|*.pyc|*/__pycache__/*) return 0 ;;
+  esac
+  return 1
+}
+
+# content_files <dir> — sorted paths, relative to <dir>, of the files that are
+# skill content: what git would publish when <dir> is in a work tree, every file
+# otherwise. A path git still indexes but the work tree has lost is left out, so
+# a deletion reads as drift rather than as a copy of nothing.
+content_files() {
+  local dir="$1" rel
+  if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C "$dir" ls-files --cached --others --exclude-standard
+  else
+    (cd "$dir" && find . -type f | sed 's|^\./||')
+  fi | while IFS= read -r rel; do
+    [[ -f "$dir/$rel" ]] && ! is_excluded "$rel" && printf '%s\n' "$rel"
+  done | LC_ALL=C sort -u
+}
+
+FALLBACK_NOTED=0
+note_fallback() {
+  git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1 && return
+  [[ $FALLBACK_NOTED -eq 1 ]] && return
+  echo "note: $1 is not a git work tree; comparing every file on disk, ignored or not" >&2
+  FALLBACK_NOTED=1
+}
+
+# differences <src> <dst> — one line per path that differs; nothing when in sync.
+differences() {
+  local src="$1" dst="$2" rel
+  local a b
+  a="$(content_files "$src")"
+  b="$(content_files "$dst")"
+  LC_ALL=C comm -23 <(printf '%s\n' "$a" | sed '/^$/d') <(printf '%s\n' "$b" | sed '/^$/d') | sed 's/^/only in the harness: /'
+  LC_ALL=C comm -13 <(printf '%s\n' "$a" | sed '/^$/d') <(printf '%s\n' "$b" | sed '/^$/d') | sed 's/^/only in the mirror:  /'
+  LC_ALL=C comm -12 <(printf '%s\n' "$a" | sed '/^$/d') <(printf '%s\n' "$b" | sed '/^$/d') | while IFS= read -r rel; do
+    cmp -s "$src/$rel" "$dst/$rel" || printf 'differs:             %s\n' "$rel"
+  done
+}
 
 for name in "${MEMBERS[@]}"; do
   src="$SRC/$name"
@@ -80,14 +129,14 @@ for name in "${MEMBERS[@]}"; do
     continue
   fi
 
-  # Packaging files are ours; everything else must match the harness exactly.
-  if diff -r -q "${EXCLUDE[@]}" -- "$src" "$dst" >/dev/null 2>&1; then
-    continue
-  fi
+  note_fallback "$src"
+  note_fallback "$dst"
+  diffs="$(differences "$src" "$dst")"
+  [[ -z "$diffs" ]] && continue
 
   if [[ $CHECK -eq 1 ]]; then
     echo "DRIFT: $name differs from the harness copy"
-    diff -r -q "${EXCLUDE[@]}" -- "$src" "$dst" 2>&1 | sed 's/^/       /'
+    printf '%s\n' "$diffs" | sed 's/^/       /'
     DRIFTED=$((DRIFTED + 1))
     continue
   fi
@@ -97,16 +146,18 @@ for name in "${MEMBERS[@]}"; do
   [[ -f "$dst/UPSTREAM.md" ]] && cp "$dst/UPSTREAM.md" "$tmp/"
   [[ -f "$dst/LICENSE" ]] && cp "$dst/LICENSE" "$tmp/"
   [[ -f "$dst/NOTICE" ]] && cp "$dst/NOTICE" "$tmp/"
+  files="$(content_files "$src")"
   rm -rf "$dst"
-  cp -R "$src" "$dst"
+  mkdir -p "$dst"
+  while IFS= read -r rel; do
+    [[ -n "$rel" ]] || continue
+    mkdir -p "$dst/$(dirname "$rel")"
+    cp -p "$src/$rel" "$dst/$rel"
+  done <<<"$files"
   [[ -f "$tmp/UPSTREAM.md" ]] && cp "$tmp/UPSTREAM.md" "$dst/"
   [[ -f "$tmp/LICENSE" ]] && cp "$tmp/LICENSE" "$dst/"
   [[ -f "$tmp/NOTICE" ]] && cp "$tmp/NOTICE" "$dst/"
   rm -rf "$tmp"
-  # cp -R carries whatever residue the harness had; drop it so the mirror never
-  # publishes build artefacts of someone else's test run.
-  find "$dst" -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null
-  find "$dst" \( -name '*.pyc' -o -name .DS_Store \) -delete 2>/dev/null
   echo "synced: $name"
   COPIED=$((COPIED + 1))
 done
