@@ -25,7 +25,10 @@
 # Exit codes — the interface, so a caller greps nothing. Precedence 3 > 2 > 1 > 0:
 #
 #   0   every probe clean
-#   1   findings — a row stalled, failed, undetermined, or a deliverable unshipped
+#   1   findings — a row stalled, failed, undetermined, a deliverable unshipped, or fleet-health.sh
+#       naming a single STALE session (its exit 4, DEC-0152) — folded into this tier deliberately
+#       (harness:RM-0639): the vocabulary here stays 0/1/2/3/64, so no caller of THIS script needs
+#       its own change to keep handling 4
 #   2   daemon down
 #   3   an input could not be read; no verdict is claimed
 #   64  usage error
@@ -85,11 +88,17 @@ oc_run() {
 worst=0
 # oc_worst <rc> — precedence 3 > 2 > 1 > 0, which is not numeric max in general but is here; the
 # function exists so the ordering is stated once and cannot be re-derived differently below.
+#
+# 4 (fleet-health.sh's STALE, DEC-0152) folds into the SAME bucket as 1 rather than gaining a fifth
+# tier: it is a finding about one session, exactly the class 1 already covers ("a row stalled,
+# failed, undetermined") — not a blind-channel failure like 2/3. Keeping orchestrate.sh's own
+# documented exit vocabulary at 0/1/2/3/64 means every existing caller of this script handles 4
+# unchanged (harness:RM-0639); the raw rc is still visible in the composed per-probe section above.
 oc_worst() {
   case "$1" in
     3) worst=3 ;;
     2) [ "$worst" = 3 ] || worst=2 ;;
-    1) case "$worst" in 2|3) ;; *) worst=1 ;; esac ;;
+    1|4) case "$worst" in 2|3) ;; *) worst=1 ;; esac ;;
   esac
 }
 
