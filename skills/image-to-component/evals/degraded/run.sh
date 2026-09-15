@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Regenerate the degraded evals: the RubyTech assets at half size, blurred, noisy and JPEG-soft
-# (make_sources.py), plus hard-alpha PNGs of the wrench and a small controller. Each must pass every stage, agree with
+# (make_sources.py), plus hard-alpha PNGs of the wrench and a small controller, and a destroyed computer
+# that must be refused at prep. Each must pass every stage, agree with
 # a frozen trace of the clean crop in truth/, and stay under the jaggedness limit its own QA enforces.
 # Outputs land in evals/degraded/out/; out/summary.tsv is the before/after record.
 #
@@ -68,6 +69,11 @@ PY
 for pair in computer-icon:ComputerIcon gear-icon:GearIcon controller-icon:ControllerIcon wrench-icon:WrenchIcon; do
   expect 0 "${pair%%:*}.low" "${pair##*:}" "${pair##*:}" -- "$here/src/${pair%%:*}.low.png" "${glyph[@]}"
 done
+# The computer at x0.25, 13 px across (make_sources.py): its one-pixel strokes move with every draw of its
+# own noise, and any trace of it is a blob that passes its own QA. It must be refused before tracing (#1391).
+expect 1 computer-icon.destroyed ComputerIconDestroyed ComputerIcon -- "$here/src/computer-icon.destroyed.png" "${glyph[@]}"
+grep -q 'FAILED at prep' "$out/.computer-icon.destroyed.log" && grep -q 'source-quality' "$out/.computer-icon.destroyed.log" ||
+  { echo "FAIL  computer-icon.destroyed refused for a reason other than source-quality"; failed=1; }
 # Noise and JPEG blocking on a gradient-faceted gem. At --scale 4 the upscaled noise boundaries cost
 # 85 KB; at 2, with 64 colours to follow the facets' noisy shades, it fits the budget with mae under
 # 12 against its own noisy reference. Colour denoise before quantize was measured and never helped.

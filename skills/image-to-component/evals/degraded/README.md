@@ -8,6 +8,7 @@ cannot move the input under the eval.
 | Source | Expectation |
 |---|---|
 | `src/{computer,gear,controller,wrench}-icon.low.png` | pass every stage under `--auto` as a `currentColor` glyph, no hand flags; `agreement_iou` ≥ 0.68 against `truth/` |
+| `src/computer-icon.destroyed.png` | **refused** at prep by `source-quality` under `--auto` — the computer at ×0.25, whose one-pixel strokes its own noise moves (#1391) |
 | `src/rubytech-mark.low.png` | pass under `--auto`, no hand flags, inside the logo budget — see below |
 | `src/wrench-icon.alpha.png` | pass with `--bg auto`: a transparent border is not keyed. `--smooth auto` sees its hard edge and smooths the outline |
 | `src/wrench-icon.alpha.png` at `--smooth 7` | pass — the Gaussian route `auto` replaced, kept as the comparison |
@@ -223,3 +224,13 @@ full-size clean trace and a 32 px source has lost the D-pad's inner corners befo
 
 Own-QA IoU and edge_f1 fall for every smoothed hard source because the reference *is* the staircase;
 agreement with the clean golden is the score that says the curves are right.
+
+## Source quality and features — the fidelity pass
+
+`computer-icon.destroyed` is one rung of the 48-source ladder the `source-quality` refusal was calibrated
+on (`ladder.py` rebuilds it; `references/qa-thresholds.md` § Source quality has the table). It is refused
+at prep, before tracing, at silhouette stability 0.806. The four `.low` glyphs, the lowest of which is
+the computer at 0.911, keep passing with unchanged SVGs.
+
+Every row above also carries `features` now: glyphs 1.0, the mark 0.9645 — no expectation moved, and
+`--auto` chose the same candidate for every asset.

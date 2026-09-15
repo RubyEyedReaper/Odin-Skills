@@ -18,6 +18,13 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component` fidelity** — a `features` QA bar that refuses a render which drops a small
+  feature of the reference, read by both QA and `--auto`'s selection, so the smallest passing
+  candidate can no longer lose a dot or a hole; a source-quality refusal at prep for a glyph too
+  degraded to trace, rather than a faithful trace of a destroyed source; and deterministic `qa.json`
+  under `--auto`, with the search's wall-clock on stderr. Gradient marks were measured and declined
+  (DEC-0168): `mae` stands, and `references/qa-thresholds.md` records every attempt.
+
 - **`image-to-component` auto** — `i2c.sh --auto` searches a bounded grid (smoothing, palette,
   speckle, and scale for small sources) and keeps the smallest SVG that passes QA and the budget,
   recording the whole search in `qa.json`; a held-out eval of ten mockup assets nothing was tuned on

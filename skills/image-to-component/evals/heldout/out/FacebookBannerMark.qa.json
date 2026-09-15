@@ -3,13 +3,16 @@
   "mae": 11.963,
   "edge_f1": 0.986,
   "jaggedness": 3.3372,
+  "features": 1.0,
   "staircase": null,
+  "lost_features": [],
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
     "edge_f1": 0.8,
     "jaggedness": 15.0,
-    "staircase": 0.35
+    "staircase": 0.35,
+    "features": 0.5
   },
   "failures": [],
   "pass": true,
@@ -63,6 +66,8 @@
           "edge_f1": 0.9867,
           "jaggedness": 3.4463,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -91,6 +96,8 @@
           "edge_f1": 0.9914,
           "jaggedness": 3.8826,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -121,6 +128,8 @@
           "edge_f1": 0.9758,
           "jaggedness": 3.5149,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -149,6 +158,8 @@
           "edge_f1": 0.9918,
           "jaggedness": 3.9282,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -179,6 +190,8 @@
           "edge_f1": 0.9859,
           "jaggedness": 3.3641,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -207,6 +220,8 @@
           "edge_f1": 0.9909,
           "jaggedness": 3.9091,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -237,6 +252,8 @@
           "edge_f1": 0.9793,
           "jaggedness": 3.6198,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -265,6 +282,8 @@
           "edge_f1": 0.9673,
           "jaggedness": 3.4838,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -295,6 +314,8 @@
           "edge_f1": 0.9866,
           "jaggedness": 3.4394,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -323,6 +344,8 @@
           "edge_f1": 0.9692,
           "jaggedness": 3.4816,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -353,6 +376,8 @@
           "edge_f1": 0.986,
           "jaggedness": 3.3372,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -381,6 +406,8 @@
           "edge_f1": 0.9906,
           "jaggedness": 3.6576,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -411,6 +438,8 @@
           "edge_f1": 0.9919,
           "jaggedness": 3.9232,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -439,6 +468,8 @@
           "edge_f1": 0.9832,
           "jaggedness": 3.8873,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -469,6 +500,8 @@
           "edge_f1": 0.9893,
           "jaggedness": 5.1102,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -497,6 +530,8 @@
           "edge_f1": 0.9828,
           "jaggedness": 3.8745,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -527,6 +562,8 @@
           "edge_f1": 0.9884,
           "jaggedness": 4.2269,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -555,6 +592,8 @@
           "edge_f1": 0.9859,
           "jaggedness": 3.8258,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -587,6 +626,8 @@
           "edge_f1": 0.99,
           "jaggedness": 4.2148,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -615,6 +656,8 @@
           "edge_f1": 0.9904,
           "jaggedness": 3.8739,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -645,6 +688,8 @@
           "edge_f1": 0.9856,
           "jaggedness": 3.6975,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -673,6 +718,8 @@
           "edge_f1": 0.9895,
           "jaggedness": 3.8591,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -703,6 +750,8 @@
           "edge_f1": 0.9613,
           "jaggedness": 3.6715,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -733,6 +782,8 @@
           "edge_f1": 0.9753,
           "jaggedness": 3.7942,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -765,6 +816,8 @@
           "edge_f1": 0.9413,
           "jaggedness": 2.9579,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -793,6 +846,8 @@
           "edge_f1": 0.9367,
           "jaggedness": 3.3285,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -823,6 +878,8 @@
           "edge_f1": 0.9299,
           "jaggedness": 3.0897,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -851,6 +908,8 @@
           "edge_f1": 0.9308,
           "jaggedness": 3.4995,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -881,6 +940,8 @@
           "edge_f1": 0.8938,
           "jaggedness": 2.535,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -909,6 +970,8 @@
           "edge_f1": 0.9003,
           "jaggedness": 3.167,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -939,6 +1002,8 @@
           "edge_f1": 0.736,
           "jaggedness": 3.8843,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -969,6 +1034,8 @@
           "edge_f1": 0.7912,
           "jaggedness": 2.3242,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -1001,6 +1068,8 @@
           "edge_f1": 0.7627,
           "jaggedness": 3.9599,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -1031,6 +1100,8 @@
           "edge_f1": 0.8095,
           "jaggedness": 2.8592,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -1061,6 +1132,8 @@
           "edge_f1": 0.6494,
           "jaggedness": 3.2137,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -1091,6 +1164,8 @@
           "edge_f1": 0.6919,
           "jaggedness": 2.5986,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -1116,7 +1191,6 @@
       "--set",
       "filter_speckle=12"
     ],
-    "seconds": 11.0,
     "bound_seconds": 300
   }
 }

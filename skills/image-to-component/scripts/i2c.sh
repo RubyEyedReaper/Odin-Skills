@@ -4,7 +4,7 @@
 #   i2c.sh <image> --name <ComponentName> --kind icon|logo|illustration --out <dir>
 #          [--crop x,y,w,h] [--bg auto|none|#rrggbb] [--key flood|global] [--matte soft|hard] [--tolerance N] [--scale N] [--smooth auto|R] [--sharpen R] [--colors N]
 #          [--color original|currentColor] [--allow-background] [--set key=value]...
-#          [--iou N] [--mae N] [--edge-f1 N] [--jaggedness N] [--staircase N]
+#          [--iou N] [--mae N] [--edge-f1 N] [--jaggedness N] [--staircase N] [--features N]
 #   i2c.sh <image> --name <ComponentName> --kind icon|logo|illustration --out <dir> --auto
 #          [--crop x,y,w,h] [--bg auto|none|#rrggbb] [--color original|currentColor] [--allow-background]
 #
@@ -15,7 +15,7 @@
 #
 # Writes into <dir>: <Name>.src.png (prepared raster), <Name>.svg, <Name>.tsx,
 # <Name>.qa.json, <Name>.compare.png. Stages stop at the first failure and name it.
-# Exit codes: 0 all stages pass; 1 a check failed (svgcheck or QA); 2 usage or a tool failed.
+# Exit codes: 0 all stages pass; 1 a check refused (prep source-quality, svgcheck or QA); 2 usage or a tool failed.
 # A page or layout is never an input here — see references/rebuild-route.md.
 set -euo pipefail
 
@@ -48,7 +48,7 @@ while [ $# -gt 0 ]; do
     --set) need "$@"; trace_sets+=(--set "$2"); tuned="$1"; shift 2 ;;
     --auto) auto=1; shift ;;
     --search-report) need "$@"; search_report="$2"; shift 2 ;;
-    --iou|--mae|--edge-f1|--jaggedness|--staircase) need "$@"; qa_args+=("$1" "$2"); shift 2 ;;
+    --iou|--mae|--edge-f1|--jaggedness|--staircase|--features) need "$@"; qa_args+=("$1" "$2"); shift 2 ;;
     *) echo "i2c: unknown argument $1" >&2; usage ;;
   esac
 done
@@ -73,6 +73,11 @@ if [ -n "$auto" ]; then
   [ -n "$allow_bg" ] && auto_args+=(--allow-background)
   stage auto "grid search, $kind"
   rc=0; chosen="$(i2c_py auto "$src" "$work/auto" "${auto_args[@]}")" || rc=$?
+  if [ "$rc" -eq 3 ]; then
+    # The source was refused before the search: the record names source-quality and its measurement.
+    i2c_stdlib autorecord "$work/search.json" "$out/$name.qa.json"
+    fail prep 3 1
+  fi
   if [ "$rc" -eq 1 ]; then
     # Nothing passed: keep the search as the record and name the nearest miss (auto.py printed it).
     i2c_stdlib autorecord "$work/search.json" "$out/$name.qa.json"
@@ -90,7 +95,9 @@ prep_args=("$src" "$prepared" --trace-input "$work/trace.png" --edge-report "$wo
 [ -n "$crop" ] && prep_args+=(--crop "$crop")
 binary=() mono=()
 [ "$color" = currentColor ] && { prep_args+=(--mono); binary=(--binary); mono=(--mono); }
-i2c_py prep "${prep_args[@]}" || fail prep $? 2
+rc=0; i2c_py prep "${prep_args[@]}" || rc=$?
+[ "$rc" -eq 3 ] && fail prep 3 1   # source-quality: a refusal, not a tool failure
+[ "$rc" -eq 0 ] || fail prep "$rc" 2
 
 stage trace "$kind preset"
 i2c_py trace "$work/trace.png" "$traced" --kind "$kind" "${binary[@]}" "${trace_sets[@]}" || fail trace $? 2

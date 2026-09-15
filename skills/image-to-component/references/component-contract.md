@@ -9,7 +9,11 @@ Anything else — another element, `style`, `class`, `id`, a `data-` or namespac
 1 with `svg2tsx: refused: … is outside the dialect`. The standalone CLI used to transcribe arbitrary
 SVG through a style-object, namespace and text surface nothing ever fed it and no test held against
 real input. Hand-authored SVG is a component to write by hand; vtracer + SVGO output converts
-exactly as before (the RubyTech goldens regenerate byte-identical).
+exactly as before (the RubyTech goldens regenerate byte-identical). Gradients stay outside it: fitting
+`linearGradient`/`radialGradient` fills to traced paths was measured and never beat a flat trace's `mae`
+(DEC-0168, `qa-thresholds.md` known limits), so the dialect was not widened for them. If it ever is, a
+gradient `id` must be scoped per instance through `useId`, as `<title>` is, or two instances on one page
+share one gradient.
 
 ```tsx
 import { GearIcon } from "./icons";

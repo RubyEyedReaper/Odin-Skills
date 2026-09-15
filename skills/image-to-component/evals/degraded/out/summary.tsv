@@ -3,6 +3,7 @@ computer-icon.low	0	0.9535	0.0	0.9484	4.0914	None	0.7316	3000
 gear-icon.low	0	0.953	0.0	0.9918	2.2964	None	0.8282	1925
 controller-icon.low	0	0.9552	0.0	0.9727	1.6004	None	0.8459	1589
 wrench-icon.low	0	0.9539	0.0	0.9893	1.6689	None	0.8885	1118
+computer-icon.destroyed	1	-	-	-	-	-	-	-
 rubytech-mark.low	0	0.9643	11.8023	0.8568	7.0695	None	0.8853	31122
 wrench-icon.alpha	0	0.9666	0.0	0.9509	4.1545	0.1054	0.909	2141
 wrench-icon.alpha.gaussian	0	0.9614	0.0	0.9014	7.5467	0.1367	0.9092	2078

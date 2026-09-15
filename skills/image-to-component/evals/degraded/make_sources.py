@@ -9,7 +9,8 @@ Each crop is downscaled ×0.5 (bilinear), blurred (Gaussian σ 0.6), given seede
 wrench is also written as a transparent PNG (ground below Chebyshev distance 40 cleared), the input
 shape the RubyTech set never exercised. The controller is also written ×0.6 and hard-cut the same way:
 a 32 px aliased glyph whose buttons are two pixels wide, where smoothing that acts on area erases
-detail before it removes the steps. Sources are committed rather than generated per run: JPEG
+detail before it removes the steps. The computer is also written destroyed (×0.25, JPEG 30): a source
+the source-quality check must refuse before tracing. Sources are committed rather than generated per run: JPEG
 output follows the encoder, so a pin bump would otherwise move the input under the eval.
 """
 from __future__ import annotations
@@ -26,16 +27,21 @@ OUT = os.path.join(HERE, "src")
 ASSETS = ("computer-icon", "gear-icon", "controller-icon", "wrench-icon", "rubytech-mark")
 SCALE, BLUR, NOISE, QUALITY, SEED = 0.5, 0.6, 6.0, 30, 20260915
 SMALL = 0.6
+# A rung of the severity ladder the source-quality refusal was calibrated on (references/qa-thresholds.md):
+# the computer at x0.25 (13 px across), JPEG 30. Its strokes are one noisy pixel wide, and every trace of it
+# reads as a blob.
+DESTROYED = ("computer-icon", 0.25, 0.6, 6.0, 30)
 
 
-def degrade(img: Image.Image, rng: random.Random) -> Image.Image:
+def degrade(img: Image.Image, rng: random.Random, scale: float = SCALE, blur: float = BLUR,
+            noise: float = NOISE, quality: int = QUALITY) -> Image.Image:
     img = img.convert("RGB")
-    img = img.resize((round(img.width * SCALE), round(img.height * SCALE)), Image.BILINEAR)
-    img = img.filter(ImageFilter.GaussianBlur(BLUR))
-    img.putdata([tuple(max(0, min(255, round(c + rng.gauss(0, NOISE)))) for c in px)
+    img = img.resize((round(img.width * scale), round(img.height * scale)), Image.BILINEAR)
+    img = img.filter(ImageFilter.GaussianBlur(blur))
+    img.putdata([tuple(max(0, min(255, round(c + rng.gauss(0, noise)))) for c in px)
                  for px in img.get_flattened_data()])
     buf = io.BytesIO()
-    img.save(buf, "JPEG", quality=QUALITY)
+    img.save(buf, "JPEG", quality=quality)
     buf.seek(0)
     return Image.open(buf).convert("RGB")
 
@@ -53,6 +59,9 @@ def main() -> None:
     for name in ASSETS:
         rng = random.Random(f"{SEED}:{name}")
         degrade(Image.open(os.path.join(CLEAN, f"{name}.png")), rng).save(os.path.join(OUT, f"{name}.low.png"))
+    name, scale, blur, noise, quality = DESTROYED
+    degrade(Image.open(os.path.join(CLEAN, f"{name}.png")), random.Random(f"{SEED}:{name}:destroyed"),
+            scale, blur, noise, quality).save(os.path.join(OUT, f"{name}.destroyed.png"))
     transparent(Image.open(os.path.join(CLEAN, "wrench-icon.png"))).save(os.path.join(OUT, "wrench-icon.alpha.png"))
     controller = Image.open(os.path.join(CLEAN, "controller-icon.png")).convert("RGB")
     small = controller.resize((round(controller.width * SMALL), round(controller.height * SMALL)), Image.BILINEAR)

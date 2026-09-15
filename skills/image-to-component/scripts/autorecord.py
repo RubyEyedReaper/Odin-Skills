@@ -2,7 +2,8 @@
 
 Stdlib only. `i2c.sh --auto` calls it twice over: after a winner's QA stage (the report exists and gains
 a "search" key), and when no candidate passed (there is no QA report, so a failing one is written whose
-"search" names every candidate and the nearest miss).
+"search" names every candidate and the nearest miss), and when the source was refused before the search
+(`"refused": "source-quality"`, whose reason becomes the failure).
 
     python3 -m scripts.autorecord search.json Name.qa.json
 
@@ -28,7 +29,8 @@ def main(argv: list[str] | None = None) -> int:
             with open(qa_path, encoding="utf-8") as fh:
                 report = json.load(fh)
         else:
-            report = {"pass": False, "failures": ["auto"]}
+            # A source refused before any candidate was traced names its reason; otherwise nothing passed.
+            report = {"pass": False, "failures": [search.get("refused", "auto")]}
         report["search"] = search
         with open(qa_path, "w", encoding="utf-8") as fh:
             json.dump(report, fh, indent=2)
