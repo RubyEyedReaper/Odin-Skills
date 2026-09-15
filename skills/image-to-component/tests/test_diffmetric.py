@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import unittest
 
-from ._fixtures import rgba, square
+from ._fixtures import rgba, square, upscaled_disc
 from scripts import diffmetric
 
 W = H = 20
@@ -112,6 +112,23 @@ class Compare(unittest.TestCase):
             return (0, 0, 0, round(255 * hits / 16))
         disc = rgba(96, 96, coverage)
         self.assertTrue(diffmetric.compare(disc, disc, 96, 96)["pass"])
+
+    def test_staircase_is_bounded_only_for_a_hard_source_above_scale_one(self):
+        stairs, size = upscaled_disc(6, 4, 1)
+        smooth, _ = upscaled_disc(6, 4, 3)
+        loose = {"jaggedness": 1000.0}  # the stepped render also fails jaggedness; isolate staircase
+        kept = diffmetric.compare(stairs, stairs, size, size, thresholds=loose, scale=4, source_edge="hard")
+        self.assertAlmostEqual(kept["staircase"], 1.0, places=4)
+        self.assertEqual(kept["failures"], ["staircase"])
+
+        removed = diffmetric.compare(stairs, smooth, size, size, thresholds={**loose, "iou": 0, "edge_f1": 0},
+                                     scale=4, source_edge="hard")
+        self.assertNotIn("staircase", removed["failures"])
+
+        for kwargs in ({}, {"scale": 4, "source_edge": "soft"}, {"scale": 1, "source_edge": "hard"}):
+            unbounded = diffmetric.compare(stairs, stairs, size, size, thresholds=loose, **kwargs)
+            self.assertIsNone(unbounded["staircase"], kwargs)
+            self.assertTrue(unbounded["pass"], kwargs)
 
     def test_size_mismatch_refused(self):
         with self.assertRaises(ValueError):

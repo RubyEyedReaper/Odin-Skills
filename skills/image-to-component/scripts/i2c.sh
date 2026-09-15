@@ -2,9 +2,9 @@
 # image-to-component — one raster asset in, a checked SVG and a typed React component out.
 #
 #   i2c.sh <image> --name <ComponentName> --kind icon|logo|illustration --out <dir>
-#          [--crop x,y,w,h] [--bg auto|none|#rrggbb] [--key flood|global] [--matte soft|hard] [--tolerance N] [--scale N] [--smooth R] [--colors N]
+#          [--crop x,y,w,h] [--bg auto|none|#rrggbb] [--key flood|global] [--matte soft|hard] [--tolerance N] [--scale N] [--smooth auto|R] [--sharpen R] [--colors N]
 #          [--color original|currentColor] [--allow-background] [--set key=value]...
-#          [--iou N] [--mae N] [--edge-f1 N] [--jaggedness N]
+#          [--iou N] [--mae N] [--edge-f1 N] [--jaggedness N] [--staircase N]
 #
 # Writes into <dir>: <Name>.src.png (prepared raster), <Name>.svg, <Name>.tsx,
 # <Name>.qa.json, <Name>.compare.png. Stages stop at the first failure and name it.
@@ -19,7 +19,7 @@ usage() { sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2;
 
 [ $# -ge 1 ] || usage
 src="$1"; shift
-name="" kind="" out="" crop="" bg="auto" key="flood" matte="hard" tolerance="40" scale="1" smooth="0" colors="0" color="original" allow_bg=""
+name="" kind="" out="" crop="" bg="auto" key="flood" matte="hard" tolerance="40" scale="1" smooth="auto" sharpen="0" colors="0" color="original" allow_bg=""
 trace_sets=() qa_args=()
 need() { [ $# -ge 2 ] || { echo "i2c: $1 needs a value" >&2; exit 2; }; }
 while [ $# -gt 0 ]; do
@@ -34,11 +34,12 @@ while [ $# -gt 0 ]; do
     --tolerance) need "$@"; tolerance="$2"; shift 2 ;;
     --scale) need "$@"; scale="$2"; shift 2 ;;
     --smooth) need "$@"; smooth="$2"; shift 2 ;;
+    --sharpen) need "$@"; sharpen="$2"; shift 2 ;;
     --colors) need "$@"; colors="$2"; shift 2 ;;
     --color) need "$@"; color="$2"; shift 2 ;;
     --allow-background) allow_bg="--allow-background"; shift ;;
     --set) need "$@"; trace_sets+=(--set "$2"); shift 2 ;;
-    --iou|--mae|--edge-f1|--jaggedness) need "$@"; qa_args+=("$1" "$2"); shift 2 ;;
+    --iou|--mae|--edge-f1|--jaggedness|--staircase) need "$@"; qa_args+=("$1" "$2"); shift 2 ;;
     *) echo "i2c: unknown argument $1" >&2; usage ;;
   esac
 done
@@ -57,7 +58,7 @@ trap 'find "$work" -depth -delete' EXIT
 traced="$work/traced.svg"
 
 stage prep "$src -> $prepared"
-prep_args=("$src" "$prepared" --trace-input "$work/trace.png" --colors "$colors" --smooth "$smooth" --bg "$bg" --key "$key" --matte "$matte" --tolerance "$tolerance" --scale "$scale")
+prep_args=("$src" "$prepared" --trace-input "$work/trace.png" --edge-report "$work/edge" --colors "$colors" --smooth "$smooth" --sharpen "$sharpen" --bg "$bg" --key "$key" --matte "$matte" --tolerance "$tolerance" --scale "$scale")
 [ -n "$crop" ] && prep_args+=(--crop "$crop")
 binary=() mono=()
 [ "$color" = currentColor ] && { prep_args+=(--mono); binary=(--binary); mono=(--mono); }
@@ -79,7 +80,8 @@ rc=0; i2c_stdlib svg2tsx "$out/$name.svg" --name "$name" --color "$color" --out 
 
 stage qa "render + diff"
 rc=0; i2c_py render_diff "$prepared" "$out/$name.svg" --report "$out/$name.qa.json" \
-  --sheet "$out/$name.compare.png" "${mono[@]}" "${qa_args[@]}" || rc=$?
+  --sheet "$out/$name.compare.png" --scale "$scale" --source-edge "$(cat "$work/edge")" \
+  "${mono[@]}" "${qa_args[@]}" || rc=$?
 [ "$rc" -eq 0 ] || fail qa "$rc" "$([ "$rc" -eq 1 ] && echo 1 || echo 2)"
 
 stage done "$out/$name.{svg,tsx}"

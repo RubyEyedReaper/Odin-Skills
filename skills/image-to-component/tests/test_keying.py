@@ -111,5 +111,25 @@ class SoftMatte(unittest.TestCase):
         self.assertEqual(alpha_at(out, 9, 0, 0), 0)
 
 
+class SharpenAlpha(unittest.TestCase):
+    """Unsharp masking of alpha: a + amount·(a − blurred), clamped to 0–255."""
+
+    def test_a_half_closed_hole_is_pushed_back_below_the_cut(self):
+        # A blurred hole's centre at 180 among a local mean of 230 reads as covered (≥ 128); at
+        # amount 2 it becomes 180 + 2·(180 − 230) = 80, open again.
+        self.assertEqual(keying.sharpen_alpha(bytes([180]), bytes([230]), 2.0), bytes([80]))
+
+    def test_the_result_is_clamped(self):
+        self.assertEqual(keying.sharpen_alpha(bytes([250, 10]), bytes([200, 60]), 2.0), bytes([255, 0]))
+
+    def test_flat_alpha_and_amount_zero_are_unchanged(self):
+        self.assertEqual(keying.sharpen_alpha(bytes([90, 200]), bytes([90, 200]), 2.0), bytes([90, 200]))
+        self.assertEqual(keying.sharpen_alpha(bytes([90, 200]), bytes([10, 10]), 0.0), bytes([90, 200]))
+
+    def test_mismatched_lengths_are_refused(self):
+        with self.assertRaises(ValueError):
+            keying.sharpen_alpha(bytes([1, 2]), bytes([1]), 2.0)
+
+
 if __name__ == "__main__":
     unittest.main()

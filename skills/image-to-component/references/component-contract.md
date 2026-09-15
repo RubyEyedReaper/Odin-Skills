@@ -2,6 +2,15 @@
 
 What `scripts/svg2tsx.py` emits, held by `tests/test_svg2tsx.py`.
 
+**Input is the pipeline's dialect only** (decided for #1352). `svg`, `g` and `path`, carrying `d`,
+`fill`, `fill-rule`, `fill-opacity`, `opacity`, `stroke` and `transform` (plus the root's size and
+namespace attributes, which are dropped or rewritten); `title`, `desc` and `metadata` are dropped.
+Anything else — another element, `style`, `class`, `id`, a `data-` or namespaced attribute — exits
+1 with `svg2tsx: refused: … is outside the dialect`. The standalone CLI used to transcribe arbitrary
+SVG through a style-object, namespace and text surface nothing ever fed it and no test held against
+real input. Hand-authored SVG is a component to write by hand; vtracer + SVGO output converts
+exactly as before (the RubyTech goldens regenerate byte-identical).
+
 ```tsx
 import { GearIcon } from "./icons";
 

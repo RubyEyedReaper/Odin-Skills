@@ -35,13 +35,19 @@ Start from the row that matches the asset; the refusal table below says what to 
 
 | Asset | Flags |
 |---|---|
-| Single-colour glyph, should inherit text colour | `--kind icon --key global --matte soft --color currentColor --scale 8 --smooth 3` |
-| Same, from a hard-edged pixel staircase — aliased PNG, pixel art, nearest-neighbour upscale | `--kind icon --color currentColor --scale 8 --smooth 7` (smooth ≈ 0.9 × scale; 9 starts rounding real corners) |
-| Same, from a blurred, JPEG-soft or ≤ 32 px source | `--kind icon --key global --matte soft --tolerance 25 --color currentColor --scale 8 --smooth 1.5` |
+| Single-colour glyph, should inherit text colour | `--kind icon --key global --matte soft --color currentColor --scale 8` |
+| Same, from a hard-edged pixel staircase — aliased PNG, pixel art, nearest-neighbour upscale | `--kind icon --color currentColor --scale 8` — `--smooth auto`, the default, sees the hard edge and smooths its outline; a number is a Gaussian that erases 2 px detail before the steps |
+| Same, from a blurred, JPEG-soft or ≤ 32 px source | `--kind icon --key global --matte soft --tolerance 25 --color currentColor --scale 8 --smooth 1.5 --sharpen 0.8` |
 | Multi-colour logo mark | `--kind logo --scale 2 --colors 32 --matte soft` (one integer; raise toward 48 if `mae` fails) |
+| Same, from a noisy or JPEG-soft source | `--kind logo --scale 2 --colors 64 --matte soft --set filter_speckle=7` (never `--scale 4`: upscaled noise is path detail) |
 | Illustration | `--kind illustration --colors 24 --matte soft` (raise toward 48 if `mae` fails) |
 | Dark shape inside the subject on a dark ground | keep `--key flood` (default) — only edge-connected background is keyed |
 | Transparent PNG | nothing extra — a mostly transparent border is not keyed |
+
+`--smooth auto` (the default) reads the source's alpha before upscaling. A hard edge — every
+alpha-128 crossing fully on or off — is smoothed along its own outline at σ 0.8 source px, so holes
+and 2 px features survive; a soft edge gets a Gaussian of 0.375 × `--scale`. A number overrides it
+with that Gaussian radius; the prep stage line says which route ran.
 
 `--matte soft` places the edge halfway between ground and subject instead of wherever colour first
 leaves `--tolerance`; without it a soft or glowing edge traces fat and stepped. `--matte hard` (the
@@ -56,7 +62,8 @@ Why each exists, and the vtracer numbers: [references/tracing-presets.md](refere
 | `opaque-background` | fix keying (`--bg`, `--tolerance`); `--allow-background` only if the ground is part of the design | delete the path by hand |
 | `budget-bytes` / `budget-paths` | fewer `--colors`, `--set filter_speckle=12` and up; if it still fails, the input is a layout — rebuild route | raise the budget |
 | QA `iou` / `edge_f1` | `--smooth 1.0` or lower, `--scale 6`, re-crop tighter | lower the threshold to pass |
-| QA `jaggedness` | `--matte soft`; for a glyph raise `--scale` with `--smooth` in step (8 / 3) | smooth the SVG by hand |
+| QA `jaggedness` | `--matte soft`; for a glyph raise `--scale` (8), leaving `--smooth` at `auto` | smooth the SVG by hand |
+| QA `staircase` | the source is aliased and its steps were traced: drop the numeric `--smooth` so `auto` smooths the outline | raise the bound; it only applies to a hard source |
 | QA `mae` | more `--colors`, `--set layer_difference=12` | score against the quantized raster |
 
 Thresholds and what each metric catches: [references/qa-thresholds.md](references/qa-thresholds.md).
@@ -67,7 +74,7 @@ Generated component shape and a11y contract: [references/component-contract.md](
 `evals/rubytech/run.sh` — four currentColor glyphs and a colour mark that must pass, and a full
 logo lockup (tagline in ~9px type) that **must be refused at the budget**. `evals/degraded/run.sh`
 — the same assets half-size, blurred, noisy and JPEG-soft: glyphs must pass and agree with a frozen
-clean trace, the noisy colour mark must be refused. Rerun both after any pin, preset, flag or
+clean trace, and the noisy colour mark must pass inside the logo budget. Rerun both after any pin, preset, flag or
 threshold change; commit a regeneration on its own.
 
 ## Red flags

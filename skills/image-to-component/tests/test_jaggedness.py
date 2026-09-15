@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import unittest
 
-from ._fixtures import rgba, square
+from ._fixtures import box_blur_alpha, rgba, square, upscaled_disc
 from scripts import jaggedness as jag
 
 CUT = 1 - math.sqrt(0.5)  # marching squares cuts each pixel corner: two half-edges become a diagonal
@@ -106,6 +106,44 @@ class Jaggedness(unittest.TestCase):
         # 1 px stairs: marching squares joins the edge midpoints into one straight diagonal.
         buf, extent = staircase(30, 1)
         self.assertLess(jag.jaggedness(buf, extent, extent), 0.5)
+
+
+class Staircase(unittest.TestCase):
+    """Share of a hard reference's source-pixel staircase that the render keeps.
+
+    A step `scale` px long reads as a real corner at the render-pixel strides `jaggedness` uses
+    (issue #1353), so this walks strides of one and two *source* pixels, and divides by the
+    reference's own score: what separates a kept staircase from genuine shape is not the render's
+    turning, which a small gear's teeth also have, but how much of the source's it still carries.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.stairs, cls.size = upscaled_disc(6, 6, 1)
+        cls.smooth, _ = upscaled_disc(6, 6, 3)
+
+    def test_a_render_that_is_the_staircase_keeps_all_of_it(self):
+        self.assertAlmostEqual(jag.staircase(self.stairs, self.stairs, self.size, self.size, 6), 1.0, places=6)
+
+    def test_a_smooth_render_of_a_staircase_keeps_little(self):
+        self.assertLess(jag.staircase(self.smooth, self.stairs, self.size, self.size, 6), 0.2)
+
+    def test_render_pixel_strides_miss_a_rounded_staircase_that_source_pixel_strides_keep(self):
+        # The #1353 blind spot: the steps rounded a little, as a small `--smooth` leaves them.
+        # jaggedness passes it; the staircase score still finds most of the source's steps.
+        # Measured: jaggedness 10.5, staircase 0.57; the smooth disc keeps 0.0.
+        rounded = box_blur_alpha(self.stairs, self.size, self.size, radius=2, passes=2)
+        self.assertLess(jag.jaggedness(rounded, self.size, self.size), 15)
+        self.assertGreater(jag.staircase(rounded, self.stairs, self.size, self.size, 6), 0.35)
+
+    def test_a_reference_without_a_staircase_gives_nothing_to_keep(self):
+        self.assertEqual(jag.staircase(self.smooth, self.smooth, self.size, self.size, 6), 0.0)
+        empty = rgba(16, 16, lambda x, y: (0, 0, 0, 0))
+        self.assertEqual(jag.staircase(empty, empty, 16, 16, 6), 0.0)
+
+    def test_scale_below_two_has_no_source_pixel_stride(self):
+        with self.assertRaises(ValueError):
+            jag.staircase(self.stairs, self.stairs, self.size, self.size, 1)
 
 
 if __name__ == "__main__":
