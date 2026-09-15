@@ -19,7 +19,7 @@ added later must not renumber the fields already there.
 
 | Field | Records | Why it is here |
 |---|---|---|
-| `session_id` | the id `claude agents` knows the session by | The join key. Membership of the registry's id set is one of the three signals, and without this there is nothing to look up. **Required** — see below. |
+| `session_id` | `claude agents --json`'s `.sessionId` field — the full session uuid | The join key. Membership of the registry's id set is one of the three signals, and without this there is nothing to look up. **Required** — see below. |
 | `worker` | the human-readable name passed at launch | What a report calls it. An id is not something a person can hold in their head across a fleet. |
 | `branch` | the topic branch the worker pushes to | The other two signals are both questions about this branch. A row without it can only ever be `undetermined`, and the probe says so rather than guessing. |
 | `worktree` | absolute path to the worker's checkout | Where to look when a verdict needs a human. Also what teardown removes — a spent worktree left registered keeps the concurrency guard armed against the main checkout (ADR-0054). |
@@ -47,6 +47,15 @@ inferred from a subject.
 
 A `liveness` value that is neither `branch` nor `session` classifies `undetermined` and prints the
 value. A misspelled `sessoin` quietly meaning `branch` would be that same defect one field over.
+
+**Either id form joins; write the uuid.** `claude agents --json` carries both `.sessionId` (this
+field's canonical value) and `.id` (an 8-hex short form of the same session). The probe's registry
+membership check unions both, so a row already written with the short form still joins — but a row
+that could be joined under one form and not the other is not the honest-refusal case above, and
+never reads `undetermined` for that reason alone. Four register rows keyed on `.sessionId` were
+misread `failed` before the probe unioned both fields (`harness:RM-0576`, #1187); the fix is the
+join, not the choice of field, and this doc names `.sessionId` only so a new row has one answer
+rather than two.
 
 **A `liveness=session` row still probes landedness, and `landed` still wins.** The field decides
 which channel reports *live versus stalled*; it does not decide whether content in the base counts.

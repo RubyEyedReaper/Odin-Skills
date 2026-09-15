@@ -162,9 +162,13 @@ DAEMON_DOWN=0
 
 registry_ids=""
 if [ "$DAEMON_DOWN" -eq 0 ]; then
+  # `claude agents --json` carries two id fields per session — `.id` (the 8-hex short form) and
+  # `.sessionId` (the session uuid) — and a register row may declare either (harness:RM-0576,
+  # #1187: four rows keyed on `.sessionId` all read `failed`, live and working, while the id set
+  # here read `.id` alone). Union both, exactly as `runtime-retention.sh` already does for the same
+  # registry against the same question, so a row keyed on either form joins.
   registry_ids="$($AGENTS_CMD 2>/dev/null \
-    | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]*"' \
-    | sed -E 's/.*:[[:space:]]*"([^"]*)".*/\1/' || true)"
+    | jq -r '.[]? | (.sessionId // empty), (.id // empty)' 2>/dev/null || true)"
 fi
 in_registry() { printf '%s\n' "$registry_ids" | grep -qxF "$1"; }
 
