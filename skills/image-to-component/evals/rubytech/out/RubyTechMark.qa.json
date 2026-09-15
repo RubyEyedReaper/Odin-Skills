@@ -1,0 +1,24 @@
+{
+  "iou": 0.9999,
+  "mae": 11.4717,
+  "edge_f1": 0.9011,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8
+  },
+  "failures": [],
+  "pass": true,
+  "source": "RubyTechMark.src.png",
+  "svg": "RubyTechMark.svg",
+  "size": [
+    264,
+    304
+  ],
+  "svg_bytes": 31044,
+  "scale_smoke": {
+    "24px": true,
+    "4x": true
+  },
+  "mono": false
+}

@@ -50,6 +50,7 @@ Prose CC-BY-SA-4.0, code MIT, `Copyright (c) 2026 RubyEyedReaper`.
 | `revive` | Brings a stopped fleet back with no human present — a committed manifest holding the assignment and a not-before instant, five preconditions checked in order |
 | `s2s` | Session-to-session reporting — the deliverable is a durable path, the message is a pointer to it, and an orphan's terminal is bounded on narration |
 | `status` | The four controls a human has over a running fleet — a report computed at read time, quiesce rather than freeze, a timed resume, and stop-for-handoff |
+| `image-to-component` | Raster icon, logo mark or illustration → vtracer trace → SVGO → safety and budget check → typed React component, scored by a render diff against the source; a layout or text is refused and rebuilt as markup |
 
 ## Forks
 

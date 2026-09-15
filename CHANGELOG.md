@@ -10,6 +10,12 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component`** — raster icon, logo mark or illustration to an optimized SVG and a typed
+  React component, with a render-and-diff QA stage (alpha IoU, RGB error, edge F1) and a byte/shape
+  budget that refuses layouts. Ships RubyTech evals: four `currentColor` glyphs and a colour mark that
+  must pass, and a full logo lockup that must be refused. Odin-authored, so a member by
+  [`adr/0003`](docs/adr/0003-mirror-membership-rule.md).
+
 - **Four skills from the 2026-09-11 harness campaign** — `goal` (a committed end-goal record a loop
   reads rather than re-deriving, with a falsifiable `Done when` command and no status field),
   `todo` (a facade over the two task routes the harness already accepts, adding no store of its

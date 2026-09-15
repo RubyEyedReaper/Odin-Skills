@@ -1,0 +1,24 @@
+{
+  "iou": 0.9628,
+  "mae": 0.0,
+  "edge_f1": 0.9799,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8
+  },
+  "failures": [],
+  "pass": true,
+  "source": "GearIcon.src.png",
+  "svg": "GearIcon.svg",
+  "size": [
+    152,
+    152
+  ],
+  "svg_bytes": 2577,
+  "scale_smoke": {
+    "24px": true,
+    "4x": true
+  },
+  "mono": true
+}

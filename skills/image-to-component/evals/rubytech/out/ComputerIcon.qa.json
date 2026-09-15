@@ -1,0 +1,24 @@
+{
+  "iou": 0.9668,
+  "mae": 0.0,
+  "edge_f1": 0.9934,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8
+  },
+  "failures": [],
+  "pass": true,
+  "source": "ComputerIcon.src.png",
+  "svg": "ComputerIcon.svg",
+  "size": [
+    160,
+    144
+  ],
+  "svg_bytes": 2351,
+  "scale_smoke": {
+    "24px": true,
+    "4x": true
+  },
+  "mono": true
+}
