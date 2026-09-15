@@ -17,7 +17,7 @@ import { GearIcon } from "./icons";
 | Accessible when labelled | `title` → `<title id>` via `useId()` + `aria-labelledby`; `title`, `aria-label` or `aria-labelledby` → `role="img"` |
 | Silent when decorative | no label → `aria-hidden`, `focusable="false"` |
 | Caller wins | `{...props}` spread after every default |
-| Themeable | `--color currentColor`: every paint except `none`/`transparent` becomes `currentColor` |
+| Themeable | `--color currentColor`: the root gets `fill="currentColor"` (a binary trace carries no paint of its own), and every paint except `none`/`transparent` becomes `currentColor` |
 | Safe | `<script>`, `<image>`, `<foreignObject>`, `<use>`, `<iframe>` and `on*` attributes refuse conversion (exit 1) |
 | Clean | source `<title>`, `<desc>`, `<metadata>`, comments and XML prolog dropped |
 | JSX-correct | hyphenated attributes camel-cased, `class` → `className`, `style` string → object, values with quotes or braces emitted as expressions |

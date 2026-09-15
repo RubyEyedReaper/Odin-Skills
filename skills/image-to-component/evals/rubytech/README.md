@@ -25,15 +25,8 @@ Committed goldens in `out/`: `*.svg`, `*.tsx`, `*.qa.json`, `index.ts`. The PNGs
 beside them (prepared reference, compare sheet) are ignored — regenerate and read
 `<Name>.compare.png` when a score moves.
 
-Scores at the pins in `scripts/toolchain.sh`:
-
-| Asset | iou | mae | edge_f1 | bytes |
-|---|---|---|---|---|
-| ComputerIcon | 0.967 | 0 (mono) | 0.993 | see `out/ComputerIcon.qa.json` |
-| GearIcon | 0.963 | 0 (mono) | 0.980 | |
-| ControllerIcon | 0.971 | 0 (mono) | 0.982 | |
-| WrenchIcon | 0.973 | 0 (mono) | 0.992 | |
-| RubyTechMark | 1.000 | 11.47 | 0.901 | 31 044 |
+Scores at the pins in `scripts/toolchain.sh` live in `out/<Name>.qa.json` — read them there; a copy
+here drifts.
 
 The mark's `mae` sits close to the 12 bound on purpose: the source is a rendered gem with facet
 gradients, and 32 flat colours is the fewest that clear it inside the logo budget.

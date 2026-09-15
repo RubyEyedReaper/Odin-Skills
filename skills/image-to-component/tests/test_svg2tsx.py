@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from ._fixtures import TRACED_SVG
+from ._fixtures import GLYPH_SVG, TRACED_SVG
 from scripts import svg2tsx
 
 
@@ -75,6 +75,17 @@ class CurrentColor(unittest.TestCase):
         self.assertIn('fill="currentColor"', tsx)
         self.assertIn('stroke="none"', tsx)
         self.assertNotIn("#fff", tsx)
+
+    def test_fill_less_glyph_inherits_text_colour(self):
+        # The incident: every shipped currentColor glyph had no fill, so it rendered black.
+        tsx = svg2tsx.convert(GLYPH_SVG, "WrenchIcon", color_mode="currentColor")
+        root = tsx[tsx.index("<svg"): tsx.index(">", tsx.index("{...props}"))]
+        self.assertIn('fill="currentColor"', root)
+        self.assertLess(root.index('fill="currentColor"'), root.index("{...props}"))
+
+    def test_original_mode_adds_no_root_paint(self):
+        tsx = svg2tsx.convert(GLYPH_SVG, "WrenchIcon")
+        self.assertNotIn("fill=", tsx)
 
     def test_original_mode_leaves_paint(self):
         svg = '<svg viewBox="0 0 8 8"><path d="M0 0h8" fill="#fff"/></svg>'

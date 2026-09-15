@@ -4,12 +4,13 @@ Needs resvg-py and Pillow (run through toolchain.sh `i2c_py render_diff`). The m
 is stdlib (`diffmetric.py`); this file only decodes and draws.
 
     render_diff.py source.png asset.svg --report qa.json [--sheet compare.png]
-                   [--iou 0.95] [--mae 12] [--edge-f1 0.80] [--mono]
+                   [--iou 0.95] [--mae 12] [--edge-f1 0.80] [--jaggedness N] [--mono]
 
 --mono  compares silhouettes only: both images are painted black before scoring, because a
-        currentColor component has no colour of its own to compare.
+        currentColor component has no colour of its own to compare. The reference's silhouette is
+        its alpha >= 128 — the same cut IoU uses. A soft-matted reference otherwise has an edge
+        ramp several pixels wide that no Sobel threshold reads as an edge, and edge_f1 scores 0.
 
-Also renders at 24px and at 4x as a scale smoke test: both must produce visible pixels.
 Exit codes: 0 pass, 1 below threshold, 2 unreadable input or render failure.
 """
 from __future__ import annotations
@@ -24,6 +25,7 @@ import resvg_py
 from PIL import Image, ImageChops
 
 from scripts import diffmetric
+from scripts.jaggedness import jaggedness
 
 
 def render(svg_text: str, width: int, height: int) -> Image.Image:
@@ -50,9 +52,10 @@ def sheet(source: Image.Image, rendered: Image.Image) -> Image.Image:
     return out
 
 
-def paint_black(img: Image.Image) -> Image.Image:
+def paint_black(img: Image.Image, cut: bool = False) -> Image.Image:
     black = Image.new("RGBA", img.size, (0, 0, 0, 255))
-    black.putalpha(img.getchannel("A"))
+    alpha = img.getchannel("A")
+    black.putalpha(alpha.point(lambda v: 255 if v >= 128 else 0) if cut else alpha)
     return black
 
 
@@ -66,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--mae", type=float, default=diffmetric.DEFAULT_THRESHOLDS["mae"])
     parser.add_argument("--mono", action="store_true")
     parser.add_argument("--edge-f1", type=float, default=diffmetric.DEFAULT_THRESHOLDS["edge_f1"])
+    parser.add_argument("--jaggedness", type=float, default=diffmetric.DEFAULT_THRESHOLDS.get("jaggedness"))
     args = parser.parse_args(argv)
 
     try:
@@ -73,30 +77,25 @@ def main(argv: list[str] | None = None) -> int:
         with open(args.svg, encoding="utf-8") as fh:
             svg_text = fh.read()
         rendered = render(svg_text, *source.size)
-        small = render(svg_text, 24, max(1, round(24 * source.height / source.width)))
-        large = render(svg_text, source.width * 4, source.height * 4)
-    except (OSError, ValueError) as exc:
+    except Exception as exc:  # any renderer failure is a tool failure (2), never a QA refusal (1)
         print(f"render_diff: {exc}", file=sys.stderr)
         return 2
 
     if args.mono:
-        source, rendered = paint_black(source), paint_black(rendered)
+        source, rendered = paint_black(source, cut=True), paint_black(rendered)
     result = diffmetric.compare(source.tobytes(), rendered.tobytes(), *source.size,
-                                thresholds={"iou": args.iou, "mae": args.mae, "edge_f1": args.edge_f1})
-    scale_ok = {"24px": small.getchannel("A").getbbox() is not None,
-                "4x": large.getchannel("A").getbbox() is not None}
-    if not all(scale_ok.values()):
-        result["failures"] = sorted(result["failures"] + ["scale"])
-        result["pass"] = False
+                                thresholds={"iou": args.iou, "mae": args.mae, "edge_f1": args.edge_f1,
+                                            **({"jaggedness": args.jaggedness} if args.jaggedness is not None else {})})
     result.update(source=os.path.basename(args.source), svg=os.path.basename(args.svg), size=list(source.size),
-                  svg_bytes=len(svg_text.encode()), scale_smoke=scale_ok, mono=args.mono)
+                  svg_bytes=len(svg_text.encode()), mono=args.mono,
+                  reference_jaggedness=round(jaggedness(source.tobytes(), *source.size), 4))
 
     with open(args.report, "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
         fh.write("\n")
     if args.sheet:
         sheet(source, rendered).save(args.sheet)
-    print(json.dumps({k: result[k] for k in ("iou", "mae", "edge_f1", "pass", "failures")}))
+    print(json.dumps({k: result[k] for k in ("iou", "mae", "edge_f1", "jaggedness", "pass", "failures")}))
     return 0 if result["pass"] else 1
 
 

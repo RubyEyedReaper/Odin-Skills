@@ -1,0 +1,28 @@
+import { useId, type SVGProps } from "react";
+
+export interface WrenchIconProps extends SVGProps<SVGSVGElement> {
+  /** Accessible name. Omit for decorative use; the icon is then aria-hidden. */
+  title?: string;
+}
+
+export function WrenchIcon({ title, ...props }: WrenchIconProps) {
+  const titleId = useId();
+  const labelled = Boolean(title || props["aria-label"] || props["aria-labelledby"]);
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 184 184"
+      fill="currentColor"
+      role={labelled ? "img" : undefined}
+      aria-hidden={labelled ? undefined : true}
+      aria-labelledby={title ? titleId : undefined}
+      focusable="false"
+      {...props}
+    >
+      {title ? <title id={titleId}>{title}</title> : null}
+      <path d="m123.63 29.19 2.84.17c2.53.64 2.53.64 4.37 2.43 2.01 3.83 1.22 7.14.16 11.2a40 40 0 0 1-10.06 14.2c-.94 1.8-.94 1.8-.38 4.69 1.58 3.42 3.38 5.69 5.94 8.43l2.4 2.62c2.34 2.3 3.4 2.95 6.6 3.5 6.28-.78 11.72-4.35 15.81-9.12l1.7-2.31c2.5-1.94 2.5-1.94 5-3 2.74.87 3.94 1.96 6 4-.33 10-3.12 20.5-10 28a97 97 0 0 1-9.2 6.38l-2.47 1.6c-7.8 5.05-7.8 5.05-10.63 4.92-10.29-.3-15.6 5.1-22.89 11.54-2.64 2.27-5.43 4.26-8.25 6.3A154 154 0 0 0 85.5 138.2c-.35.33-.35.33-2.05 2.02a67 67 0 0 0-8.06 9.5c-3.87 5.65-10.12 9.93-16.65 12-5.89.49-10.47-3.12-14.75-6.71-5.1-4.83-6.1-9.47-6.5-16.31.03-4.43.66-6.52 3.69-9.75l1.95-1.9c2.06-2.26 3.11-4.37 4.36-7.16 2.31-4.97 5.2-7.61 9.5-10.88a36 36 0 0 0 7.31-8.81 35 35 0 0 1 6.56-8c3.98-3.81 6.76-7.95 9.6-12.67C82 77 82 77 84.37 74.12c1.8-3.46 1.82-5.38 1.94-9.24.57-11.7 8.88-22.36 17.2-30.25 6.38-4.15 12.56-6 20.11-5.44M57 136.99c-2 2-2 2-2.13 5.14L55 145c1.94.57 1.94.57 4 1 1-1 1-1 1.06-4.56l-.05-3.44z" />
+    </svg>
+  );
+}
+
+export default WrenchIcon;

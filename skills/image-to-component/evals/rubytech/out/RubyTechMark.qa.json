@@ -1,11 +1,13 @@
 {
-  "iou": 0.9999,
-  "mae": 11.4717,
-  "edge_f1": 0.9011,
+  "iou": 0.9866,
+  "mae": 11.3102,
+  "edge_f1": 0.9336,
+  "jaggedness": 12.3582,
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
-    "edge_f1": 0.8
+    "edge_f1": 0.8,
+    "jaggedness": 15.0
   },
   "failures": [],
   "pass": true,
@@ -13,12 +15,9 @@
   "svg": "RubyTechMark.svg",
   "size": [
     264,
-    304
+    314
   ],
-  "svg_bytes": 31044,
-  "scale_smoke": {
-    "24px": true,
-    "4x": true
-  },
-  "mono": false
+  "svg_bytes": 31959,
+  "mono": false,
+  "reference_jaggedness": 12.6973
 }

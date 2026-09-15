@@ -8,12 +8,17 @@ Three numbers, each catching a different failure:
   iou      alpha silhouette overlap        — missing or extra shapes, lost transparency
   mae      mean abs RGB error, visible px  — wrong colours, merged colour regions
   edge_f1  Sobel edge agreement ±tolerance — jagged curves, lost detail, drifted outlines
+
+and one about the render alone, which the three above cannot see (`jaggedness.py`):
+  jaggedness  outline zig-zag finer than the shape — pixel staircases, tracer wobble
 """
 from __future__ import annotations
 
+from .jaggedness import jaggedness
+
 ALPHA_VISIBLE = 128
 EDGE_THRESHOLD = 96.0
-DEFAULT_THRESHOLDS = {"iou": 0.95, "mae": 12.0, "edge_f1": 0.80}
+DEFAULT_THRESHOLDS = {"iou": 0.95, "mae": 12.0, "edge_f1": 0.80, "jaggedness": 15.0}
 
 
 def _check_sizes(a: bytes, b: bytes, width: int, height: int) -> None:
@@ -95,9 +100,9 @@ def compare(source: bytes, rendered: bytes, width: int, height: int,
         "iou": alpha_iou(source, rendered),
         "mae": mae_rgb(source, rendered),
         "edge_f1": edge_f1(source, rendered, width, height, tolerance),
+        "jaggedness": jaggedness(rendered, width, height),
     }
     failures = [k for k in ("iou", "edge_f1") if scores[k] < limits[k]]
-    if scores["mae"] > limits["mae"]:
-        failures.append("mae")
+    failures += [k for k in ("mae", "jaggedness") if k in limits and scores[k] > limits[k]]
     return {**{k: round(v, 4) for k, v in scores.items()}, "thresholds": limits,
             "failures": sorted(failures), "pass": not failures}

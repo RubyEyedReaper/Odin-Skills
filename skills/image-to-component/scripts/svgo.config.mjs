@@ -14,7 +14,6 @@ export default {
       },
     },
     "removeDimensions",
-    "removeXMLNS",
     { name: "removeAttrs", params: { attrs: ["data-name", "class"] } },
   ],
 };

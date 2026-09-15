@@ -1,24 +1,23 @@
 {
-  "iou": 0.9733,
+  "iou": 0.9817,
   "mae": 0.0,
-  "edge_f1": 0.9921,
+  "edge_f1": 0.9981,
+  "jaggedness": 2.4965,
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
-    "edge_f1": 0.8
+    "edge_f1": 0.8,
+    "jaggedness": 15.0
   },
   "failures": [],
   "pass": true,
   "source": "WrenchIcon.src.png",
   "svg": "WrenchIcon.svg",
   "size": [
-    152,
-    152
+    368,
+    368
   ],
-  "svg_bytes": 1583,
-  "scale_smoke": {
-    "24px": true,
-    "4x": true
-  },
-  "mono": true
+  "svg_bytes": 1728,
+  "mono": true,
+  "reference_jaggedness": 16.9949
 }

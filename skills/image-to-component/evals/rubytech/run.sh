@@ -25,13 +25,13 @@ expect() {  # expect <rc> <label> -- <i2c args...>
   fi
 }
 
-glyph=(--kind icon --key global --scale 4 --smooth 1.5 --color currentColor --out "$out")
+glyph=(--kind icon --key global --matte soft --scale 8 --smooth 3 --color currentColor --out "$out")
 expect 0 computer-icon   -- "$here/src/computer-icon.png"   --name ComputerIcon   "${glyph[@]}"
 expect 0 gear-icon       -- "$here/src/gear-icon.png"       --name GearIcon       "${glyph[@]}"
 expect 0 controller-icon -- "$here/src/controller-icon.png" --name ControllerIcon "${glyph[@]}"
 expect 0 wrench-icon     -- "$here/src/wrench-icon.png"     --name WrenchIcon     "${glyph[@]}"
 
-brand=(--kind logo --scale 2 --colors 32 --set filter_speckle=12 --set layer_difference=12)
+brand=(--kind logo --scale 2 --colors 32 --matte soft --set filter_speckle=12 --set layer_difference=12)
 expect 0 rubytech-mark -- "$here/src/rubytech-mark.png" --name RubyTechMark "${brand[@]}" --out "$out"
 
 # The full lockup carries a tagline in ~9px type. Tracing it is the wrong route, and the budget
@@ -42,5 +42,14 @@ grep -q "budget-" "$out/.rubytech-lockup-refused.log" || { echo "FAIL  lockup re
 find "$refused" -depth -delete
 
 bash "$skill/scripts/typecheck.sh" "$out" || { echo "FAIL  typecheck"; failed=1; }
+
+# Exit codes cannot see these, and both once shipped: a standalone .svg with no namespace renders
+# nowhere but inline, and a currentColor glyph with no fill renders black whatever the text colour.
+for svg in "$out"/*.svg; do
+  head -c 200 "$svg" | grep -q 'xmlns="http://www.w3.org/2000/svg"' || { echo "FAIL  $(basename "$svg") has no xmlns"; failed=1; }
+done
+for icon in ComputerIcon GearIcon ControllerIcon WrenchIcon; do
+  grep -q 'fill="currentColor"' "$out/$icon.tsx" || { echo "FAIL  $icon.tsx does not inherit colour"; failed=1; }
+done
 [ "$failed" -eq 0 ] && find "$out" -maxdepth 1 -name '.*.log' -delete
 exit "$failed"

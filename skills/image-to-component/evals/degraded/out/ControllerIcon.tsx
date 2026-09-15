@@ -1,0 +1,28 @@
+import { useId, type SVGProps } from "react";
+
+export interface ControllerIconProps extends SVGProps<SVGSVGElement> {
+  /** Accessible name. Omit for decorative use; the icon is then aria-hidden. */
+  title?: string;
+}
+
+export function ControllerIcon({ title, ...props }: ControllerIconProps) {
+  const titleId = useId();
+  const labelled = Boolean(title || props["aria-label"] || props["aria-labelledby"]);
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 216 168"
+      fill="currentColor"
+      role={labelled ? "img" : undefined}
+      aria-hidden={labelled ? undefined : true}
+      aria-labelledby={title ? titleId : undefined}
+      focusable="false"
+      {...props}
+    >
+      {title ? <title id={titleId}>{title}</title> : null}
+      <path d="m145.5 25.69 1.98.8C159.98 31.82 167.4 40.8 173 53c5.67 14.77 7.36 30.62 7.38 46.32v3.38c-.22 16.55-.22 16.55-3.69 21-5.33 4.69-10.67 4.6-17.45 4.53-8.02-.53-14.63-2.34-20.24-8.22l-1.75-2.87c-6.1-8.47-16.3-12.83-26.32-14.7-27.92-3.03-27.92-3.03-38.83 3.87a31 31 0 0 0-8.33 9.94c-3.45 5.9-6.45 8.17-13.04 10.1q-1.34.34-2.73.66l-2.17.53c-5.11.92-10.03.38-14.83-1.53-4.29-3.85-5.7-8.5-6.19-14.18-.16-6.01.69-11.78 1.63-17.7.46-3.1.74-6.18.96-9.3 1.22-16.68 1.22-16.68 5.44-24.48a25 25 0 0 0 2.22-7.4C36.64 43.89 39.87 36.06 47 30c2.59-1.53 5.09-2.3 8-3l2.18-.65c7.34-1.8 14.52-1.24 21.99-.81 36.92 2.1 36.92 2.1 47.08-2.16 6.71-2.46 12.85-.33 19.25 2.3M69 46.99c-4 5.27-4 5.27-4 8l-2.31.82C58.66 57.59 58.66 57.59 57 60c-1.33 6.34-1.33 6.34 0 9 2.34-.2 2.34-.2 5-1 1.48-2.25 1.48-2.25 2.62-5 1.17-2.75 1.17-2.75 2.38-5 3.64-1.21 4.64-.6 8 1 1 1 1 1 1.25 4.25-.27 4.07-.66 5.66-3.25 8.75a62 62 0 0 1-3.62 2.13C66 76 66 76 65 79c.96 3.03 1.74 4.74 4 7 5.05-.2 7.33-1.71 10.75-5.31l2.3-2.36c2.71-3.23 3.91-5.22 4.07-9.45-.82-4.7-4.04-7.84-7.05-11.37a56 56 0 0 1-5.96-9.11L72 47z" />
+    </svg>
+  );
+}
+
+export default ControllerIcon;

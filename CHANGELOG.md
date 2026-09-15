@@ -10,6 +10,11 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component` quality pass** — soft-matte keying, a jaggedness QA metric, a degraded-source
+  eval (half-size, blurred, noisy, JPEG-soft crops scored against the clean golden), smoothing guidance
+  for hard pixel staircases, and fixes for `currentColor` glyphs rendering black and SVGs missing
+  `xmlns`.
+
 - **`image-to-component`** — raster icon, logo mark or illustration to an optimized SVG and a typed
   React component, with a render-and-diff QA stage (alpha IoU, RGB error, edge F1) and a byte/shape
   budget that refuses layouts. Ships RubyTech evals: four `currentColor` glyphs and a colour mark that

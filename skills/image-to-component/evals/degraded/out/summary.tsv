@@ -1,0 +1,7 @@
+asset	exit	iou	mae	edge_f1	jaggedness	agreement_iou	svg_bytes
+computer-icon.low	0	0.9535	0.0	0.999	3.2424	0.688	2296
+gear-icon.low	0	0.9738	0.0	0.9945	2.1619	0.7299	1679
+controller-icon.low	0	0.9793	0.0	1.0	2.8767	0.8132	1152
+wrench-icon.low	0	0.9729	0.0	0.9996	1.9192	0.8375	1018
+rubytech-mark.low	1	-	-	-	-	-	-
+wrench-icon.alpha	0	0.9614	0.0	0.9014	7.5467	0.9092	2078

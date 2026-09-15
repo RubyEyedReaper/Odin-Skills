@@ -1,0 +1,23 @@
+{
+  "iou": 0.9793,
+  "mae": 0.0,
+  "edge_f1": 1.0,
+  "jaggedness": 2.8767,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8,
+    "jaggedness": 15.0
+  },
+  "failures": [],
+  "pass": true,
+  "source": "ControllerIcon.src.png",
+  "svg": "ControllerIcon.svg",
+  "size": [
+    216,
+    168
+  ],
+  "svg_bytes": 1152,
+  "mono": true,
+  "reference_jaggedness": 8.95
+}

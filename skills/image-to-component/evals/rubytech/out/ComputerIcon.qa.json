@@ -1,24 +1,23 @@
 {
-  "iou": 0.9668,
+  "iou": 0.9626,
   "mae": 0.0,
-  "edge_f1": 0.9934,
+  "edge_f1": 0.9899,
+  "jaggedness": 2.3638,
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
-    "edge_f1": 0.8
+    "edge_f1": 0.8,
+    "jaggedness": 15.0
   },
   "failures": [],
   "pass": true,
   "source": "ComputerIcon.src.png",
   "svg": "ComputerIcon.svg",
   "size": [
-    160,
-    144
+    416,
+    328
   ],
-  "svg_bytes": 2351,
-  "scale_smoke": {
-    "24px": true,
-    "4x": true
-  },
-  "mono": true
+  "svg_bytes": 3141,
+  "mono": true,
+  "reference_jaggedness": 11.1228
 }

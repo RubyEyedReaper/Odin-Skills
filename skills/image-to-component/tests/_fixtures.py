@@ -12,7 +12,8 @@ import sys
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SKILL_DIR)
 
-# The shape vtracer + svgo actually emit: a sized root, grouped coloured paths.
+# A general traced-SVG shape: a sized root, grouped coloured paths, a prolog. Broader than the
+# pipeline's real output, which is GLYPH_SVG below.
 TRACED_SVG = """<?xml version="1.0" encoding="UTF-8"?>
 <!-- Generator: visioncortex VTracer -->
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="64" height="48">
@@ -21,6 +22,10 @@ TRACED_SVG = """<?xml version="1.0" encoding="UTF-8"?>
   <g opacity="0.5"><path d="M20 20h8v8h-8z" fill="rgb(36,200,255)" stroke-width="2" stroke="#000"/></g>
 </svg>
 """
+
+# Verbatim shape of a --color currentColor golden (evals/rubytech/out/*Icon.svg, path shortened):
+# vtracer binary mode + SVGO leave no paint at all — no fill attribute anywhere.
+GLYPH_SVG = '<svg viewBox="0 0 152 152"><path d="M100 7.81q1.96 0 3.97-.04h3.78z"/></svg>'
 
 
 def rgba(width: int, height: int, fn) -> bytes:

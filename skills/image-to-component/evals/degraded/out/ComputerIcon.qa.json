@@ -1,0 +1,23 @@
+{
+  "iou": 0.9535,
+  "mae": 0.0,
+  "edge_f1": 0.999,
+  "jaggedness": 3.2424,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8,
+    "jaggedness": 15.0
+  },
+  "failures": [],
+  "pass": true,
+  "source": "ComputerIcon.src.png",
+  "svg": "ComputerIcon.svg",
+  "size": [
+    208,
+    176
+  ],
+  "svg_bytes": 2296,
+  "mono": true,
+  "reference_jaggedness": 10.185
+}

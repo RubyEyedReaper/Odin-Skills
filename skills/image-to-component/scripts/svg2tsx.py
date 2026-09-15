@@ -150,6 +150,9 @@ def convert(svg_text: str, name: str, color_mode: str = "original") -> str:
     component = component_name(name)
 
     root_attrs = [f'xmlns="{SVG_NS}"', f'viewBox="{view_box}"']
+    # A binary trace carries no paint at all; without a root fill it renders SVG's default black.
+    if color_mode == "currentColor" and root.get("fill") is None:
+        root_attrs.append('fill="currentColor"')
     root_attrs += _attrs(root, color_mode, ROOT_DROPPED_ATTRS | {"viewBox", "xmlns"})
     root_attrs += [
         'role={labelled ? "img" : undefined}',

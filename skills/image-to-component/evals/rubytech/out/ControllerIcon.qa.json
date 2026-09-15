@@ -1,24 +1,23 @@
 {
-  "iou": 0.9711,
+  "iou": 0.9839,
   "mae": 0.0,
-  "edge_f1": 0.9815,
+  "edge_f1": 1.0,
+  "jaggedness": 2.3778,
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
-    "edge_f1": 0.8
+    "edge_f1": 0.8,
+    "jaggedness": 15.0
   },
   "failures": [],
   "pass": true,
   "source": "ControllerIcon.src.png",
   "svg": "ControllerIcon.svg",
   "size": [
-    176,
-    124
+    432,
+    336
   ],
-  "svg_bytes": 2133,
-  "scale_smoke": {
-    "24px": true,
-    "4x": true
-  },
-  "mono": true
+  "svg_bytes": 2960,
+  "mono": true,
+  "reference_jaggedness": 14.4883
 }

@@ -1,0 +1,23 @@
+{
+  "iou": 0.9729,
+  "mae": 0.0,
+  "edge_f1": 0.9996,
+  "jaggedness": 1.9192,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8,
+    "jaggedness": 15.0
+  },
+  "failures": [],
+  "pass": true,
+  "source": "WrenchIcon.src.png",
+  "svg": "WrenchIcon.svg",
+  "size": [
+    184,
+    184
+  ],
+  "svg_bytes": 1018,
+  "mono": true,
+  "reference_jaggedness": 6.8205
+}

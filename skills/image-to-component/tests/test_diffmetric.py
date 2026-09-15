@@ -78,6 +78,41 @@ class Compare(unittest.TestCase):
         self.assertNotIn("iou", diffmetric.compare(a, b, W, H, thresholds={"iou": 0.6})["failures"])
         self.assertIn("iou", diffmetric.compare(a, b, W, H, thresholds={"iou": 0.61})["failures"])
 
+    def test_jaggedness_of_the_render_is_reported_and_bounded(self):
+        # A convex square has none (tests/test_jaggedness.py derives why), so a limit of 0.5 holds;
+        # a staircase render fails it by name while IoU and edge-F1 stay out of the failures.
+        a = square(40, 40, 10, 10, 20)
+        ok = diffmetric.compare(a, a, 40, 40, thresholds={"jaggedness": 0.5})
+        self.assertEqual(ok["jaggedness"], 0.0)
+        self.assertTrue(ok["pass"])
+
+        def stairs(x, y):
+            inside = 4 <= x < 36 and 4 <= y < 36 and (x - 4) // 4 >= (y - 4) // 4
+            return (0, 0, 0, 255) if inside else (0, 0, 0, 0)
+        jagged = rgba(40, 40, stairs)
+        bad = diffmetric.compare(jagged, jagged, 40, 40, thresholds={"jaggedness": 0.5})
+        self.assertEqual(bad["failures"], ["jaggedness"])
+
+    def test_default_limit_refuses_a_stepped_diamond(self):
+        # |i|+|j| <= 4 in 8 px blocks: four staircases of four stairs, 16 concave right angles, so
+        # 16π of excess turning at 3 px and ~none at 12 px. Orthogonally convex, so the perimeter is
+        # 2·(72+72) = 288, less 36 cut corners of 0.29 = 277.5. Scaled by the 96√2 diagonal:
+        # 16π·135.8/277.5 ≈ 24.6 — well over the default 15.
+        def diamond(x, y):
+            return (0, 0, 0, 255) if abs((x - 48) // 8) + abs((y - 48) // 8) <= 4 else (0, 0, 0, 0)
+        buf = rgba(96, 96, diamond)
+        result = diffmetric.compare(buf, buf, 96, 96)
+        self.assertAlmostEqual(result["jaggedness"], 24.6, delta=0.15 * 24.6)
+        self.assertIn("jaggedness", result["failures"])
+
+    def test_default_limit_passes_an_anti_aliased_disc(self):
+        def coverage(x, y):
+            hits = sum((x + (i + 0.5) / 4 - 48) ** 2 + (y + (j + 0.5) / 4 - 48) ** 2 <= 36 ** 2
+                       for i in range(4) for j in range(4))
+            return (0, 0, 0, round(255 * hits / 16))
+        disc = rgba(96, 96, coverage)
+        self.assertTrue(diffmetric.compare(disc, disc, 96, 96)["pass"])
+
     def test_size_mismatch_refused(self):
         with self.assertRaises(ValueError):
             diffmetric.compare(b"\0" * 4, b"\0" * 8, 1, 1)

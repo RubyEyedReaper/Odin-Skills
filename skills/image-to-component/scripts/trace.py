@@ -12,18 +12,12 @@ from __future__ import annotations
 import argparse
 import sys
 
-import vtracer
-
+BASE = dict(colormode="color", hierarchical="stacked", mode="spline", corner_threshold=60,
+            length_threshold=4.0, splice_threshold=45, path_precision=2)
 PRESETS = {
-    "icon": dict(colormode="color", hierarchical="stacked", mode="spline", filter_speckle=6,
-                 color_precision=5, layer_difference=32, corner_threshold=60,
-                 length_threshold=4.0, splice_threshold=45, path_precision=2),
-    "logo": dict(colormode="color", hierarchical="stacked", mode="spline", filter_speckle=4,
-                 color_precision=6, layer_difference=20, corner_threshold=60,
-                 length_threshold=4.0, splice_threshold=45, path_precision=2),
-    "illustration": dict(colormode="color", hierarchical="stacked", mode="spline", filter_speckle=8,
-                         color_precision=6, layer_difference=24, corner_threshold=60,
-                         length_threshold=4.0, splice_threshold=45, path_precision=2),
+    "icon": dict(BASE, filter_speckle=6, color_precision=5, layer_difference=32),
+    "logo": dict(BASE, filter_speckle=4, color_precision=6, layer_difference=20),
+    "illustration": dict(BASE, filter_speckle=8, color_precision=6, layer_difference=24),
 }
 INT_KEYS = {"filter_speckle", "color_precision", "layer_difference", "corner_threshold",
             "splice_threshold", "path_precision", "max_iterations"}
@@ -47,6 +41,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--binary", action="store_true", help="single-colour trace, for currentColor icons")
     parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
     args = parser.parse_args(argv)
+    import vtracer  # toolchain-only; keeps options() testable on system python3
+
     try:
         vtracer.convert_image_to_svg_py(args.src, args.dst, **options(args.kind, args.binary, args.set))
     except (OSError, ValueError, RuntimeError) as exc:
