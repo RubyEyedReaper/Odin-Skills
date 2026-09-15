@@ -64,8 +64,10 @@ bash .claude/skills/successor-manager/scripts/orchestrate.sh --json   # one docu
 
 `fleet-health.sh` runs **first** and its exit code gates everything after it — `2` means every
 session is dead whatever a later probe reports, and `3` means **no verdict may be claimed for
-anything**, so the run stops there rather than printing rows nobody may act on. It composes existing
-probes and computes nothing of its own.
+anything**, so the run stops there rather than printing rows nobody may act on. `4` (a single STALE
+session, DEC-0152) does not gate at all — it folds into the same findings tier as `1` through
+`oc_worst`, so a caller reading only `0`/`1`/`2`/`3`/`64` already handles it (harness:RM-0639). It
+composes existing probes and computes nothing of its own.
 
 ### The tier a launch chooses by saying nothing
 
@@ -107,7 +109,7 @@ digraph verdict {
 
   health -> down     [label="2"];
   health -> blind    [label="3"];
-  health -> movement [label="0"];
+  health -> movement [label="0, 4"];
   movement -> content;
   content -> verdict;
 }
@@ -116,7 +118,9 @@ digraph verdict {
 1. **`bash .claude/scripts/fleet-health.sh` first**, because the other two channels cannot report
    their own absence. Its exit code **gates** everything after it: `2` means the daemon is gone and
    every session is dead regardless of what the registry says; `3` means the registry is unreadable
-   and **no verdict may be claimed for anything**.
+   and **no verdict may be claimed for anything**. `4` does not gate at all — at least one STALE session
+   (DEC-0152) still lets branch movement and landedness run; the finding layers on top, never a
+   fourth blocking state here.
 2. **Branch movement** — `git ls-remote --heads origin <branch>` for the published sha, and the
    tip's own commit date against a staleness window.
 3. **Landedness by content** — `bl_classify` from `.claude/scripts/lib/branch-landedness.sh`.
@@ -207,7 +211,10 @@ bash .claude/skills/successor-manager/scripts/successor-status.sh --session <id>
 
 Exit codes are the interface, so a caller greps nothing: `0` every row live or landed, `1` findings,
 `2` daemon down, `3` a register could not be read, `64` usage. `2` and `3` are forwarded from
-`fleet-health.sh` unchanged, so a caller that already handles the fleet monitor handles this too.
+`fleet-health.sh` unchanged; `4` (at least one STALE session, DEC-0152) is forwarded too, but never as
+`4` itself — it is folded into `FLEET_STALE`, which forces exit `1` even over otherwise-clean rows
+and never flips a row to `failed` (harness:RM-0639). A caller that already handles the fleet monitor
+handles this too.
 
 **It reads only.** No fetch, no write, and it never consumes the state it inspects. Its matrix is
 `.claude/tests/successor-status.test.sh`.
