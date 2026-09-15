@@ -12,6 +12,10 @@
 #      together at 2026-08-19T00:22Z went on rendering as ordinary for eight hours (M-0014,
 #      ADR-0072). Exit 2 from the health gate means every session is dead whatever the registry
 #      says. Exit 3 means the registry is unreadable and no verdict may be claimed for anything.
+#      Exit 4 (DEC-0152) names ONE stale session — the daemon is up, the registry read fine — so it
+#      never flips a row to failed the way 2 does; it forces exit 1 even over otherwise-clean rows,
+#      because a daemon actively flagging a problem is not "healthy" merely because this register's
+#      own rows compute clean (harness:RM-0639).
 #   2. BRANCH MOVEMENT. `git ls-remote` for the published sha, and the branch's own AUTHOR dates.
 #      Never the committer date: a rebase rewrites it, this repository rebases constantly, and a
 #      stalled worker whose branch someone else rebased read `live` forever (DEC-0095, ADR-0148).
@@ -29,8 +33,9 @@
 #
 # Exit codes — the interface, so a caller greps nothing:
 #
-#   0   every row classified live or landed
-#   1   findings — one or more rows stalled / failed / undetermined
+#   0   every row classified live or landed, and the fleet is not STALE
+#   1   findings — one or more rows stalled / failed / undetermined, or fleet-health.sh names a
+#       STALE session even over otherwise-clean rows
 #   2   daemon down; every row is failed
 #   3   a register could not be read; no verdict claimed for anything
 #   64  usage error
@@ -159,6 +164,14 @@ field() {  # field <file> <key>
 # --- the registry's id set, and nothing else from it ---------------------------------------------
 DAEMON_DOWN=0
 [ "$fleet_rc" -eq 2 ] && DAEMON_DOWN=1
+
+# 4 (harness:RM-0639, DEC-0152) names ONE stale session — the daemon is up and the registry read
+# fine, so it never flips DAEMON_DOWN (every row still gets its own real verdict, unlike 2). But
+# fleet-health.sh is actively flagging a problem this run must not silently read as healthy, even
+# when this register's own rows all compute clean — "a session's own report of itself is never
+# sufficient evidence" applies to the daemon's report being ignored just as much as to a row's.
+FLEET_STALE=0
+[ "$fleet_rc" -eq 4 ] && FLEET_STALE=1
 
 registry_ids=""
 if [ "$DAEMON_DOWN" -eq 0 ]; then
@@ -395,6 +408,12 @@ if [ -n "$ONLY" ] && [ "$matched" -eq 0 ]; then
   exit "$EX_REGISTER"
 fi
 
-[ "$findings" -eq 0 ] && exit "$EX_OK"
-printf 'successor-status: %s row(s) need attention — see references/escalation-paths.md.\n' "$findings" >&2
+if [ "$findings" -eq 0 ] && [ "$FLEET_STALE" -eq 0 ]; then
+  exit "$EX_OK"
+fi
+if [ "$findings" -eq 0 ]; then
+  printf 'successor-status: fleet-health.sh names a STALE session — see its own output above.\n' >&2
+else
+  printf 'successor-status: %s row(s) need attention — see references/escalation-paths.md.\n' "$findings" >&2
+fi
 exit "$EX_FINDINGS"
