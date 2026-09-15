@@ -3,11 +3,13 @@
   "mae": 0.0,
   "edge_f1": 0.9981,
   "jaggedness": 2.4965,
+  "staircase": null,
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
     "edge_f1": 0.8,
-    "jaggedness": 15.0
+    "jaggedness": 15.0,
+    "staircase": 0.35
   },
   "failures": [],
   "pass": true,
@@ -19,5 +21,7 @@
   ],
   "svg_bytes": 1728,
   "mono": true,
+  "scale": 8.0,
+  "source_edge": "soft",
   "reference_jaggedness": 16.9949
 }

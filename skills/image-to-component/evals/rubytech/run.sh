@@ -25,7 +25,9 @@ expect() {  # expect <rc> <label> -- <i2c args...>
   fi
 }
 
-glyph=(--kind icon --key global --matte soft --scale 8 --smooth 3 --color currentColor --out "$out")
+# No --smooth: these sources are anti-aliased, so auto resolves to a Gaussian of 0.375 x scale = 3,
+# the radius this row was tuned at. A diff in any glyph here means auto stopped seeing a soft edge.
+glyph=(--kind icon --key global --matte soft --scale 8 --color currentColor --out "$out")
 expect 0 computer-icon   -- "$here/src/computer-icon.png"   --name ComputerIcon   "${glyph[@]}"
 expect 0 gear-icon       -- "$here/src/gear-icon.png"       --name GearIcon       "${glyph[@]}"
 expect 0 controller-icon -- "$here/src/controller-icon.png" --name ControllerIcon "${glyph[@]}"

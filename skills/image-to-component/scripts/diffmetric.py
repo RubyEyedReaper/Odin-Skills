@@ -9,16 +9,18 @@ Three numbers, each catching a different failure:
   mae      mean abs RGB error, visible px  — wrong colours, merged colour regions
   edge_f1  Sobel edge agreement ±tolerance — jagged curves, lost detail, drifted outlines
 
-and one about the render alone, which the three above cannot see (`jaggedness.py`):
-  jaggedness  outline zig-zag finer than the shape — pixel staircases, tracer wobble
+and two about the outline, which the three above cannot see (`jaggedness.py`):
+  jaggedness  outline zig-zag finer than the shape — tracer wobble, render-pixel staircases
+  staircase   share of a hard source's one-pixel steps the render keeps — only for a hard-edged
+              source traced at scale >= 2, where each step is a render corner jaggedness passes
 """
 from __future__ import annotations
 
-from .jaggedness import jaggedness
+from .jaggedness import jaggedness, staircase
 
 ALPHA_VISIBLE = 128
 EDGE_THRESHOLD = 96.0
-DEFAULT_THRESHOLDS = {"iou": 0.95, "mae": 12.0, "edge_f1": 0.80, "jaggedness": 15.0}
+DEFAULT_THRESHOLDS = {"iou": 0.95, "mae": 12.0, "edge_f1": 0.80, "jaggedness": 15.0, "staircase": 0.35}
 
 
 def _check_sizes(a: bytes, b: bytes, width: int, height: int) -> None:
@@ -93,7 +95,11 @@ def edge_f1(a: bytes, b: bytes, width: int, height: int, tolerance: int = 1) -> 
 
 
 def compare(source: bytes, rendered: bytes, width: int, height: int,
-            thresholds: dict[str, float] | None = None, tolerance: int = 1) -> dict:
+            thresholds: dict[str, float] | None = None, tolerance: int = 1,
+            scale: float = 1.0, source_edge: str | None = None) -> dict:
+    """Score `rendered` against `source`. `scale` is how many render px one source px became, and
+    `source_edge` is `edges.classify` of the source before upscaling; `staircase` is scored only
+    when the edge is hard and a source pixel spans 2+ render px, and is None otherwise."""
     _check_sizes(source, rendered, width, height)
     limits = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
     scores = {
@@ -102,7 +108,10 @@ def compare(source: bytes, rendered: bytes, width: int, height: int,
         "edge_f1": edge_f1(source, rendered, width, height, tolerance),
         "jaggedness": jaggedness(rendered, width, height),
     }
+    if source_edge == "hard" and round(scale) >= 2:
+        scores["staircase"] = staircase(rendered, source, width, height, scale)
     failures = [k for k in ("iou", "edge_f1") if scores[k] < limits[k]]
-    failures += [k for k in ("mae", "jaggedness") if k in limits and scores[k] > limits[k]]
-    return {**{k: round(v, 4) for k, v in scores.items()}, "thresholds": limits,
+    failures += [k for k in ("mae", "jaggedness", "staircase") if k in scores and k in limits and scores[k] > limits[k]]
+    return {**{k: round(v, 4) for k, v in scores.items()}, "staircase": round(scores["staircase"], 4)
+            if "staircase" in scores else None, "thresholds": limits,
             "failures": sorted(failures), "pass": not failures}

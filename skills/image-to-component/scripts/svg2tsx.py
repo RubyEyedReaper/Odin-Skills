@@ -1,8 +1,10 @@
 """Turn an optimized SVG into a typed React component.
 
-Stdlib only. The input is the narrow dialect vtracer + SVGO produce (svg/g/path with paint,
-geometry and transform attributes), so a general converter such as SVGR buys nothing here —
-and an offline converter is the only one the gated suite can exercise.
+Stdlib only. The input is the narrow dialect vtracer + SVGO produce — `svg`, `g` and `path` with
+paint, geometry and transform attributes — and nothing else is transcribed: any other element or
+attribute is refused by name (exit 1). A general converter such as SVGR buys nothing here, and an
+offline converter is the only one the gated suite can exercise. Hand-authored SVG is a component to
+write, not one to run through this (#1352).
 
     python3 -m scripts.svg2tsx in.svg --name RubyTechLogo [--color currentColor] --out Out.tsx
     python3 -m scripts.svg2tsx --barrel <dir>      # writes <dir>/index.ts from *.tsx names
@@ -23,16 +25,13 @@ from .svgcheck import FORBIDDEN, is_external, parse_view_box
 SVG_NS = "http://www.w3.org/2000/svg"
 COLOR_MODES = ("original", "currentColor")
 DROPPED = {"title", "desc", "metadata"}
-PAINT_ATTRS = {"fill", "stroke", "stop-color", "flood-color"}
+ELEMENTS = {"svg", "g", "path"}
+ATTRS = {"d", "fill", "fill-rule", "fill-opacity", "opacity", "stroke", "transform"}
+PAINT_ATTRS = {"fill", "stroke"}
 ROOT_DROPPED_ATTRS = {"width", "height", "version", "x", "y", "enable-background"}
+ROOT_ATTRS = ATTRS | ROOT_DROPPED_ATTRS | {"viewBox", "xmlns"}
 NO_PAINT = {"none", "transparent", "currentColor", "inherit"}
 INDENT = "  "
-
-# Attributes whose React name is not the plain camel-case of the SVG name.
-SPECIAL_ATTRS = {"class": "className", "xlink:href": "xlinkHref", "xml:space": "xmlSpace"}
-# ElementTree expands prefixed attributes to {uri}local; map them back before naming.
-NAMESPACE_PREFIXES = {"{http://www.w3.org/1999/xlink}": "xlink:",
-                      "{http://www.w3.org/XML/1998/namespace}": "xml:"}
 IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 
 
@@ -48,17 +47,7 @@ def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
-def _prefixed(name: str) -> str:
-    for uri, prefix in NAMESPACE_PREFIXES.items():
-        name = name.replace(uri, prefix)
-    return name
-
-
 def _jsx_attr_name(name: str) -> str:
-    if name in SPECIAL_ATTRS:
-        return SPECIAL_ATTRS[name]
-    if name.startswith(("data-", "aria-", "--")):
-        return name
     return re.sub(r"-([a-z])", lambda m: m.group(1).upper(), name)
 
 
@@ -68,13 +57,15 @@ def _jsx_value(value: str) -> str:
     return f'"{value}"'
 
 
-def _style_object(style: str) -> str:
-    pairs = {}
-    for decl in style.split(";"):
-        if ":" in decl:
-            key, val = decl.split(":", 1)
-            pairs[_jsx_attr_name(key.strip())] = val.strip()
-    return "{" + json.dumps(pairs) + "}"
+def _refuse_outside_dialect(el: ET.Element, allowed: set[str]) -> None:
+    tag = _local(el.tag)
+    if tag not in ELEMENTS:
+        raise ValueError(f"<{tag}> is outside the dialect svg2tsx transcribes (svg, g, path from vtracer + SVGO);"
+                         " write this component by hand")
+    for attr in el.attrib:
+        if attr not in allowed:
+            raise ValueError(f"attribute {attr!r} on <{tag}> is outside the dialect svg2tsx transcribes"
+                             f" ({', '.join(sorted(allowed))})")
 
 
 def _refuse_unsafe(el: ET.Element) -> None:
@@ -90,16 +81,12 @@ def _refuse_unsafe(el: ET.Element) -> None:
 
 def _attrs(el: ET.Element, color_mode: str, skip: set[str]) -> list[str]:
     out = []
-    for raw_name, value in el.attrib.items():
-        name = _prefixed(raw_name)
+    for name, value in el.attrib.items():
         if name in skip:
             continue
         if color_mode == "currentColor" and name in PAINT_ATTRS and value not in NO_PAINT:
             value = "currentColor"
-        if name == "style":
-            out.append(f"style={_style_object(value)}")
-        else:
-            out.append(f"{_jsx_attr_name(name)}={_jsx_value(value)}")
+        out.append(f"{_jsx_attr_name(name)}={_jsx_value(value)}")
     return out
 
 
@@ -108,16 +95,14 @@ def _render(el: ET.Element, color_mode: str, depth: int) -> list[str]:
     tag = _local(el.tag)
     if tag in DROPPED:
         return []
+    _refuse_outside_dialect(el, ATTRS)
     pad = INDENT * depth
     attrs = " ".join(_attrs(el, color_mode, set()))
     head = f"<{tag}{' ' + attrs if attrs else ''}"
     children = [line for child in el for line in _render(child, color_mode, depth + 1)]
-    text = (el.text or "").strip()
-    if not children and not text:
+    if not children:
         return [f"{pad}{head} />"]
     lines = [f"{pad}{head}>"]
-    if text:
-        lines.append(f"{pad}{INDENT}{{{json.dumps(text)}}}")
     lines.extend(children)
     lines.append(f"{pad}</{tag}>")
     return lines
@@ -146,6 +131,7 @@ def convert(svg_text: str, name: str, color_mode: str = "original") -> str:
     if _local(root.tag) != "svg":
         raise ValueError(f"root element is <{_local(root.tag)}>, not <svg>")
     _refuse_unsafe(root)
+    _refuse_outside_dialect(root, ROOT_ATTRS)
     view_box = _view_box(root)
     component = component_name(name)
 

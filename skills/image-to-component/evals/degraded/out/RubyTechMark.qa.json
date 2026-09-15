@@ -1,8 +1,8 @@
 {
-  "iou": 0.9866,
-  "mae": 11.3102,
-  "edge_f1": 0.9336,
-  "jaggedness": 12.3582,
+  "iou": 0.9628,
+  "mae": 11.0782,
+  "edge_f1": 0.8441,
+  "jaggedness": 7.1941,
   "staircase": null,
   "thresholds": {
     "iou": 0.95,
@@ -16,12 +16,12 @@
   "source": "RubyTechMark.src.png",
   "svg": "RubyTechMark.svg",
   "size": [
-    264,
-    314
+    132,
+    160
   ],
-  "svg_bytes": 31959,
+  "svg_bytes": 36123,
   "mono": false,
   "scale": 2.0,
   "source_edge": "soft",
-  "reference_jaggedness": 12.6973
+  "reference_jaggedness": 7.6616
 }

@@ -41,7 +41,7 @@ class Convert(unittest.TestCase):
 
     def test_hyphenated_attributes_become_jsx_names(self):
         self.assertIn('fillRule="evenodd"', self.tsx)
-        self.assertIn('strokeWidth="2"', self.tsx)
+        self.assertIn('fillOpacity="0.8"', self.tsx)
         self.assertNotIn("fill-rule", self.tsx)
 
     def test_paint_and_geometry_preserved(self):
@@ -113,15 +113,40 @@ class Refusals(unittest.TestCase):
             svg2tsx.convert("<html/>", "X")
 
 
-class StyleAndQuoting(unittest.TestCase):
-    def test_style_string_becomes_object(self):
-        svg = '<svg viewBox="0 0 1 1"><path d="M0 0" style="fill-opacity:.4;stroke-linecap:round"/></svg>'
-        tsx = svg2tsx.convert(svg, "X")
-        self.assertIn('style={{"fillOpacity": ".4", "strokeLinecap": "round"}}', tsx)
+class Dialect(unittest.TestCase):
+    """svg2tsx transcribes what vtracer + SVGO emit and refuses the rest by name (#1352).
 
-    def test_braces_in_values_are_quoted_as_expressions(self):
-        svg = '<svg viewBox="0 0 1 1"><path d="M0 0" data-note="{x}"/></svg>'
-        self.assertIn('data-note={"{x}"}', svg2tsx.convert(svg, "X"))
+    A general SVG→JSX surface — style objects, namespaced and data attributes, text, shapes — was
+    untested against any real input and wider than any trace. Hand-authored SVG is a component to
+    write, not to transcribe.
+    """
+
+    def test_elements_outside_svg_g_path_are_refused_by_name(self):
+        for tag in ("circle", "text", "linearGradient", "rect"):
+            with self.assertRaisesRegex(ValueError, rf"<{tag}> is outside the dialect", msg=tag):
+                svg2tsx.convert(f'<svg viewBox="0 0 1 1"><{tag}/></svg>', "X")
+
+    def test_attributes_outside_paint_and_geometry_are_refused_by_name(self):
+        for attr in ('style="fill:red"', 'class="a"', 'data-note="{x}"', 'stroke-width="2"',
+                     'xml:space="preserve"', 'id="p"'):
+            with self.assertRaisesRegex(ValueError, "outside the dialect", msg=attr):
+                svg2tsx.convert(f'<svg viewBox="0 0 1 1"><path d="M0 0" {attr}/></svg>', "X")
+
+    def test_the_cli_names_the_dialect_in_its_refusal(self):
+        import io
+        import os
+        import tempfile
+        from contextlib import redirect_stderr
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "in.svg")
+            with open(src, "w", encoding="utf-8") as fh:
+                fh.write('<svg viewBox="0 0 1 1"><circle r="1"/></svg>')
+            err = io.StringIO()
+            with redirect_stderr(err):
+                rc = svg2tsx.main([src, "--name", "X", "--out", os.path.join(tmp, "X.tsx")])
+            self.assertEqual(rc, 1)
+            self.assertIn("svg2tsx: refused: <circle> is outside the dialect", err.getvalue())
+            self.assertFalse(os.path.exists(os.path.join(tmp, "X.tsx")))
 
 
 class ReviewFindings(unittest.TestCase):
@@ -145,16 +170,6 @@ class ReviewFindings(unittest.TestCase):
     def test_local_paint_reference_allowed(self):
         svg = '<svg viewBox="0 0 1 1"><path d="M0 0" fill="url(#g)"/></svg>'
         self.assertIn('fill="url(#g)"', svg2tsx.convert(svg, "X"))
-
-    def test_xml_space_maps_to_jsx_name(self):
-        svg = '<svg viewBox="0 0 1 1"><g xml:space="preserve"><path d="M0 0"/></g></svg>'
-        tsx = svg2tsx.convert(svg, "X")
-        self.assertIn('xmlSpace="preserve"', tsx)
-        self.assertNotIn("{http", tsx)
-
-    def test_custom_property_keeps_its_name(self):
-        svg = '<svg viewBox="0 0 1 1"><path d="M0 0" style="--accent:red;stroke-width:2"/></svg>'
-        self.assertIn('{"--accent": "red", "strokeWidth": "2"}', svg2tsx.convert(svg, "X"))
 
     def test_barrel_refuses_non_identifier_names(self):
         with self.assertRaises(ValueError):

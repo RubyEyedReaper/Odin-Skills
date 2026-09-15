@@ -126,6 +126,34 @@ def excess_turning(loop: list[tuple[float, float]], stride: int) -> float:
     return total / stride
 
 
+def _source_pixel_turning(buf: bytes, width: int, height: int, scale: int) -> float:
+    """Alpha-outline turning that cancels at one source pixel and is gone by two, per px, × diagonal."""
+    cancelled = length = 0.0
+    for loop in contours(alpha_field(buf, width, height), width, height, ALPHA_ISO):
+        cancelled += max(0.0, excess_turning(loop, scale) - excess_turning(loop, 2 * scale))
+        length += loop_length(loop)
+    return 0.0 if length == 0 else cancelled * math.hypot(width, height) / length
+
+
+def staircase(render: bytes, reference: bytes, width: int, height: int, scale: float) -> float:
+    """Share of the reference's source-pixel staircase the render keeps: 1.0 is every step.
+
+    `jaggedness` walks strides fixed in render pixels, so at `--scale 8` a one-pixel source step is
+    a real corner at both of them and never cancels (#1353). Striding in source pixels sees the
+    step, but a render's turning at that stride alone does not separate a kept staircase from
+    genuine small shape — a 26 px gear's teeth score as high. Its ratio to the reference's own does:
+    measured over four hard-alpha glyphs at ×4/×6/×8, a Gaussian `--smooth` of 0.375 × scale kept
+    0.36–0.65, and every smoothing that removed the steps kept 0.09–0.37. Only meaningful against a
+    hard-edged reference (`edges.py`): a soft one's turning is its shape, and a faithful render
+    keeps most of it.
+    """
+    stride = round(scale)
+    if stride < 2:
+        raise ValueError(f"staircase needs a scale of at least 2 (a source pixel of 2+ render px), got {scale}")
+    kept = _source_pixel_turning(reference, width, height, stride)
+    return 0.0 if kept == 0 else _source_pixel_turning(render, width, height, stride) / kept
+
+
 def jaggedness(buf: bytes, width: int, height: int) -> float:
     fields = [(alpha_field(buf, width, height), (ALPHA_ISO,), 0.0),
               (luma_field(buf, width, height), LUMA_ISOS, GREY)]

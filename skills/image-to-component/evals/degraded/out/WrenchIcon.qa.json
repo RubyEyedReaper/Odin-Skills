@@ -1,13 +1,15 @@
 {
-  "iou": 0.9729,
+  "iou": 0.9665,
   "mae": 0.0,
-  "edge_f1": 0.9996,
-  "jaggedness": 1.9192,
+  "edge_f1": 0.9982,
+  "jaggedness": 2.9812,
+  "staircase": null,
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
     "edge_f1": 0.8,
-    "jaggedness": 15.0
+    "jaggedness": 15.0,
+    "staircase": 0.35
   },
   "failures": [],
   "pass": true,
@@ -17,7 +19,9 @@
     184,
     184
   ],
-  "svg_bytes": 1018,
+  "svg_bytes": 1395,
   "mono": true,
-  "reference_jaggedness": 6.8205
+  "scale": 8.0,
+  "source_edge": "soft",
+  "reference_jaggedness": 7.521
 }

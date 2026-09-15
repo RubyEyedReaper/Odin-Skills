@@ -7,7 +7,9 @@ Needs Pillow (run through toolchain.sh `i2c_py`, or `uv run --with pillow==12.3.
 Each crop is downscaled ×0.5 (bilinear), blurred (Gaussian σ 0.6), given seeded Gaussian RGB noise
 (σ 6) and JPEG-encoded at quality 30 — a small, soft, blocky, noisy copy of a real brand asset. The
 wrench is also written as a transparent PNG (ground below Chebyshev distance 40 cleared), the input
-shape the RubyTech set never exercised. Sources are committed rather than generated per run: JPEG
+shape the RubyTech set never exercised. The controller is also written ×0.6 and hard-cut the same way:
+a 32 px aliased glyph whose buttons are two pixels wide, where smoothing that acts on area erases
+detail before it removes the steps. Sources are committed rather than generated per run: JPEG
 output follows the encoder, so a pin bump would otherwise move the input under the eval.
 """
 from __future__ import annotations
@@ -23,6 +25,7 @@ CLEAN = os.path.join(HERE, "..", "rubytech", "src")
 OUT = os.path.join(HERE, "src")
 ASSETS = ("computer-icon", "gear-icon", "controller-icon", "wrench-icon", "rubytech-mark")
 SCALE, BLUR, NOISE, QUALITY, SEED = 0.5, 0.6, 6.0, 30, 20260915
+SMALL = 0.6
 
 
 def degrade(img: Image.Image, rng: random.Random) -> Image.Image:
@@ -51,6 +54,9 @@ def main() -> None:
         rng = random.Random(f"{SEED}:{name}")
         degrade(Image.open(os.path.join(CLEAN, f"{name}.png")), rng).save(os.path.join(OUT, f"{name}.low.png"))
     transparent(Image.open(os.path.join(CLEAN, "wrench-icon.png"))).save(os.path.join(OUT, "wrench-icon.alpha.png"))
+    controller = Image.open(os.path.join(CLEAN, "controller-icon.png")).convert("RGB")
+    small = controller.resize((round(controller.width * SMALL), round(controller.height * SMALL)), Image.BILINEAR)
+    transparent(small).save(os.path.join(OUT, "controller-icon.alpha.small.png"))
 
 
 if __name__ == "__main__":

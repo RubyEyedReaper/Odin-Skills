@@ -18,6 +18,12 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component` edges** — a `staircase` QA bound that refuses a hard source's kept one-pixel
+  steps at any `--scale`; `--smooth auto` as the default, smoothing a hard edge along its own outline
+  so holes and 2 px features survive; `--sharpen` for blurred sources of 32 px or less; the degraded
+  colour mark passing inside the logo budget; and `svg2tsx` narrowed to the `svg`/`g`/`path` dialect
+  the pipeline emits.
+
 - **`image-to-component` quality pass** — soft-matte keying, a jaggedness QA metric, a degraded-source
   eval (half-size, blurred, noisy, JPEG-soft crops scored against the clean golden), smoothing guidance
   for hard pixel staircases, and fixes for `currentColor` glyphs rendering black and SVGs missing

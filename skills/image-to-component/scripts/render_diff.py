@@ -4,12 +4,17 @@ Needs resvg-py and Pillow (run through toolchain.sh `i2c_py render_diff`). The m
 is stdlib (`diffmetric.py`); this file only decodes and draws.
 
     render_diff.py source.png asset.svg --report qa.json [--sheet compare.png]
-                   [--iou 0.95] [--mae 12] [--edge-f1 0.80] [--jaggedness N] [--mono]
+                   [--iou 0.95] [--mae 12] [--edge-f1 0.80] [--jaggedness N] [--staircase N] [--mono]
+                   [--scale N --source-edge hard|soft]
 
 --mono  compares silhouettes only: both images are painted black before scoring, because a
         currentColor component has no colour of its own to compare. The reference's silhouette is
         its alpha >= 128 — the same cut IoU uses. A soft-matted reference otherwise has an edge
         ramp several pixels wide that no Sobel threshold reads as an edge, and edge_f1 scores 0.
+
+--scale, --source-edge  how many render px one source px became, and prep's edge character of the
+        source before upscaling. Together they turn on the `staircase` bound (a hard source at
+        scale >= 2); without them it is not scored, which is the standalone default.
 
 Exit codes: 0 pass, 1 below threshold, 2 unreadable input or render failure.
 """
@@ -69,7 +74,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--mae", type=float, default=diffmetric.DEFAULT_THRESHOLDS["mae"])
     parser.add_argument("--mono", action="store_true")
     parser.add_argument("--edge-f1", type=float, default=diffmetric.DEFAULT_THRESHOLDS["edge_f1"])
-    parser.add_argument("--jaggedness", type=float, default=diffmetric.DEFAULT_THRESHOLDS.get("jaggedness"))
+    parser.add_argument("--jaggedness", type=float, default=diffmetric.DEFAULT_THRESHOLDS["jaggedness"])
+    parser.add_argument("--staircase", type=float, default=diffmetric.DEFAULT_THRESHOLDS["staircase"])
+    parser.add_argument("--scale", type=float, default=1.0)
+    parser.add_argument("--source-edge", choices=("hard", "soft"))
     args = parser.parse_args(argv)
 
     try:
@@ -85,9 +93,11 @@ def main(argv: list[str] | None = None) -> int:
         source, rendered = paint_black(source, cut=True), paint_black(rendered)
     result = diffmetric.compare(source.tobytes(), rendered.tobytes(), *source.size,
                                 thresholds={"iou": args.iou, "mae": args.mae, "edge_f1": args.edge_f1,
-                                            **({"jaggedness": args.jaggedness} if args.jaggedness is not None else {})})
+                                            "jaggedness": args.jaggedness, "staircase": args.staircase},
+                                scale=args.scale, source_edge=args.source_edge)
     result.update(source=os.path.basename(args.source), svg=os.path.basename(args.svg), size=list(source.size),
                   svg_bytes=len(svg_text.encode()), mono=args.mono,
+                  scale=args.scale, source_edge=args.source_edge,
                   reference_jaggedness=round(jaggedness(source.tobytes(), *source.size), 4))
 
     with open(args.report, "w", encoding="utf-8") as fh:
@@ -95,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         fh.write("\n")
     if args.sheet:
         sheet(source, rendered).save(args.sheet)
-    print(json.dumps({k: result[k] for k in ("iou", "mae", "edge_f1", "jaggedness", "pass", "failures")}))
+    print(json.dumps({k: result[k] for k in ("iou", "mae", "edge_f1", "jaggedness", "staircase", "pass", "failures")}))
     return 0 if result["pass"] else 1
 
 

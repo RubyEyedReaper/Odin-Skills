@@ -120,6 +120,18 @@ def soft_matte(original: bytes, keyed: bytes, width: int, height: int, bg: tuple
     return bytes(out)
 
 
+def sharpen_alpha(alpha: bytes, blurred: bytes, amount: float) -> bytes:
+    """Unsharp-mask an alpha plane against its own blur: a + amount·(a − blurred), clamped.
+
+    A blur below a glyph's stroke width leaves a hole's centre partly covered, and the α ≥ 128 cut
+    then closes it. Pushing each pixel away from its neighbourhood mean re-opens what the blur
+    half-filled. `prep.py --sharpen` supplies the blurred plane.
+    """
+    if len(alpha) != len(blurred):
+        raise ValueError(f"alpha and blurred planes differ in length: {len(alpha)} and {len(blurred)}")
+    return bytes(max(0, min(255, round(a + amount * (a - b)))) for a, b in zip(alpha, blurred))
+
+
 def key_global(buf: bytes, width: int, height: int, bg: tuple[int, int, int], tolerance: int) -> bytes:
     """A copy whose every pixel near `bg` is transparent, connected or not."""
     out = bytearray(buf)
