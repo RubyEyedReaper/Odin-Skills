@@ -3,13 +3,16 @@
   "mae": 0.0,
   "edge_f1": 0.9918,
   "jaggedness": 2.2964,
+  "features": 1.0,
   "staircase": null,
+  "lost_features": [],
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
     "edge_f1": 0.8,
     "jaggedness": 15.0,
-    "staircase": 0.35
+    "staircase": 0.35,
+    "features": 0.5
   },
   "failures": [],
   "pass": true,
@@ -59,6 +62,8 @@
           "edge_f1": 0.9918,
           "jaggedness": 2.2964,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -87,6 +92,8 @@
           "edge_f1": 0.9606,
           "jaggedness": 1.7159,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "iou"
           ]
@@ -117,6 +124,8 @@
           "edge_f1": 0.9984,
           "jaggedness": 2.8025,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -145,6 +154,8 @@
           "edge_f1": 0.9969,
           "jaggedness": 2.7546,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -171,6 +182,8 @@
           "edge_f1": 0.9593,
           "jaggedness": 2.0533,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -199,6 +212,8 @@
           "edge_f1": 0.852,
           "jaggedness": 1.8571,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "iou"
           ]
@@ -229,6 +244,8 @@
           "edge_f1": 0.9988,
           "jaggedness": 2.3494,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -257,6 +274,8 @@
           "edge_f1": 0.9994,
           "jaggedness": 2.3706,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -276,7 +295,6 @@
       "--sharpen",
       "0.8"
     ],
-    "seconds": 19.2,
     "bound_seconds": 300
   }
 }

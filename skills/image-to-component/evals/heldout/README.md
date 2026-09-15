@@ -147,6 +147,34 @@ destroyed, and QA compares against that reference — the blind spot `evals/degr
 clean alert mark passes with its "!" dot dropped: the search's smallest passing candidate uses
 `filter_speckle=12`, and neither `edge_f1` (0.905) nor `mae` counts one dot. Colour marks on the
 business-card back fail `mae` at every setting: 26 px gradient marks (Instagram, WhatsApp) are the
-case the flat-fill limit in `references/qa-thresholds.md` describes. These are recorded as the
-honest state, not tuned away; the follow-ups are #1391 (a destroyed reference passes) and #1392 (a dropped small feature).
+case the flat-fill limit in `references/qa-thresholds.md` describes. These were recorded as the
+honest state, not tuned away; the follow-ups were #1391 (a destroyed reference passes) and #1392 (a dropped small feature),
+and the next section is what they changed.
+
+## Fidelity pass — `features` and `source-quality`, 10/20
+
+Both refusals were designed and calibrated on `evals/rubytech`, `evals/degraded`, a ladder of degraded
+RubyTech glyphs and synthetic marks; this set contributed its pass rate afterwards, and the compare sheets
+read for the before/after below. `out/` holds this run.
+
+| asset | before | after |
+|---|---|---|
+| x-glyph.low | pass, strokes broken into blobs (agreement 0.53) | **refused at prep**, `source-quality` |
+| clock-glyph.low | pass, ring fragmented (0.63) | **refused at prep**, `source-quality` |
+| thermometer-glyph.low | pass, no bulb or tube (0.60) | **refused at prep**, `source-quality` |
+| alert-mark | pass at 486 bytes, "!" dot dropped | pass at 762 bytes, dot kept: mae 9.78, edge_f1 0.977 |
+| every other row | – | same verdict, same numbers |
+
+| | before | after |
+|---|---|---|
+| pass rate | 13/20 | 10/20 |
+| passes that look right on their compare sheet | 8 | 9 |
+| passes that look wrong | 5 — three blob glyphs, the dot-less alert mark, facebook-banner-mark.low | 1 — facebook-banner-mark.low |
+| refused | 7, all at QA | 10 — 3 at prep (`source-quality`), 7 at QA |
+
+`facebook-banner-mark.low` still passes looking wrong: its "f" is ragged and its rounded square lumpy.
+`source-quality` covers `--color currentColor` glyphs only, because no colour ladder was built to
+calibrate it; that remaining pass is the recorded gap. The gradient marks (Instagram, WhatsApp) are still
+refused on `mae` — fitting gradients was measured on a synthetic mark and declined (DEC-0168).
+
 

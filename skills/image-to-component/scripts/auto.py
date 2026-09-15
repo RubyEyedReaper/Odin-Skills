@@ -6,7 +6,7 @@ file only runs them.
 
     auto.py <image> <work-dir> --kind icon|logo|illustration --report search.json
             [--mono] [--crop x,y,w,h] [--bg auto|none|#rrggbb] [--allow-background] [--seconds N]
-            [--iou N] [--mae N] [--edge-f1 N] [--jaggedness N] [--staircase N]
+            [--iou N] [--mae N] [--edge-f1 N] [--jaggedness N] [--staircase N] [--features N]
 
 The QA flags are i2c.sh's, passed through so the search chooses against the bars the re-run applies.
 
@@ -17,7 +17,8 @@ stages, so no artifact comes from a second code path.
 
 stdout: the chosen candidate's i2c.sh flags, one per line — or, on exit 1, the nearest miss's.
 Exit codes: 0 a candidate passed; 1 none did (the report names the nearest miss and why);
-2 usage, unreadable input, a tool failure, or the --seconds bound reached before the grid finished.
+2 usage, unreadable input, a tool failure, or the --seconds bound reached before the grid finished;
+3 a --mono source refused as too degraded to trace (the report carries the assessment).
 """
 from __future__ import annotations
 
@@ -61,6 +62,8 @@ def search(args: argparse.Namespace) -> tuple[int, dict]:
     started = time.monotonic()
     import vtracer  # toolchain-only, like trace.py
 
+    prep.check_source(args.image, args.crop, args.mono)  # raises SourceRefused before any candidate is traced
+
     # Keying reads only key, matte and tolerance, which no rule derives from the ramp; the ramp is
     # measured on the keyed source and decides the rest.
     shape = autogrid.derive_prep(args.mono, None)
@@ -99,16 +102,10 @@ def search(args: argparse.Namespace) -> tuple[int, dict]:
         results.append({"flags": autogrid.to_args(chosen_prep, cand), "bytes": len(text.encode()), "tier": cand["tier"],
                         "check": findings, "qa": qa})
 
-    chosen, nearest = autogrid.select(results)
-    report = {
-        "derived": {"edge": edge, "edge_ramp": None if ramp is None else round(ramp, 3),
-                    "blurred_ramp": autogrid.BLURRED_RAMP, "prep": chosen_prep},
-        "grid": [{"flags": r["flags"], "bytes": r["bytes"], "tier": r["tier"], "check": r["check"],
-                  "qa": None if r["qa"] is None else {k: r["qa"][k] for k in ("iou", "mae", "edge_f1", "jaggedness", "staircase", "failures")},
-                  "pass": autogrid.passes(r)} for r in results],
-        "chosen": chosen, "nearest": nearest, "flags": results[nearest]["flags"],
-        "seconds": round(time.monotonic() - started, 1), "bound_seconds": args.seconds,
-    }
+    derived = {"edge": edge, "edge_ramp": None if ramp is None else round(ramp, 3),
+               "blurred_ramp": autogrid.BLURRED_RAMP, "prep": chosen_prep}
+    report = autogrid.report(results, derived, args.seconds)
+    chosen = report["chosen"]
     return (0 if chosen is not None else 1), report
 
 
@@ -128,7 +125,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     args.thresholds = {name: getattr(args, name) for name in diffmetric.DEFAULT_THRESHOLDS}
     try:
+        started = time.monotonic()
         rc, report = search(args)
+        elapsed = time.monotonic() - started
+    except prep.SourceRefused as exc:
+        print(f"auto: {prep.refusal_message(exc.args[0])}", file=sys.stderr)
+        with open(args.report, "w", encoding="utf-8") as fh:
+            json.dump({"refused": "source-quality", "source_quality": exc.args[0]}, fh, indent=2)
+            fh.write("\n")
+        return 3
     except prep.NothingLeft:
         print("auto: nothing left after keying the background; pass --bg or crop tighter", file=sys.stderr)
         return 2
@@ -141,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     verdict = "chose" if rc == 0 else "no candidate passed; nearest miss"
     entry = report["grid"][report["nearest"]]
     why = "" if rc == 0 else " — " + ", ".join(entry["check"] + ((entry["qa"] or {}).get("failures") or []))
-    print(f"auto: {verdict} {report['nearest'] + 1} of {len(report['grid'])} in {report['seconds']}s: "
+    print(f"auto: {verdict} {report['nearest'] + 1} of {len(report['grid'])} in {elapsed:.1f}s: "
           f"{' '.join(report['flags'])} ({entry['bytes']} bytes){why}", file=sys.stderr)
     print("\n".join(report["flags"]))
     return rc

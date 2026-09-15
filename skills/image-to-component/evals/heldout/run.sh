@@ -63,7 +63,11 @@ run() {  # run <label> <Name> <agree-with Name or -> <src> <i2c args...>
 import json, os, re, sys
 path, label, rc, failed_at, agree, log = sys.argv[1:]
 q = json.load(open(path)) if failed_at in ("-", "qa", "auto") and os.path.exists(path) else {}
-if failed_at == "check":  # svgcheck names the finding; keep it, the numbers were never scored
+if failed_at == "prep":  # refused before tracing; the log names why, and there are no scores
+    found = re.findall(r"(source-quality)", open(log).read())
+    failed_at = "prep:" + ",".join(sorted(set(found))) if found else failed_at
+    q = {}
+elif failed_at == "check":  # svgcheck names the finding; keep it, the numbers were never scored
     found = re.findall(r"(budget-bytes|budget-paths|opaque-background)", open(log).read())
     failed_at = "check:" + ",".join(sorted(set(found))) if found else failed_at
 elif failed_at == "qa":

@@ -91,7 +91,7 @@ def _shortfall(result: dict) -> float:
         score, limit = qa.get(name), limits.get(name)
         if score is None or not limit:
             total += 1.0
-        elif name in ("iou", "edge_f1"):
+        elif name in ("iou", "edge_f1", "features"):
             total += max(limit - score, 0) / limit
         else:
             total += max(score - limit, 0) / limit
@@ -100,6 +100,22 @@ def _shortfall(result: dict) -> float:
 
 def passes(result: dict) -> bool:
     return not result["check"] and bool((result.get("qa") or {}).get("pass"))
+
+
+REPORT_QA_KEYS = ("iou", "mae", "edge_f1", "jaggedness", "staircase", "features", "lost_features", "failures")
+
+
+def report(results: list[dict], derived: dict, bound_seconds: float) -> dict:
+    """The search record `qa.json` carries under "search". Deterministic by construction: it lands in
+    committed goldens, so the wall-clock a run took is logged by `auto.py`, never written here."""
+    chosen, nearest = select(results)
+    return {
+        "derived": derived,
+        "grid": [{"flags": r["flags"], "bytes": r["bytes"], "tier": r["tier"], "check": r["check"],
+                  "qa": None if r["qa"] is None else {k: r["qa"][k] for k in REPORT_QA_KEYS if k in r["qa"]},
+                  "pass": passes(r)} for r in results],
+        "chosen": chosen, "nearest": nearest, "flags": results[nearest]["flags"], "bound_seconds": bound_seconds,
+    }
 
 
 def select(results: list[dict]) -> tuple[int | None, int]:

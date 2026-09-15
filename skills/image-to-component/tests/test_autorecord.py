@@ -9,7 +9,7 @@ import unittest
 from ._fixtures import SKILL_DIR  # noqa: F401  (puts the skill on sys.path)
 from scripts import autorecord
 
-SEARCH = {"chosen": None, "nearest": 0, "flags": ["--scale", "8"], "grid": [{"pass": False}], "seconds": 1.0}
+SEARCH = {"chosen": None, "nearest": 0, "flags": ["--scale", "8"], "grid": [{"pass": False}], "bound_seconds": 300}
 
 
 class AutoRecord(unittest.TestCase):
@@ -39,6 +39,14 @@ class AutoRecord(unittest.TestCase):
         self.assertFalse(report["pass"])
         self.assertEqual(report["failures"], ["auto"])
         self.assertEqual(report["search"]["flags"], ["--scale", "8"])
+
+    def test_a_source_refused_before_the_search_names_its_reason(self):
+        with open(self.search, "w", encoding="utf-8") as fh:
+            json.dump({"refused": "source-quality", "source_quality": {"stability": 0.8, "pass": False}}, fh)
+        self.assertEqual(autorecord.main([self.search, self.qa]), 0)
+        report = json.load(open(self.qa))
+        self.assertEqual((report["pass"], report["failures"]), (False, ["source-quality"]))
+        self.assertEqual(report["search"]["source_quality"]["stability"], 0.8)
 
     def test_unreadable_search_is_a_tool_failure(self):
         self.assertEqual(autorecord.main([os.path.join(self.dir, "missing.json"), self.qa]), 2)

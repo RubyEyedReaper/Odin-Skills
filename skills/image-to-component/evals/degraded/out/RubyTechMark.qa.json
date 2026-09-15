@@ -3,13 +3,16 @@
   "mae": 11.8023,
   "edge_f1": 0.8568,
   "jaggedness": 7.0695,
+  "features": 0.9946,
   "staircase": null,
+  "lost_features": [],
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
     "edge_f1": 0.8,
     "jaggedness": 15.0,
-    "staircase": 0.35
+    "staircase": 0.35,
+    "features": 0.5
   },
   "failures": [],
   "pass": true,
@@ -63,6 +66,8 @@
           "edge_f1": 0.8718,
           "jaggedness": 6.7595,
           "staircase": null,
+          "features": 0.9867,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -91,6 +96,8 @@
           "edge_f1": 0.8838,
           "jaggedness": 6.9753,
           "staircase": null,
+          "features": 0.9984,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -121,6 +128,8 @@
           "edge_f1": 0.8619,
           "jaggedness": 6.0568,
           "staircase": null,
+          "features": 0.9867,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -151,6 +160,8 @@
           "edge_f1": 0.8627,
           "jaggedness": 6.9114,
           "staircase": null,
+          "features": 0.9845,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -183,6 +194,8 @@
           "edge_f1": 0.8065,
           "jaggedness": 6.8102,
           "staircase": null,
+          "features": 0.969,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -213,8 +226,21 @@
           "edge_f1": 0.7985,
           "jaggedness": 8.3222,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#a4143e",
+              "area": 22.2,
+              "recall": 0.0,
+              "at": [
+                23.0,
+                37.0
+              ]
+            }
+          ],
           "failures": [
             "edge_f1",
+            "features",
             "mae"
           ]
         },
@@ -294,6 +320,8 @@
           "edge_f1": 0.8675,
           "jaggedness": 7.2642,
           "staircase": null,
+          "features": 0.9819,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -324,6 +352,8 @@
           "edge_f1": 0.8389,
           "jaggedness": 7.8515,
           "staircase": null,
+          "features": 0.9941,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -356,6 +386,8 @@
           "edge_f1": 0.7982,
           "jaggedness": 7.1555,
           "staircase": null,
+          "features": 0.9729,
+          "lost_features": [],
           "failures": [
             "edge_f1",
             "mae"
@@ -387,6 +419,8 @@
           "edge_f1": 0.7817,
           "jaggedness": 8.7783,
           "staircase": null,
+          "features": 0.9469,
+          "lost_features": [],
           "failures": [
             "edge_f1",
             "mae"
@@ -444,6 +478,8 @@
           "edge_f1": 0.8868,
           "jaggedness": 8.347,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -474,6 +510,8 @@
           "edge_f1": 0.866,
           "jaggedness": 5.9879,
           "staircase": null,
+          "features": 0.9645,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -502,6 +540,8 @@
           "edge_f1": 0.8458,
           "jaggedness": 7.1672,
           "staircase": null,
+          "features": 0.9976,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -532,7 +572,20 @@
           "edge_f1": 0.8119,
           "jaggedness": 7.1212,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#a4143e",
+              "area": 22.2,
+              "recall": 0.0,
+              "at": [
+                23.0,
+                37.0
+              ]
+            }
+          ],
           "failures": [
+            "features",
             "mae"
           ]
         },
@@ -562,6 +615,8 @@
           "edge_f1": 0.7942,
           "jaggedness": 9.1019,
           "staircase": null,
+          "features": 0.9537,
+          "lost_features": [],
           "failures": [
             "edge_f1",
             "mae"
@@ -645,6 +700,8 @@
           "edge_f1": 0.8568,
           "jaggedness": 7.0695,
           "staircase": null,
+          "features": 0.9946,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -673,6 +730,8 @@
           "edge_f1": 0.8861,
           "jaggedness": 7.071,
           "staircase": null,
+          "features": 0.9965,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -703,6 +762,8 @@
           "edge_f1": 0.814,
           "jaggedness": 8.539,
           "staircase": null,
+          "features": 0.9503,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -733,6 +794,8 @@
           "edge_f1": 0.8269,
           "jaggedness": 8.6511,
           "staircase": null,
+          "features": 0.9523,
+          "lost_features": [],
           "failures": [
             "mae"
           ]
@@ -1046,7 +1109,6 @@
       "--set",
       "filter_speckle=7"
     ],
-    "seconds": 30.2,
     "bound_seconds": 300
   }
 }

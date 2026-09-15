@@ -3,13 +3,16 @@
   "mae": 11.3102,
   "edge_f1": 0.9336,
   "jaggedness": 12.3582,
+  "features": 0.9276,
   "staircase": null,
+  "lost_features": [],
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
     "edge_f1": 0.8,
     "jaggedness": 15.0,
-    "staircase": 0.35
+    "staircase": 0.35,
+    "features": 0.5
   },
   "failures": [],
   "pass": true,

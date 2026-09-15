@@ -43,7 +43,10 @@ ordinary stages; `qa.json` carries the whole grid under `search`. Nothing passin
 nearest miss named. Measured: 7–85 s per asset; bounded at 300 s. A tuning flag beside `--auto` is
 refused. Why the grid varies only trace-side axes: [references/tracing-presets.md](references/tracing-presets.md#auto).
 
-Held-out assets no flag was tuned on (`evals/heldout/`): 5/20 pass on the rows below, 13/20 under `--auto`.
+Held-out assets no flag was tuned on (`evals/heldout/`): 5/20 pass on the rows below, 10/20 under `--auto`.
+Of the 10 refused, three are glyph sources refused at prep as too degraded to read (`source-quality`) — the
+three that passed at 13/20 as blobs — and seven are colour marks that fail QA; every search also holds
+`features`, so a smaller SVG that drops a dot or fills a hole is never the one chosen.
 
 ## Starting flags — when tuning by hand
 
@@ -76,12 +79,14 @@ Why each exists, and the vtracer numbers: [references/tracing-presets.md](refere
 
 | Refusal | Do | Never |
 |---|---|---|
+| prep `source-quality` | the glyph's own noise decides its silhouette (`references/qa-thresholds.md` § Source quality): get a larger or cleaner source | trace it anyway with hand flags — every trace of it is the wrong shape |
 | `opaque-background` | fix keying (`--bg`, `--tolerance`); `--allow-background` only if the ground is part of the design | delete the path by hand |
 | `budget-bytes` / `budget-paths` | fewer `--colors`, `--set filter_speckle=12` and up; if it still fails, the input is a layout — rebuild route | raise the budget |
 | QA `iou` / `edge_f1` | `--smooth 1.0` or lower, `--scale 6`, re-crop tighter | lower the threshold to pass |
 | QA `jaggedness` | `--matte soft`; for a glyph raise `--scale` (8), leaving `--smooth` at `auto` | smooth the SVG by hand |
 | QA `staircase` | the source is aliased and its steps were traced: drop the numeric `--smooth` so `auto` smooths the outline | raise the bound; it only applies to a hard source |
 | QA `mae` | more `--colors`, `--set layer_difference=12` | score against the quantized raster |
+| QA `features` | a named shape (`qa.json` → `lost_features`) is gone: lower `--set filter_speckle`, or more `--colors` when a detail merged into its surround | accept a smaller SVG that drops a dot or fills a hole |
 
 Thresholds and what each metric catches: [references/qa-thresholds.md](references/qa-thresholds.md).
 Generated component shape and a11y contract: [references/component-contract.md](references/component-contract.md).

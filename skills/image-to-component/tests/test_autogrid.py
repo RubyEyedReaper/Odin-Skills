@@ -147,5 +147,26 @@ class Select(unittest.TestCase):
             autogrid.select([])
 
 
+class Report(unittest.TestCase):
+    def _report(self):
+        results = [dict(_result(2000, failures=["iou"]), flags=["--scale", "8"]),
+                   dict(_result(1500), flags=["--scale", "16"])]
+        prep = autogrid.derive_prep(True, 0.7)
+        return autogrid.report(results, {"edge": "soft", "ramp": 0.7, "prep": prep}, bound_seconds=300)
+
+    def test_the_report_is_deterministic_and_carries_no_wall_clock(self):
+        # qa.json is a committed golden: a timing field dirties it on every rerun with no change.
+        report = self._report()
+        self.assertEqual(report, self._report())
+        self.assertNotIn("seconds", report)
+        self.assertEqual(report["bound_seconds"], 300)
+
+    def test_the_report_names_the_winner_and_its_flags(self):
+        report = self._report()
+        self.assertEqual((report["chosen"], report["nearest"]), (1, 1))
+        self.assertEqual(report["flags"], ["--scale", "16"])
+        self.assertEqual([g["pass"] for g in report["grid"]], [False, True])
+
+
 if __name__ == "__main__":
     unittest.main()

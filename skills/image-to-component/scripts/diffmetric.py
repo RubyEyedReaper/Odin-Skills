@@ -9,6 +9,9 @@ Three numbers, each catching a different failure:
   mae      mean abs RGB error, visible px  — wrong colours, merged colour regions
   edge_f1  Sobel edge agreement ±tolerance — jagged curves, lost detail, drifted outlines
 
+one about small shapes, which every average above absorbs (`features.py`):
+  features    lowest recall of any counted reference feature — a dropped dot, a filled hole (#1392)
+
 and two about the outline, which the three above cannot see (`jaggedness.py`):
   jaggedness  outline zig-zag finer than the shape — tracer wobble, render-pixel staircases
   staircase   share of a hard source's one-pixel steps the render keeps — only for a hard-edged
@@ -16,11 +19,12 @@ and two about the outline, which the three above cannot see (`jaggedness.py`):
 """
 from __future__ import annotations
 
+from .features import LOST_RECALL, recall as feature_recall
 from .jaggedness import jaggedness, staircase
 
 ALPHA_VISIBLE = 128
 EDGE_THRESHOLD = 96.0
-DEFAULT_THRESHOLDS = {"iou": 0.95, "mae": 12.0, "edge_f1": 0.80, "jaggedness": 15.0, "staircase": 0.35}
+DEFAULT_THRESHOLDS = {"iou": 0.95, "mae": 12.0, "edge_f1": 0.80, "jaggedness": 15.0, "staircase": 0.35, "features": LOST_RECALL}
 
 
 def _check_sizes(a: bytes, b: bytes, width: int, height: int) -> None:
@@ -108,10 +112,12 @@ def compare(source: bytes, rendered: bytes, width: int, height: int,
         "edge_f1": edge_f1(source, rendered, width, height, tolerance),
         "jaggedness": jaggedness(rendered, width, height),
     }
+    kept = feature_recall(source, rendered, width, height, scale)
+    scores["features"] = kept["features"]
     if source_edge == "hard" and round(scale) >= 2:
         scores["staircase"] = staircase(rendered, source, width, height, scale)
-    failures = [k for k in ("iou", "edge_f1") if scores[k] < limits[k]]
+    failures = [k for k in ("iou", "edge_f1", "features") if scores[k] < limits[k]]
     failures += [k for k in ("mae", "jaggedness", "staircase") if k in scores and k in limits and scores[k] > limits[k]]
     return {**{k: round(v, 4) for k, v in scores.items()}, "staircase": round(scores["staircase"], 4)
-            if "staircase" in scores else None, "thresholds": limits,
+            if "staircase" in scores else None, "lost_features": kept["lost"], "thresholds": limits,
             "failures": sorted(failures), "pass": not failures}

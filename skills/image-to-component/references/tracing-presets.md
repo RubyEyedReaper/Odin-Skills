@@ -49,7 +49,12 @@ passes IoU at ×8 for the computer (0.919–0.942) or the ×0.4 controller (0.91
 smallest-passing rule keeps ×2 or ×8 whenever those pass; the degraded evals choose exactly the
 scales they were tuned at.
 
-**Selection:** smallest optimized SVG passing `svgcheck` and every QA bar, ties in grid order — except that a colour candidate with voted regions is preferred to any without, whenever one passes. Smoothing costs bytes (the degraded mark: +1.2 KB at 64 colours), so smallest-alone would never choose it; the owner's requirement is smoothed edges, and the unsmoothed setting stays the fallback. `layer_difference=12`, an axis in the first grid, was chosen by no search measured and was dropped. Nothing
+**Before the grid:** a `--mono` source is assessed first (`scripts/quality.py`), and a glyph whose own noise
+decides its silhouette is refused as `source-quality` without tracing a candidate
+(`qa-thresholds.md` § Source quality).
+
+**Selection:** smallest optimized SVG passing `svgcheck` and every QA bar — `features` among them, so a
+candidate that drops a small shape is not a pass however small it is — ties in grid order — except that a colour candidate with voted regions is preferred to any without, whenever one passes. Smoothing costs bytes (the degraded mark: +1.2 KB at 64 colours), so smallest-alone would never choose it; the owner's requirement is smoothed edges, and the unsmoothed setting stays the fallback. `layer_difference=12`, an axis in the first grid, was chosen by no search measured and was dropped. Nothing
 passing: exit 1, and the nearest miss — fewest failed bars, then smallest shortfall as a fraction of
 each limit — is printed and recorded. Measured wall-clock on this host: 5–8 s for a degraded glyph at
 ×8 only, 17–33 s with ×16 or a 50 px clean glyph, 14–35 s for a colour mark; bounded at 300 s

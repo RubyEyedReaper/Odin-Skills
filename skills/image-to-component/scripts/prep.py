@@ -39,7 +39,9 @@ against the trace input, because that would hide exactly the loss quantization i
 --edge-report  writes `hard` or `soft` (`edges.classify`) for the keyed, trimmed source before it is
            upscaled — an upscale turns every hard edge into a ramp. QA reads it to decide whether
            the `staircase` bound applies.
-Exit codes: 0 written, 1 nothing left after keying (tolerance too high), 2 usage/unreadable.
+--mono also refuses a source too degraded to trace (`quality.assess`, exit 3), before keying it.
+Exit codes: 0 written, 1 nothing left after keying (tolerance too high), 2 usage/unreadable,
+3 source-quality: a glyph source whose own noise decides its silhouette.
 """
 from __future__ import annotations
 
@@ -48,7 +50,7 @@ import sys
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
-from . import edges, keying, outline, regions
+from . import edges, keying, outline, quality, regions
 
 PAD = 2
 SUPERSAMPLE = 4
@@ -146,6 +148,30 @@ def _open(src: str, crop: str | None) -> Image.Image:
     return img.crop(_parse_box(crop)) if crop else img
 
 
+class SourceRefused(Exception):
+    """A glyph source too degraded to trace (`quality.assess`). args[0] is the assessment."""
+
+
+def check_source(src: str, crop: str | None, mono: bool) -> dict | None:
+    """Refuse a `--mono` glyph source whose silhouette its own noise moves (#1391); None for a colour source.
+
+    Raises SourceRefused. Measured on the cropped source before any keying, trimming or upscaling.
+    """
+    if not mono:
+        return None
+    img = _open(src, crop)
+    assessment = quality.assess(img.tobytes(), *img.size)
+    if not assessment["pass"]:
+        raise SourceRefused(assessment)
+    return assessment
+
+
+def refusal_message(assessment: dict) -> str:
+    return (f"source-quality: silhouette stability {assessment['stability']:.3f} under the source's own noise "
+            f"(sigma {assessment['sigma']:g}) is below {quality.MIN_STABILITY:g} — the degradation has already "
+            "decided this glyph's shape; supply a larger or cleaner source")
+
+
 def keyed_source(src: str, crop: str | None, bg_spec: str, key: str, matte: str,
                  tolerance: int) -> tuple[Image.Image, str]:
     """Open, crop, key and trim: (the keyed source at source resolution, its edge character).
@@ -208,11 +234,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        check_source(args.src, args.crop, args.mono)
         img, edge = keyed_source(args.src, args.crop, args.bg, args.key, args.matte, args.tolerance)
         smooth = edges.smoothing_for(args.smooth, edge, args.scale)
     except (OSError, ValueError) as exc:
         print(f"prep: {exc}", file=sys.stderr)
         return 2
+    except SourceRefused as exc:
+        print(f"prep: {refusal_message(exc.args[0])}", file=sys.stderr)
+        return 3
     except NothingLeft as exc:
         print(f"prep: nothing left after keying background {exc.args[0]}; lower --tolerance", file=sys.stderr)
         return 1

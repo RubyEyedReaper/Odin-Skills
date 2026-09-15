@@ -1,15 +1,18 @@
 {
   "iou": 0.9785,
-  "mae": 11.7877,
-  "edge_f1": 0.9047,
-  "jaggedness": 0.1799,
+  "mae": 9.7785,
+  "edge_f1": 0.9766,
+  "jaggedness": 0.0061,
+  "features": 1.0,
   "staircase": null,
+  "lost_features": [],
   "thresholds": {
     "iou": 0.95,
     "mae": 12.0,
     "edge_f1": 0.8,
     "jaggedness": 15.0,
-    "staircase": 0.35
+    "staircase": 0.35,
+    "features": 0.5
   },
   "failures": [],
   "pass": true,
@@ -19,7 +22,7 @@
     74,
     70
   ],
-  "svg_bytes": 486,
+  "svg_bytes": 762,
   "mono": false,
   "scale": 2.0,
   "source_edge": "soft",
@@ -63,6 +66,8 @@
           "edge_f1": 0.9889,
           "jaggedness": 0.1454,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -91,6 +96,8 @@
           "edge_f1": 0.9913,
           "jaggedness": 1.5475,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -121,9 +128,23 @@
           "edge_f1": 0.9197,
           "jaggedness": 0.6081,
           "staircase": null,
-          "failures": []
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
+          "failures": [
+            "features"
+          ]
         },
-        "pass": true
+        "pass": false
       },
       {
         "flags": [
@@ -149,6 +170,8 @@
           "edge_f1": 0.9811,
           "jaggedness": 2.2794,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -179,7 +202,20 @@
           "edge_f1": 0.8594,
           "jaggedness": 0.5915,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
           "failures": [
+            "features",
             "mae"
           ]
         },
@@ -209,6 +245,8 @@
           "edge_f1": 0.9287,
           "jaggedness": 1.4571,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -239,6 +277,8 @@
           "edge_f1": 0.9946,
           "jaggedness": 0.0391,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -267,6 +307,8 @@
           "edge_f1": 0.9962,
           "jaggedness": 0.2116,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -297,6 +339,8 @@
           "edge_f1": 0.9766,
           "jaggedness": 0.0061,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -325,6 +369,8 @@
           "edge_f1": 0.9962,
           "jaggedness": 0.1973,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -355,9 +401,23 @@
           "edge_f1": 0.9047,
           "jaggedness": 0.1799,
           "staircase": null,
-          "failures": []
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
+          "failures": [
+            "features"
+          ]
         },
-        "pass": true
+        "pass": false
       },
       {
         "flags": [
@@ -383,8 +443,30 @@
           "edge_f1": 0.6887,
           "jaggedness": 0.0116,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f8f0ef",
+              "area": 21.8,
+              "recall": 0.0,
+              "at": [
+                18.5,
+                10.0
+              ]
+            },
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
           "failures": [
             "edge_f1",
+            "features",
             "mae"
           ]
         },
@@ -416,6 +498,8 @@
           "edge_f1": 0.9977,
           "jaggedness": 0.2433,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -444,6 +528,8 @@
           "edge_f1": 0.9962,
           "jaggedness": 0.235,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -474,6 +560,8 @@
           "edge_f1": 0.9709,
           "jaggedness": 0.214,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -502,6 +590,8 @@
           "edge_f1": 0.9962,
           "jaggedness": 0.1973,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -532,9 +622,23 @@
           "edge_f1": 0.8984,
           "jaggedness": 0.2204,
           "staircase": null,
-          "failures": []
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
+          "failures": [
+            "features"
+          ]
         },
-        "pass": true
+        "pass": false
       },
       {
         "flags": [
@@ -560,8 +664,30 @@
           "edge_f1": 0.6887,
           "jaggedness": 0.0116,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f8f0ef",
+              "area": 21.8,
+              "recall": 0.0,
+              "at": [
+                18.5,
+                10.0
+              ]
+            },
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
           "failures": [
             "edge_f1",
+            "features",
             "mae"
           ]
         },
@@ -593,6 +719,8 @@
           "edge_f1": 0.9977,
           "jaggedness": 0.4582,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -621,6 +749,8 @@
           "edge_f1": 0.9868,
           "jaggedness": 0.0926,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -651,9 +781,23 @@
           "edge_f1": 0.9271,
           "jaggedness": 0.5329,
           "staircase": null,
-          "failures": []
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
+          "failures": [
+            "features"
+          ]
         },
-        "pass": true
+        "pass": false
       },
       {
         "flags": [
@@ -679,6 +823,8 @@
           "edge_f1": 0.9757,
           "jaggedness": 0.2707,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -709,8 +855,30 @@
           "edge_f1": 0.6887,
           "jaggedness": 0.0116,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f8f0ef",
+              "area": 21.8,
+              "recall": 0.0,
+              "at": [
+                18.5,
+                10.0
+              ]
+            },
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
           "failures": [
             "edge_f1",
+            "features",
             "mae"
           ]
         },
@@ -740,8 +908,30 @@
           "edge_f1": 0.6887,
           "jaggedness": 0.0116,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f8f0ef",
+              "area": 21.8,
+              "recall": 0.0,
+              "at": [
+                18.5,
+                10.0
+              ]
+            },
+            {
+              "colour": "#f6e7ea",
+              "area": 7.2,
+              "recall": 0.0,
+              "at": [
+                19.5,
+                25.0
+              ]
+            }
+          ],
           "failures": [
             "edge_f1",
+            "features",
             "mae"
           ]
         },
@@ -773,6 +963,8 @@
           "edge_f1": 0.9591,
           "jaggedness": 1.527,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -801,6 +993,8 @@
           "edge_f1": 0.9746,
           "jaggedness": 0.8535,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -831,6 +1025,8 @@
           "edge_f1": 0.9686,
           "jaggedness": 1.1623,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -859,6 +1055,8 @@
           "edge_f1": 0.9844,
           "jaggedness": 0.9681,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -889,6 +1087,8 @@
           "edge_f1": 0.8803,
           "jaggedness": 0.6104,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -917,6 +1117,8 @@
           "edge_f1": 0.8888,
           "jaggedness": 0.4896,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": []
         },
         "pass": true
@@ -947,6 +1149,8 @@
           "edge_f1": 0.7854,
           "jaggedness": 2.1317,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -977,6 +1181,8 @@
           "edge_f1": 0.7647,
           "jaggedness": 0.9408,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -1009,6 +1215,8 @@
           "edge_f1": 0.7603,
           "jaggedness": 0.9604,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -1039,6 +1247,8 @@
           "edge_f1": 0.759,
           "jaggedness": 1.4499,
           "staircase": null,
+          "features": 1.0,
+          "lost_features": [],
           "failures": [
             "edge_f1"
           ]
@@ -1071,8 +1281,21 @@
           "edge_f1": 0.5655,
           "jaggedness": 1.0569,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#f9f1f3",
+              "area": 5.6,
+              "recall": 0.0,
+              "at": [
+                18.8,
+                24.5
+              ]
+            }
+          ],
           "failures": [
-            "edge_f1"
+            "edge_f1",
+            "features"
           ]
         },
         "pass": false
@@ -1101,16 +1324,38 @@
           "edge_f1": 0.2302,
           "jaggedness": 0.5635,
           "staircase": null,
+          "features": 0.0,
+          "lost_features": [
+            {
+              "colour": "#faf5f4",
+              "area": 19.6,
+              "recall": 0.0,
+              "at": [
+                18.8,
+                10.2
+              ]
+            },
+            {
+              "colour": "#f9f1f3",
+              "area": 5.6,
+              "recall": 0.0,
+              "at": [
+                18.8,
+                24.5
+              ]
+            }
+          ],
           "failures": [
             "edge_f1",
+            "features",
             "mae"
           ]
         },
         "pass": false
       }
     ],
-    "chosen": 10,
-    "nearest": 10,
+    "chosen": 8,
+    "nearest": 8,
     "flags": [
       "--key",
       "flood",
@@ -1125,9 +1370,8 @@
       "--colors",
       "48",
       "--set",
-      "filter_speckle=12"
+      "filter_speckle=7"
     ],
-    "seconds": 12.9,
     "bound_seconds": 300
   }
 }

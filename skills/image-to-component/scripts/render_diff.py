@@ -4,7 +4,7 @@ Needs resvg-py and Pillow (run through toolchain.sh `i2c_py render_diff`). The m
 is stdlib (`diffmetric.py`); this file only decodes and draws.
 
     render_diff.py source.png asset.svg --report qa.json [--sheet compare.png]
-                   [--iou 0.95] [--mae 12] [--edge-f1 0.80] [--jaggedness N] [--staircase N] [--mono]
+                   [--iou 0.95] [--mae 12] [--edge-f1 0.80] [--jaggedness N] [--staircase N] [--features N] [--mono]
                    [--scale N --source-edge hard|soft]
 
 --mono  compares silhouettes only: both images are painted black before scoring, because a
@@ -76,6 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--edge-f1", type=float, default=diffmetric.DEFAULT_THRESHOLDS["edge_f1"])
     parser.add_argument("--jaggedness", type=float, default=diffmetric.DEFAULT_THRESHOLDS["jaggedness"])
     parser.add_argument("--staircase", type=float, default=diffmetric.DEFAULT_THRESHOLDS["staircase"])
+    parser.add_argument("--features", type=float, default=diffmetric.DEFAULT_THRESHOLDS["features"])
     parser.add_argument("--scale", type=float, default=1.0)
     parser.add_argument("--source-edge", choices=("hard", "soft"))
     args = parser.parse_args(argv)
@@ -93,7 +94,8 @@ def main(argv: list[str] | None = None) -> int:
         source, rendered = paint_black(source, cut=True), paint_black(rendered)
     result = diffmetric.compare(source.tobytes(), rendered.tobytes(), *source.size,
                                 thresholds={"iou": args.iou, "mae": args.mae, "edge_f1": args.edge_f1,
-                                            "jaggedness": args.jaggedness, "staircase": args.staircase},
+                                            "jaggedness": args.jaggedness, "staircase": args.staircase,
+                                            "features": args.features},
                                 scale=args.scale, source_edge=args.source_edge)
     result.update(source=os.path.basename(args.source), svg=os.path.basename(args.svg), size=list(source.size),
                   svg_bytes=len(svg_text.encode()), mono=args.mono,
@@ -105,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
         fh.write("\n")
     if args.sheet:
         sheet(source, rendered).save(args.sheet)
-    print(json.dumps({k: result[k] for k in ("iou", "mae", "edge_f1", "jaggedness", "staircase", "pass", "failures")}))
+    print(json.dumps({k: result[k] for k in ("iou", "mae", "edge_f1", "jaggedness", "staircase", "features", "pass", "failures")}))
     return 0 if result["pass"] else 1
 
 
