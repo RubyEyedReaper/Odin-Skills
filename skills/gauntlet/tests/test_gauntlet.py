@@ -485,6 +485,235 @@ class WaveTest(unittest.TestCase):
         self.assertEqual(wave["workers"][0]["surface_provenance"], "unknown")
 
 
+class StaleClaimTest(unittest.TestCase):
+    """A manifest whose batch can no longer run releases its open items (DEC-0161).
+
+    Reconstructs `2026-09-01-harness-residue`: an old dated manifest, its worker branches gone
+    from `origin`, coexisting with a newer dated manifest — and proves the newer one's own claim
+    survives the identical "no branches on origin" condition, which is the live-batch case that
+    must never be released.
+    """
+
+    def setUp(self):
+        self.fx = None
+        self.original_run = gauntlet._run
+
+    def tearDown(self):
+        gauntlet._run = self.original_run
+        if self.fx:
+            self.fx.destroy()
+
+    def _set_git_state(self, live_branches=(), added_at=None):
+        """Mocks every `_run` call this module makes for the campaigns channel: `git
+        ls-remote` (branch liveness) and `git log --diff-filter=A` (a manifest's add time,
+        keyed here by filename rather than by the full path this module builds, so a test
+        does not have to know the exact join). `added_at` omitted for a name means
+        `_manifest_added_at` returns `None` for it — the fail-closed case."""
+        added_at = added_at or {}
+        heads = "".join(f"deadbeef\trefs/heads/{n}\n" for n in live_branches)
+
+        def fake_run(argv, cwd=None, timeout=60):
+            if len(argv) >= 2 and argv[0] == "git" and argv[1] == "ls-remote":
+                return (0, heads, "")
+            if len(argv) >= 2 and argv[0] == "git" and argv[1] == "log":
+                ts = added_at.get(os.path.basename(argv[-1]))
+                return (0, "", "") if ts is None else (0, f"{ts}\n", "")
+            return (127, "", f"unexpected command in test: {argv!r}")
+
+        gauntlet._run = fake_run
+
+    def _wave(self, items, campaigns):
+        self.fx = Fixture(items, campaigns=campaigns)
+        frontier = gauntlet.build_frontier(self.fx.root, want_tracker=False)
+        return gauntlet.compute_wave(frontier, width=4)
+
+    def test_a_stale_dated_manifests_open_items_become_placeable(self):
+        self._set_git_state(
+            live_branches=("only-the-newer-batchs-branch",),
+            added_at={"2026-09-01-harness-residue.json": 1000,
+                      "2026-09-15-audit-batch6.json": 2000},
+        )
+        wave = self._wave(
+            [
+                item("RM-1", links={"files": ["a/x"], "issues": []}),
+                item("RM-2", links={"files": ["b/y"], "issues": []}),
+            ],
+            campaigns={
+                "2026-09-01-harness-residue.json": {
+                    "campaign": "2026-09-01-harness-residue", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w1", "branch": "dead-branch-1", "item": "harness:RM-1"},
+                            {"worker": "w2", "branch": "dead-branch-2", "item": "harness:RM-2"},
+                        ]}
+                    ],
+                },
+                "2026-09-15-audit-batch6.json": {
+                    "campaign": "2026-09-15-audit-batch6", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w3", "branch": "only-the-newer-batchs-branch",
+                             "item": "harness:RM-3"},
+                        ]}
+                    ],
+                },
+            },
+        )
+        placed_ids = {w["item"] for w in wave["workers"]}
+        self.assertIn("harness:RM-1", placed_ids)
+        self.assertIn("harness:RM-2", placed_ids)
+
+    def test_the_newest_dated_manifests_claim_stays_held_with_no_branches_on_origin(self):
+        """The adversarial case the release predicate must never fail: a wave just re-armed,
+        before any worker has pushed, so its own branches are also absent from `origin` — the
+        exact condition a naive remote-only predicate would use to release the live batch."""
+        # origin has nothing live at all — no worker pushed yet
+        self._set_git_state(
+            added_at={"2026-09-01-old.json": 1000, "2026-09-15-audit-batch6.json": 2000},
+        )
+        wave = self._wave(
+            [item("RM-3", links={"files": ["c/z"], "issues": []})],
+            campaigns={
+                "2026-09-01-old.json": {
+                    "campaign": "2026-09-01-old", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w0", "branch": "irrelevant", "item": "harness:RM-0"},
+                        ]}
+                    ],
+                },
+                "2026-09-15-audit-batch6.json": {
+                    "campaign": "2026-09-15-audit-batch6", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w3", "branch": "not-yet-pushed", "item": "harness:RM-3"},
+                        ]}
+                    ],
+                },
+            },
+        )
+        placed_ids = {w["item"] for w in wave["workers"]}
+        self.assertNotIn("harness:RM-3", placed_ids)
+        held = {r["id"]: r["held"] for r in wave["deferred"]}
+        self.assertTrue(held["harness:RM-3"].startswith("already claimed"))
+
+    def test_an_unreadable_origin_releases_nothing(self):
+        """Fail-closed direction: 'could not look' means 'still held', never 'release it'."""
+        gauntlet._run = lambda *a, **k: (128, "", "fatal: unable to access origin")
+        wave = self._wave(
+            [item("RM-1", links={"files": ["a/x"], "issues": []})],
+            campaigns={
+                "2026-09-01-harness-residue.json": {
+                    "campaign": "2026-09-01-harness-residue", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w1", "branch": "dead-branch-1", "item": "harness:RM-1"},
+                        ]}
+                    ],
+                },
+                "2026-09-15-audit-batch6.json": {
+                    "campaign": "2026-09-15-audit-batch6", "objective": "o", "waves": [],
+                },
+            },
+        )
+        placed_ids = {w["item"] for w in wave["workers"]}
+        self.assertNotIn("harness:RM-1", placed_ids)
+
+    def test_an_item_claimed_by_two_manifests_stays_held_while_either_is_live(self):
+        """Coordinator SEND BACK on sha 393668a2, bug 1: `read_campaign_items` used to map an
+        item to the single LAST manifest claiming it (sorted-filename overwrite). Three
+        manifests, so the "newest" computation (a THIRD, undisputed decoy) is correct under
+        both old and new code and cannot mask the bug: item RM-1 is claimed by `live-a`
+        (branch present on origin — genuinely still running) AND by `stale-b` (branch gone),
+        with `stale-b` sorting after `live-a`. The old dict-overwrite kept only `stale-b`,
+        which the old code correctly judged stale (it is not the newest), and released RM-1
+        out from under `live-a`."""
+        self._set_git_state(
+            live_branches=("still-live-branch",),
+            added_at={
+                "2026-09-01-live-a.json": 1000,
+                "2026-09-10-stale-b.json": 2000,
+                "2026-09-20-decoy-newest.json": 9000,   # newest under either computation
+            },
+        )
+        wave = self._wave(
+            [item("RM-1", links={"files": ["a/x"], "issues": []})],
+            campaigns={
+                "2026-09-01-live-a.json": {
+                    "campaign": "2026-09-01-live-a", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w1", "branch": "still-live-branch", "item": "harness:RM-1"},
+                        ]}
+                    ],
+                },
+                "2026-09-10-stale-b.json": {
+                    "campaign": "2026-09-10-stale-b", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w1-again", "branch": "dead-branch", "item": "harness:RM-1"},
+                        ]}
+                    ],
+                },
+                "2026-09-20-decoy-newest.json": {
+                    "campaign": "2026-09-20-decoy-newest", "objective": "o", "waves": [],
+                },
+            },
+        )
+        placed_ids = {w["item"] for w in wave["workers"]}
+        self.assertNotIn("harness:RM-1", placed_ids)
+        held = {r["id"]: r["held"] for r in wave["deferred"]}
+        self.assertTrue(held["harness:RM-1"].startswith("already claimed"))
+
+    def test_a_same_date_double_digit_batch_is_not_shadowed_by_a_single_digit_one(self):
+        """Coordinator SEND BACK on sha 393668a2, bug 2: `dated[-1]` (lexicographic) picked
+        `2026-09-15-batch9.json` over `2026-09-15-batch10.json` as "newest", because
+        "batch10" sorts before "batch9" as a string. batch10 is genuinely the newer one (added
+        later) and has no branches on origin yet — the naive predicate would release it."""
+        self._set_git_state(
+            live_branches=(),
+            added_at={
+                "2026-09-15-batch9.json": 1000,
+                "2026-09-15-batch10.json": 2000,   # genuinely newest, despite sorting first
+            },
+        )
+        wave = self._wave(
+            [item("RM-2", links={"files": ["b/y"], "issues": []})],
+            campaigns={
+                "2026-09-15-batch9.json": {
+                    "campaign": "2026-09-15-batch9", "objective": "o", "waves": [],
+                },
+                "2026-09-15-batch10.json": {
+                    "campaign": "2026-09-15-batch10", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w2", "branch": "not-yet-pushed", "item": "harness:RM-2"},
+                        ]}
+                    ],
+                },
+            },
+        )
+        placed_ids = {w["item"] for w in wave["workers"]}
+        self.assertNotIn("harness:RM-2", placed_ids)
+        held = {r["id"]: r["held"] for r in wave["deferred"]}
+        self.assertTrue(held["harness:RM-2"].startswith("already claimed"))
+
+    def test_a_non_dated_manifest_is_never_auto_released(self):
+        """Fork 2 (DEC-0161): a project's own campaign, outside the harness's dated batch
+        sequence, keeps its claims exactly as before — even with every branch gone from origin
+        and a newer dated manifest on disk."""
+        self._set_git_state()
+        wave = self._wave(
+            [item("RM-9", links={"files": ["d/w"], "issues": []})],
+            campaigns={
+                "kinnest-onboarding.json": {
+                    "campaign": "kinnest-onboarding", "objective": "o", "waves": [
+                        {"wave": 1, "workers": [
+                            {"worker": "w9", "branch": "long-gone", "item": "harness:RM-9"},
+                        ]}
+                    ],
+                },
+                "2026-09-15-audit-batch6.json": {
+                    "campaign": "2026-09-15-audit-batch6", "objective": "o", "waves": [],
+                },
+            },
+        )
+        placed_ids = {w["item"] for w in wave["workers"]}
+        self.assertNotIn("harness:RM-9", placed_ids)
+
+
 class ExitCodeTest(unittest.TestCase):
     """The interface, so a caller greps nothing."""
 

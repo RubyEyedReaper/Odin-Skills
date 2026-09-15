@@ -54,6 +54,7 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -343,14 +344,28 @@ def read_tracker(root: str, limit: int = 500) -> list[dict]:
 
 # ------------------------------------------------------------------ channel: campaigns
 
-def read_campaign_items(root: str) -> set[str]:
-    """Every qualified item id any committed campaign manifest claims.
+#: A campaign manifest belongs to the harness's own dated batch sequence when its filename matches
+#: this — the convention every `audit-batchN` / `batchN-frontier` / `endless-bN` manifest follows.
+#: A manifest outside it (a project's own campaign, e.g. `kinnest-onboarding.json`) is never subject
+#: to the staleness release below and keeps its claims exactly as before (DEC-0161, Fork 2).
+_DATED_MANIFEST_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-.+\.json$")
+
+
+def read_campaign_items(root: str) -> dict[str, list[str]]:
+    """Every qualified item id any committed campaign manifest claims, mapped to EVERY
+    manifest filename that claims it — never only the last one. An item re-armed into a
+    later batch while an older manifest still names it is exactly the case this feature
+    creates, and a claim is only as strong as its weakest (most live) claimant — see
+    `stale_campaign_manifests`, which a caller pairs with this to decide whether every one
+    of an item's claims has expired (DEC-0161, bug 1 at integration: a single-manifest map
+    here silently dropped every claim but the alphabetically-last, so a stale manifest's
+    claim could outvote a live one's).
 
     A missing campaigns directory is an empty claim set, not a failure: a repository with no
     campaigns has none, and that is a fact rather than an unread channel. A manifest that
     exists and cannot be parsed IS a failure — something is there and it could not be read.
     """
-    out: set[str] = set()
+    out: dict[str, list[str]] = {}
     base = os.path.join(root, CAMPAIGNS_REL)
     if not os.path.isdir(base):
         return out
@@ -367,8 +382,110 @@ def read_campaign_items(root: str) -> set[str]:
             for row in wave.get("workers") or []:
                 item = row.get("item")
                 if item:
-                    out.add(item)
+                    out.setdefault(item, []).append(name)
     return out
+
+
+def _live_remote_branches(root: str) -> set[str] | None:
+    """Every branch name on `origin`, read once via `_run` — mockable exactly like every other
+    subprocess call in this module.
+
+    `None` means the read could not be done, and is never treated as an empty remote: an empty
+    set would read as "nothing is live", releasing every stale claim's opposite — everything.
+    "Could not look" stays "still held", the fail-closed direction (over-releasing is the
+    dangerous one — DEC-0161).
+    """
+    rc, out, _err = _run(["git", "ls-remote", "--heads", "origin"], cwd=root)
+    if rc != 0:
+        return None
+    names: set[str] = set()
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) == 2 and parts[1].startswith("refs/heads/"):
+            names.add(parts[1][len("refs/heads/"):])
+    return names
+
+
+def _manifest_added_at(root: str, rel_path: str) -> int | None:
+    """Unix timestamp of the commit that first added `rel_path` — read via `_run`, mockable
+    exactly like every other subprocess call in this module.
+
+    Why not the filename's own date prefix: a same-date, double-digit batch number sorts
+    BEFORE a single-digit one as a string (`…batch10.json` before `…batch9.json`, DEC-0161
+    bug 2 at integration), so the lexicographically-last dated manifest is not reliably the
+    one actually added last. The commit history is not fooled by digit count.
+
+    `None` means the read could not be done — no history found, `_run` failed, unparsable
+    output — and the caller treats "which manifest is newest" as unknown, releasing nothing:
+    the same fail-closed direction as an unreadable `origin`.
+    """
+    rc, out, _err = _run(
+        ["git", "log", "--diff-filter=A", "--format=%ct", "--", rel_path], cwd=root
+    )
+    if rc != 0:
+        return None
+    lines = [line for line in out.splitlines() if line.strip()]
+    if not lines:
+        return None
+    try:
+        return int(lines[-1])  # git log is newest-first; the last line is the earliest add
+    except ValueError:
+        return None
+
+
+def stale_campaign_manifests(root: str) -> set[str]:
+    """Manifest filenames whose batch can no longer run (DEC-0161).
+
+    A dated manifest (`_DATED_MANIFEST_RE`) is stale when every worker branch it declares is
+    absent from `origin`, AND it is not the newest manifest in the dated sequence by ADD TIME
+    (`_manifest_added_at`, never filename order — see that function's docstring for why) — the
+    second clause is what protects the batch in flight: a wave just re-armed has the identical
+    "no branches on origin yet" property before any worker has pushed, and is never the newest
+    manifest's own claim to release. A manifest outside the dated convention (a project's own,
+    independently-running campaign) is never included — see Fork 2.
+
+    Nothing here re-derives landedness (`bl_classify`, `campaign status`'s `open` count) — this
+    is a narrower, cheaper question ("does this ref exist on origin at all"), answered once per
+    `rearm` invocation rather than once per manifest.
+    """
+    base = os.path.join(root, CAMPAIGNS_REL)
+    if not os.path.isdir(base):
+        return set()
+    dated = sorted(name for name in os.listdir(base) if _DATED_MANIFEST_RE.match(name))
+    if len(dated) < 2:
+        return set()
+
+    added_at: dict[str, int] = {}
+    for name in dated:
+        ts = _manifest_added_at(root, os.path.join(CAMPAIGNS_REL, name))
+        if ts is None:
+            return set()  # ordering unknown — fail closed, release nothing
+        added_at[name] = ts
+    newest = max(dated, key=lambda name: (added_at[name], name))
+
+    live_branches = _live_remote_branches(root)
+    if live_branches is None:
+        return set()
+
+    stale: set[str] = set()
+    for name in dated:
+        if name == newest:
+            continue
+        path = os.path.join(base, name)
+        try:
+            with open(path, encoding="utf-8") as handle:
+                doc = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            continue  # read_campaign_items already raises Undetermined for this; not duplicated
+        branches = {
+            row.get("branch")
+            for wave in (doc.get("waves") or [])
+            for row in (wave.get("workers") or [])
+            if row.get("branch")
+        }
+        if branches and branches.isdisjoint(live_branches):
+            stale.add(name)
+    return stale
 
 
 # ------------------------------------------------------------------ ordering
@@ -507,6 +624,7 @@ def build_frontier(root: str, want_tracker: bool = True, issue_limit: int = 500,
 
     claimed = read_campaign_items(root)
     channels["campaigns"] = "read"
+    stale_manifests = stale_campaign_manifests(root)
 
     rows: list[dict] = []
     linked_issues: set[str] = set()
@@ -524,6 +642,7 @@ def build_frontier(root: str, want_tracker: bool = True, issue_limit: int = 500,
             blocked = "blocked-external:work-loop escalate record"
 
         order = quickwin(item)
+        claiming_manifests = claimed.get(qualified, [])
         rows.append({
             "source": "roadmap",
             "id": qualified,
@@ -533,7 +652,10 @@ def build_frontier(root: str, want_tracker: bool = True, issue_limit: int = 500,
             "tier": item.get("tier"),
             "status": item.get("status"),
             "blocked": blocked,
-            "claimed_by_campaign": qualified in claimed,
+            "claimed_by_campaign": bool(claiming_manifests),
+            "claimed_by_manifest": claiming_manifests,
+            "claim_released": bool(claiming_manifests)
+            and all(m in stale_manifests for m in claiming_manifests),
             "surface": surface_of(item),
             "issues": [str(i) for i in (((item.get("links") or {}).get("issues")) or [])],
             "score": order["score"],
@@ -557,6 +679,8 @@ def build_frontier(root: str, want_tracker: bool = True, issue_limit: int = 500,
                 "status": "open",
                 "blocked": None,
                 "claimed_by_campaign": False,
+                "claimed_by_manifest": [],
+                "claim_released": False,
                 "surface": None,
                 "issues": [number],
                 "labels": [l.get("name") for l in (issue.get("labels") or [])],
@@ -664,7 +788,7 @@ def compute_wave(frontier: dict, width: int = 4) -> dict:
         if row["blocked"]:
             deferred.append({**row, "held": row["blocked"]})
             continue
-        if row["claimed_by_campaign"]:
+        if row["claimed_by_campaign"] and not row["claim_released"]:
             deferred.append({**row, "held": "already claimed by a campaign manifest"})
             continue
         if len(placed) >= width:
