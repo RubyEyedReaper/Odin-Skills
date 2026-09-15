@@ -28,8 +28,12 @@ bash "$skill/scripts/doctor.sh" >/dev/null || { echo "degraded: toolchain unavai
 # put on a degraded glyph's distance map reaches 0.75-0.89. README records both.
 AGREEMENT_MIN=0.68
 
-glyph=(--kind icon --key global --matte soft --tolerance 25 --scale 8 --smooth 1.5 --sharpen 0.8 --color currentColor)
-brand=(--kind logo --scale 2 --colors 64 --matte soft --set filter_speckle=7 --set layer_difference=12)
+# No hand flags: --auto derives prep from the source and searches its grid (scripts/autogrid.py). The flags
+# these rows were tuned at — glyphs `--key global --matte soft --tolerance 25 --scale 8 --smooth 1.5
+# --sharpen 0.8`, mark `--scale 2 --colors 64 --matte soft --set filter_speckle=7 --set layer_difference=12`
+# — are what the search must now find or beat on its own; README records both.
+glyph=(--kind icon --color currentColor --auto)
+brand=(--kind logo --auto)
 
 failed=0
 eval_py() { uv run --no-project --quiet --with "$I2C_RESVG" --with "$I2C_PILLOW" python3 "$@"; }
@@ -67,6 +71,7 @@ done
 # Noise and JPEG blocking on a gradient-faceted gem. At --scale 4 the upscaled noise boundaries cost
 # 85 KB; at 2, with 64 colours to follow the facets' noisy shades, it fits the budget with mae under
 # 12 against its own noisy reference. Colour denoise before quantize was measured and never helped.
+# --auto must find a passing point in that narrow window (speckle 7 passes, 6 is over budget, 9 over mae).
 expect 0 rubytech-mark.low RubyTechMark RubyTechMark -- "$here/src/rubytech-mark.low.png" "${brand[@]}"
 # A transparent PNG has no ground to key; auto must notice rather than key the glyph away. Its edge
 # is a hard 1px staircase. With no --smooth, auto sees the hard edge and smooths the outline itself.

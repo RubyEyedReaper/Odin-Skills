@@ -1,0 +1,1122 @@
+{
+  "iou": 0.967,
+  "mae": 11.963,
+  "edge_f1": 0.986,
+  "jaggedness": 3.3372,
+  "staircase": null,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8,
+    "jaggedness": 15.0,
+    "staircase": 0.35
+  },
+  "failures": [],
+  "pass": true,
+  "source": "FacebookBannerMark.src.png",
+  "svg": "FacebookBannerMark.svg",
+  "size": [
+    64,
+    64
+  ],
+  "svg_bytes": 988,
+  "mono": false,
+  "scale": 2.0,
+  "source_edge": "soft",
+  "reference_jaggedness": 4.1582,
+  "search": {
+    "derived": {
+      "edge": "soft",
+      "edge_ramp": 1.209,
+      "blurred_ramp": 1.35,
+      "prep": {
+        "key": "flood",
+        "matte": "soft",
+        "tolerance": 40,
+        "sharpen": 0
+      }
+    },
+    "grid": [
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "32",
+          "--set",
+          "filter_speckle=4"
+        ],
+        "bytes": 2777,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.967,
+          "mae": 10.4136,
+          "edge_f1": 0.9867,
+          "jaggedness": 3.4463,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "32",
+          "--set",
+          "filter_speckle=4"
+        ],
+        "bytes": 1696,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9735,
+          "mae": 10.1614,
+          "edge_f1": 0.9914,
+          "jaggedness": 3.8826,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "32",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 1908,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.968,
+          "mae": 11.2629,
+          "edge_f1": 0.9758,
+          "jaggedness": 3.5149,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "32",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 947,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9735,
+          "mae": 10.9342,
+          "edge_f1": 0.9918,
+          "jaggedness": 3.9282,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "32",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 1442,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.969,
+          "mae": 11.3339,
+          "edge_f1": 0.9859,
+          "jaggedness": 3.3641,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "32",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 831,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9735,
+          "mae": 10.9313,
+          "edge_f1": 0.9909,
+          "jaggedness": 3.9091,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=4"
+        ],
+        "bytes": 2595,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9666,
+          "mae": 9.8995,
+          "edge_f1": 0.9793,
+          "jaggedness": 3.6198,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=4"
+        ],
+        "bytes": 1742,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9645,
+          "mae": 11.2223,
+          "edge_f1": 0.9673,
+          "jaggedness": 3.4838,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 2002,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.967,
+          "mae": 10.2394,
+          "edge_f1": 0.9866,
+          "jaggedness": 3.4394,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 1368,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9656,
+          "mae": 11.3609,
+          "edge_f1": 0.9692,
+          "jaggedness": 3.4816,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 988,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.967,
+          "mae": 11.963,
+          "edge_f1": 0.986,
+          "jaggedness": 3.3372,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 919,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9659,
+          "mae": 11.5458,
+          "edge_f1": 0.9906,
+          "jaggedness": 3.6576,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=4"
+        ],
+        "bytes": 2538,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9676,
+          "mae": 9.6974,
+          "edge_f1": 0.9919,
+          "jaggedness": 3.9232,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=4"
+        ],
+        "bytes": 1594,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9687,
+          "mae": 11.7554,
+          "edge_f1": 0.9832,
+          "jaggedness": 3.8873,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 1901,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.968,
+          "mae": 10.584,
+          "edge_f1": 0.9893,
+          "jaggedness": 5.1102,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 1068,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.969,
+          "mae": 11.9882,
+          "edge_f1": 0.9828,
+          "jaggedness": 3.8745,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 1405,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9683,
+          "mae": 11.3408,
+          "edge_f1": 0.9884,
+          "jaggedness": 4.2269,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 898,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.969,
+          "mae": 12.085,
+          "edge_f1": 0.9859,
+          "jaggedness": 3.8258,
+          "staircase": null,
+          "failures": [
+            "mae"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "96",
+          "--set",
+          "filter_speckle=4"
+        ],
+        "bytes": 2836,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9663,
+          "mae": 10.8526,
+          "edge_f1": 0.99,
+          "jaggedness": 4.2148,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "96",
+          "--set",
+          "filter_speckle=4"
+        ],
+        "bytes": 2046,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9659,
+          "mae": 11.3303,
+          "edge_f1": 0.9904,
+          "jaggedness": 3.8739,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "96",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 1970,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9669,
+          "mae": 11.4856,
+          "edge_f1": 0.9856,
+          "jaggedness": 3.6975,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "96",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 1496,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9666,
+          "mae": 11.4857,
+          "edge_f1": 0.9895,
+          "jaggedness": 3.8591,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--smooth",
+          "1",
+          "--colors",
+          "96",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 1017,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9669,
+          "mae": 13.0651,
+          "edge_f1": 0.9613,
+          "jaggedness": 3.6715,
+          "staircase": null,
+          "failures": [
+            "mae"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "2",
+          "--colors",
+          "96",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 960,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9669,
+          "mae": 12.3766,
+          "edge_f1": 0.9753,
+          "jaggedness": 3.7942,
+          "staircase": null,
+          "failures": [
+            "mae"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "3",
+          "--smooth",
+          "1.5",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 4186,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9712,
+          "mae": 9.3815,
+          "edge_f1": 0.9413,
+          "jaggedness": 2.9579,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "3",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 4066,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9722,
+          "mae": 8.3412,
+          "edge_f1": 0.9367,
+          "jaggedness": 3.3285,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "3",
+          "--smooth",
+          "1.5",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 4047,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9685,
+          "mae": 9.4891,
+          "edge_f1": 0.9299,
+          "jaggedness": 3.0897,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "3",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=7"
+        ],
+        "bytes": 3334,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.972,
+          "mae": 9.0714,
+          "edge_f1": 0.9308,
+          "jaggedness": 3.4995,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "3",
+          "--smooth",
+          "1.5",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 1917,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9706,
+          "mae": 11.954,
+          "edge_f1": 0.8938,
+          "jaggedness": 2.535,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "3",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 2005,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9726,
+          "mae": 10.7014,
+          "edge_f1": 0.9003,
+          "jaggedness": 3.167,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "4",
+          "--smooth",
+          "2",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 5246,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9861,
+          "mae": 9.5009,
+          "edge_f1": 0.736,
+          "jaggedness": 3.8843,
+          "staircase": null,
+          "failures": [
+            "edge_f1"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "4",
+          "--colors",
+          "48",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 5239,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9884,
+          "mae": 6.754,
+          "edge_f1": 0.7912,
+          "jaggedness": 2.3242,
+          "staircase": null,
+          "failures": [
+            "edge_f1"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "4",
+          "--smooth",
+          "2",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 4875,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9859,
+          "mae": 9.106,
+          "edge_f1": 0.7627,
+          "jaggedness": 3.9599,
+          "staircase": null,
+          "failures": [
+            "edge_f1"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "4",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=12"
+        ],
+        "bytes": 5418,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9815,
+          "mae": 7.4241,
+          "edge_f1": 0.8095,
+          "jaggedness": 2.8592,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "4",
+          "--smooth",
+          "2",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=24"
+        ],
+        "bytes": 1982,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9872,
+          "mae": 11.6743,
+          "edge_f1": 0.6494,
+          "jaggedness": 3.2137,
+          "staircase": null,
+          "failures": [
+            "edge_f1"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "flood",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "40",
+          "--scale",
+          "4",
+          "--colors",
+          "64",
+          "--set",
+          "filter_speckle=24"
+        ],
+        "bytes": 2063,
+        "tier": 1,
+        "check": [],
+        "qa": {
+          "iou": 0.9861,
+          "mae": 10.6411,
+          "edge_f1": 0.6919,
+          "jaggedness": 2.5986,
+          "staircase": null,
+          "failures": [
+            "edge_f1"
+          ]
+        },
+        "pass": false
+      }
+    ],
+    "chosen": 10,
+    "nearest": 10,
+    "flags": [
+      "--key",
+      "flood",
+      "--matte",
+      "soft",
+      "--tolerance",
+      "40",
+      "--scale",
+      "2",
+      "--smooth",
+      "1",
+      "--colors",
+      "48",
+      "--set",
+      "filter_speckle=12"
+    ],
+    "seconds": 11.0,
+    "bound_seconds": 300
+  }
+}

@@ -1,8 +1,8 @@
 {
-  "iou": 0.9839,
+  "iou": 0.9833,
   "mae": 0.0,
-  "edge_f1": 1.0,
-  "jaggedness": 2.3778,
+  "edge_f1": 0.9998,
+  "jaggedness": 2.4817,
   "staircase": null,
   "thresholds": {
     "iou": 0.95,
@@ -19,9 +19,9 @@
     432,
     336
   ],
-  "svg_bytes": 2960,
+  "svg_bytes": 2819,
   "mono": true,
   "scale": 8.0,
   "source_edge": "soft",
-  "reference_jaggedness": 14.4883
+  "reference_jaggedness": 14.8265
 }

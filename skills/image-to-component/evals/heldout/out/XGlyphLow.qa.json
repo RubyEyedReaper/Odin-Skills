@@ -1,0 +1,279 @@
+{
+  "iou": 0.9543,
+  "mae": 0.0,
+  "edge_f1": 0.9999,
+  "jaggedness": 3.6532,
+  "staircase": null,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8,
+    "jaggedness": 15.0,
+    "staircase": 0.35
+  },
+  "failures": [],
+  "pass": true,
+  "source": "XGlyphLow.src.png",
+  "svg": "XGlyphLow.svg",
+  "size": [
+    272,
+    320
+  ],
+  "svg_bytes": 2894,
+  "mono": true,
+  "scale": 16.0,
+  "source_edge": "soft",
+  "reference_jaggedness": 9.1258,
+  "search": {
+    "derived": {
+      "edge": "soft",
+      "edge_ramp": 0.9,
+      "blurred_ramp": 1.35,
+      "prep": {
+        "key": "global",
+        "matte": "soft",
+        "tolerance": 25,
+        "sharpen": 0
+      }
+    },
+    "grid": [
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8"
+        ],
+        "bytes": 1794,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.7993,
+          "mae": 0.0,
+          "edge_f1": 0.9429,
+          "jaggedness": 6.2123,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "4.5"
+        ],
+        "bytes": 1042,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.4864,
+          "mae": 0.0,
+          "edge_f1": 0.6006,
+          "jaggedness": 2.4494,
+          "staircase": null,
+          "failures": [
+            "edge_f1",
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "1.5"
+        ],
+        "bytes": 2019,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9048,
+          "mae": 0.0,
+          "edge_f1": 0.997,
+          "jaggedness": 7.4112,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "0.5"
+        ],
+        "bytes": 1984,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9126,
+          "mae": 0.0,
+          "edge_f1": 0.9997,
+          "jaggedness": 6.7308,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16"
+        ],
+        "bytes": 2632,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.8071,
+          "mae": 0.0,
+          "edge_f1": 0.7931,
+          "jaggedness": 3.8968,
+          "staircase": null,
+          "failures": [
+            "edge_f1",
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "9"
+        ],
+        "bytes": 1831,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.4979,
+          "mae": 0.0,
+          "edge_f1": 0.3484,
+          "jaggedness": 3.1048,
+          "staircase": null,
+          "failures": [
+            "edge_f1",
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "3"
+        ],
+        "bytes": 2828,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.943,
+          "mae": 0.0,
+          "edge_f1": 0.9937,
+          "jaggedness": 3.429,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "1"
+        ],
+        "bytes": 2894,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9543,
+          "mae": 0.0,
+          "edge_f1": 0.9999,
+          "jaggedness": 3.6532,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      }
+    ],
+    "chosen": 7,
+    "nearest": 7,
+    "flags": [
+      "--key",
+      "global",
+      "--matte",
+      "soft",
+      "--tolerance",
+      "25",
+      "--scale",
+      "16",
+      "--smooth",
+      "1"
+    ],
+    "seconds": 12.9,
+    "bound_seconds": 300
+  }
+}

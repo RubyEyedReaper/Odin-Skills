@@ -1,0 +1,275 @@
+{
+  "iou": 0.9652,
+  "mae": 0.0,
+  "edge_f1": 0.9816,
+  "jaggedness": 1.7264,
+  "staircase": null,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8,
+    "jaggedness": 15.0,
+    "staircase": 0.35
+  },
+  "failures": [],
+  "pass": true,
+  "source": "ThermometerGlyph.src.png",
+  "svg": "ThermometerGlyph.svg",
+  "size": [
+    256,
+    352
+  ],
+  "svg_bytes": 2005,
+  "mono": true,
+  "scale": 16.0,
+  "source_edge": "soft",
+  "reference_jaggedness": 9.7974,
+  "search": {
+    "derived": {
+      "edge": "soft",
+      "edge_ramp": 1.0,
+      "blurred_ramp": 1.35,
+      "prep": {
+        "key": "global",
+        "matte": "soft",
+        "tolerance": 25,
+        "sharpen": 0
+      }
+    },
+    "grid": [
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8"
+        ],
+        "bytes": 1181,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9035,
+          "mae": 0.0,
+          "edge_f1": 0.9392,
+          "jaggedness": 0.9399,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "4.5"
+        ],
+        "bytes": 1068,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.8424,
+          "mae": 0.0,
+          "edge_f1": 0.8038,
+          "jaggedness": 1.1346,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "1.5"
+        ],
+        "bytes": 1351,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9365,
+          "mae": 0.0,
+          "edge_f1": 0.984,
+          "jaggedness": 0.9459,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "0.5"
+        ],
+        "bytes": 1334,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9362,
+          "mae": 0.0,
+          "edge_f1": 0.9951,
+          "jaggedness": 0.996,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16"
+        ],
+        "bytes": 1790,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9275,
+          "mae": 0.0,
+          "edge_f1": 0.8823,
+          "jaggedness": 1.4974,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "9"
+        ],
+        "bytes": 1353,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.8569,
+          "mae": 0.0,
+          "edge_f1": 0.7121,
+          "jaggedness": 2.0133,
+          "staircase": null,
+          "failures": [
+            "edge_f1",
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "3"
+        ],
+        "bytes": 2005,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9652,
+          "mae": 0.0,
+          "edge_f1": 0.9816,
+          "jaggedness": 1.7264,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "1"
+        ],
+        "bytes": 2242,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9687,
+          "mae": 0.0,
+          "edge_f1": 0.9997,
+          "jaggedness": 1.682,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      }
+    ],
+    "chosen": 6,
+    "nearest": 6,
+    "flags": [
+      "--key",
+      "global",
+      "--matte",
+      "soft",
+      "--tolerance",
+      "25",
+      "--scale",
+      "16",
+      "--smooth",
+      "3"
+    ],
+    "seconds": 13.7,
+    "bound_seconds": 300
+  }
+}

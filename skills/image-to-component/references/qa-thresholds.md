@@ -21,6 +21,10 @@ and scores it with `scripts/diffmetric.py`. Defaults live in `DEFAULT_THRESHOLDS
   silhouette to compare; a soft-matted reference's edge ramp is otherwise too wide for Sobel to read.
 - **A threshold is changed in `DEFAULT_THRESHOLDS`, with a reason, and never per run to get a
   pass.** Per-run `--iou/--mae/--edge-f1` exist for measuring, not for shipping.
+- **`--auto` selects among candidates that clear the bars; it never moves one.** Each candidate is
+  scored with `DEFAULT_THRESHOLDS` against a reference its prep derived once, so every candidate faces
+  the same bar at a given scale. `qa.json` → `search.grid` holds each candidate's scores and failures;
+  a refused search writes `"failures": ["auto"]` and names the nearest miss.
 - Read `<Name>.compare.png` too — source, render, and amplified difference side by side. The numbers
   decide; the sheet tells you which flag to change.
 

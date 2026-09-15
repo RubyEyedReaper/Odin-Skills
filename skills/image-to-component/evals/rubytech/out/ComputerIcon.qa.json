@@ -1,8 +1,8 @@
 {
-  "iou": 0.9626,
+  "iou": 0.9619,
   "mae": 0.0,
-  "edge_f1": 0.9899,
-  "jaggedness": 2.3638,
+  "edge_f1": 0.9942,
+  "jaggedness": 2.6156,
   "staircase": null,
   "thresholds": {
     "iou": 0.95,
@@ -17,11 +17,11 @@
   "svg": "ComputerIcon.svg",
   "size": [
     416,
-    328
+    320
   ],
-  "svg_bytes": 3141,
+  "svg_bytes": 3102,
   "mono": true,
   "scale": 8.0,
   "source_edge": "soft",
-  "reference_jaggedness": 11.1228
+  "reference_jaggedness": 10.9546
 }

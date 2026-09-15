@@ -1,0 +1,275 @@
+{
+  "iou": 0.9529,
+  "mae": 0.0,
+  "edge_f1": 0.9867,
+  "jaggedness": 2.7107,
+  "staircase": null,
+  "thresholds": {
+    "iou": 0.95,
+    "mae": 12.0,
+    "edge_f1": 0.8,
+    "jaggedness": 15.0,
+    "staircase": 0.35
+  },
+  "failures": [],
+  "pass": true,
+  "source": "ClockGlyph.src.png",
+  "svg": "ClockGlyph.svg",
+  "size": [
+    336,
+    336
+  ],
+  "svg_bytes": 2948,
+  "mono": true,
+  "scale": 16.0,
+  "source_edge": "soft",
+  "reference_jaggedness": 13.1489,
+  "search": {
+    "derived": {
+      "edge": "soft",
+      "edge_ramp": 0.616,
+      "blurred_ramp": 1.35,
+      "prep": {
+        "key": "global",
+        "matte": "soft",
+        "tolerance": 25,
+        "sharpen": 0
+      }
+    },
+    "grid": [
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8"
+        ],
+        "bytes": 1483,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.8924,
+          "mae": 0.0,
+          "edge_f1": 0.9843,
+          "jaggedness": 1.4886,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "4.5"
+        ],
+        "bytes": 1375,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.8382,
+          "mae": 0.0,
+          "edge_f1": 0.9204,
+          "jaggedness": 1.4574,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "1.5"
+        ],
+        "bytes": 1852,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9203,
+          "mae": 0.0,
+          "edge_f1": 0.9993,
+          "jaggedness": 2.108,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--smooth",
+          "0.5"
+        ],
+        "bytes": 2063,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9255,
+          "mae": 0.0,
+          "edge_f1": 0.9996,
+          "jaggedness": 2.3885,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16"
+        ],
+        "bytes": 2568,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9223,
+          "mae": 0.0,
+          "edge_f1": 0.9541,
+          "jaggedness": 2.2664,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "9"
+        ],
+        "bytes": 1934,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.825,
+          "mae": 0.0,
+          "edge_f1": 0.7232,
+          "jaggedness": 2.0133,
+          "staircase": null,
+          "failures": [
+            "edge_f1",
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "3"
+        ],
+        "bytes": 2948,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9529,
+          "mae": 0.0,
+          "edge_f1": 0.9867,
+          "jaggedness": 2.7107,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--smooth",
+          "1"
+        ],
+        "bytes": 3079,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9623,
+          "mae": 0.0,
+          "edge_f1": 0.9962,
+          "jaggedness": 2.798,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      }
+    ],
+    "chosen": 6,
+    "nearest": 6,
+    "flags": [
+      "--key",
+      "global",
+      "--matte",
+      "soft",
+      "--tolerance",
+      "25",
+      "--scale",
+      "16",
+      "--smooth",
+      "3"
+    ],
+    "seconds": 15.8,
+    "bound_seconds": 300
+  }
+}

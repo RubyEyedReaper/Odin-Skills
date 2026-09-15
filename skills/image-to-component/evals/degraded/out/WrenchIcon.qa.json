@@ -1,8 +1,8 @@
 {
-  "iou": 0.9665,
+  "iou": 0.9539,
   "mae": 0.0,
-  "edge_f1": 0.9982,
-  "jaggedness": 2.9812,
+  "edge_f1": 0.9893,
+  "jaggedness": 1.6689,
   "staircase": null,
   "thresholds": {
     "iou": 0.95,
@@ -19,9 +19,265 @@
     184,
     184
   ],
-  "svg_bytes": 1395,
+  "svg_bytes": 1118,
   "mono": true,
   "scale": 8.0,
   "source_edge": "soft",
-  "reference_jaggedness": 7.521
+  "reference_jaggedness": 7.5896,
+  "search": {
+    "derived": {
+      "edge": "soft",
+      "edge_ramp": 1.908,
+      "blurred_ramp": 1.35,
+      "prep": {
+        "key": "global",
+        "matte": "soft",
+        "tolerance": 25,
+        "sharpen": 0.8
+      }
+    },
+    "grid": [
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--sharpen",
+          "0.8"
+        ],
+        "bytes": 1118,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9539,
+          "mae": 0.0,
+          "edge_f1": 0.9893,
+          "jaggedness": 1.6689,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--sharpen",
+          "0.8",
+          "--smooth",
+          "4.5"
+        ],
+        "bytes": 1103,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9293,
+          "mae": 0.0,
+          "edge_f1": 0.9298,
+          "jaggedness": 1.2123,
+          "staircase": null,
+          "failures": [
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--sharpen",
+          "0.8",
+          "--smooth",
+          "1.5"
+        ],
+        "bytes": 1321,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9662,
+          "mae": 0.0,
+          "edge_f1": 1.0,
+          "jaggedness": 2.9812,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "8",
+          "--sharpen",
+          "0.8",
+          "--smooth",
+          "0.5"
+        ],
+        "bytes": 1323,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9686,
+          "mae": 0.0,
+          "edge_f1": 1.0,
+          "jaggedness": 3.6219,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--sharpen",
+          "0.8"
+        ],
+        "bytes": 1640,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9666,
+          "mae": 0.0,
+          "edge_f1": 0.951,
+          "jaggedness": 2.1593,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--sharpen",
+          "0.8",
+          "--smooth",
+          "9"
+        ],
+        "bytes": 1382,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9358,
+          "mae": 0.0,
+          "edge_f1": 0.7468,
+          "jaggedness": 1.7441,
+          "staircase": null,
+          "failures": [
+            "edge_f1",
+            "iou"
+          ]
+        },
+        "pass": false
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--sharpen",
+          "0.8",
+          "--smooth",
+          "3"
+        ],
+        "bytes": 1715,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9829,
+          "mae": 0.0,
+          "edge_f1": 0.9993,
+          "jaggedness": 2.8832,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      },
+      {
+        "flags": [
+          "--key",
+          "global",
+          "--matte",
+          "soft",
+          "--tolerance",
+          "25",
+          "--scale",
+          "16",
+          "--sharpen",
+          "0.8",
+          "--smooth",
+          "1"
+        ],
+        "bytes": 1820,
+        "tier": 0,
+        "check": [],
+        "qa": {
+          "iou": 0.9831,
+          "mae": 0.0,
+          "edge_f1": 0.9971,
+          "jaggedness": 2.999,
+          "staircase": null,
+          "failures": []
+        },
+        "pass": true
+      }
+    ],
+    "chosen": 0,
+    "nearest": 0,
+    "flags": [
+      "--key",
+      "global",
+      "--matte",
+      "soft",
+      "--tolerance",
+      "25",
+      "--scale",
+      "8",
+      "--sharpen",
+      "0.8"
+    ],
+    "seconds": 19.0,
+    "bound_seconds": 300
+  }
 }
