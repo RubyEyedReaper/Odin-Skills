@@ -48,7 +48,8 @@ bash "$skill/scripts/typecheck.sh" "$out" || { echo "FAIL  typecheck"; failed=1;
 # Exit codes cannot see these, and both once shipped: a standalone .svg with no namespace renders
 # nowhere but inline, and a currentColor glyph with no fill renders black whatever the text colour.
 for svg in "$out"/*.svg; do
-  head -c 200 "$svg" | grep -q 'xmlns="http://www.w3.org/2000/svg"' || { echo "FAIL  $(basename "$svg") has no xmlns"; failed=1; }
+  body="$(head -c 200 "$svg")"
+  grep -q 'xmlns="http://www.w3.org/2000/svg"' <<< "$body" || { echo "FAIL  $(basename "$svg") has no xmlns"; failed=1; }
 done
 for icon in ComputerIcon GearIcon ControllerIcon WrenchIcon; do
   grep -q 'fill="currentColor"' "$out/$icon.tsx" || { echo "FAIL  $icon.tsx does not inherit colour"; failed=1; }
