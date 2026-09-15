@@ -123,8 +123,28 @@ failure". Nothing did. `rearm` does, under two rules:
    `error-path/unreadable-input-returned-a-substantive-verdict`, and it would clear 138 of 149 items
    nobody looked at.
 
-Also never placed: a blocked item, an item already claimed by a committed campaign manifest, and an
-untriaged tracker row.
+Also never placed: a blocked item, an item claimed by a committed campaign manifest whose batch can
+still run, and an untriaged tracker row.
+
+**A claim expires only when EVERY manifest naming it can no longer run.** `read_campaign_items`
+names every manifest holding a row, not only the last one processed — an item re-armed into a
+later batch while an older manifest still names it is exactly the case this feature creates, and a
+single-manifest map lets the stale claim outvote the live one (caught at integration, sha
+393668a2's first attempt).
+
+**A claim expires when its batch cannot run (DEC-0161).** `stale_campaign_manifests` names which of
+the harness's own dated manifests (`YYYY-MM-DD-*.json`) can no longer run — every worker branch it
+declares absent from `origin`, and the manifest not the newest in that dated sequence **by the
+commit that added it**, never by filename: a same-date, double-digit batch number sorts before a
+single-digit one as a string (`…batch10.json` before `…batch9.json`), so a lexicographic "newest"
+misidentifies which manifest is the one in flight (also caught at integration, same sha). Both
+conditions together, never one alone: branch absence by itself would release the batch in flight on
+the day it re-arms, before any worker has pushed, and recency by itself says nothing about whether a
+manifest's work actually finished. Either the branch read or the add-time read failing is the same
+fail-closed direction: release nothing. A manifest outside the dated convention — a project's own,
+independently-running campaign — is never
+swept; its claims hold exactly as before. `origin` unreadable releases nothing: "could not look"
+stays held, never mistaken for "nothing is claiming it".
 
 **The breakdown sums to `deferred`.** The width check runs before the surface checks, so most rows
 in a large frontier are held as `wave-full` and never surface-checked at all — which means
