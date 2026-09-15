@@ -197,12 +197,16 @@ def codes(findings):
     return [f["code"] for f in findings]
 
 
-def main(argv=None):
+def build_parser():
     parser = argparse.ArgumentParser(
         prog="plancheck", description="Mechanical gate on a construction plan.")
     parser.add_argument("plan", help="path to the plan markdown file")
     parser.add_argument("--json", action="store_true", help="emit findings as JSON")
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
 
     if not os.path.isfile(args.plan):
         sys.stderr.write("[plancheck] no such plan: %s\n" % args.plan)

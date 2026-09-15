@@ -637,8 +637,9 @@ def run(spec: dict, *, decisions_dir: Path = None, record: bool = False,
     return result, 0
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
+        prog="score",
         description="Score a decision-spec JSON and emit a result JSON."
     )
     parser.add_argument(
@@ -677,7 +678,11 @@ def main() -> None:
              "the harness ledger .claude/docs/decisions. A project's decision belongs in "
              "projects/<name>/docs/decisions.",
     )
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
 
     try:
         if args.spec:
