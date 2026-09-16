@@ -106,6 +106,26 @@ HOOK_ENV_DUMP = re.compile(CMD_POS + r"(?:env|printenv|set)\s*(?:\||>|$)", re.M)
 HOOK_STDIN_IDIOM = re.compile(r"\$\(\s*cat\b[^)]*\)|2>\s*/dev/null\s*\|\|\s*(?:true|:)\s*\)")
 HOOK_SWALLOW = re.compile(r"\|\|\s*true\b|\|\|\s*:\s*$|2>\s*/dev/null\s*(?:\||;|$)", re.M)
 
+# A settings.json hook command names its script in one of several spellings —
+# `./.claude/hooks/x.sh`, `"${CLAUDE_PROJECT_DIR}/.claude/hooks/x.sh"`, a bare basename —
+# and this token is shared by every consumer that needs "which script does this command
+# run" (check_hooks, session_start_injected_skills). `{`/`}`/`$`/`"` are outside the
+# character class, so a `${VAR}`-prefixed command yields the path's tail, never the
+# variable name.
+HOOK_CMD_TOKEN = re.compile(r"[\w./-]+\.(?:sh|mjs|js|py)")
+
+# The literal a SessionStart hook injecting a skill verbatim actually contains — a
+# quoted assignment such as `SKILL_FILE="$REPO_ROOT/.claude/skills/using-superpowers/SKILL.md"`.
+# The lookbehind stops a longer path (e.g. `projects/Odin-Skills/skills/<n>/SKILL.md`)
+# from matching partway through; the lowercase-leading class matches every on-disk skill
+# name and excludes a `$VAR`/glob shape a composed (non-literal) path would leave behind.
+SKILL_PATH_LITERAL = re.compile(r"(?<![A-Za-z0-9._-])\.claude/skills/([a-z0-9][a-z0-9._-]*)/SKILL\.md")
+
+# The marker that distinguishes an injecting SessionStart hook from a script that merely
+# tests for a skill's presence (.claude/scripts/setup.sh:59 does the latter, in an
+# `[ -f ... ]` guard, and emits no session context anywhere in the file).
+SESSION_CONTEXT_MARKER = "additionalContext"
+
 PLAN_STALE_DAYS = 14                # a spent plan is deleted, not archived
 RUNTIME_STALE_HOURS = 24
 CLAIM_TICKET_TTL_MIN = 15           # ADR-0051
@@ -1551,21 +1571,109 @@ def check_agents(env: Env, rep: Report) -> None:
             )
 
 
+def hook_commands(env: Env, event: str | None = None) -> list[str]:
+    """Raw `command` strings from .claude/settings.json's hook registrations — every
+    event flattened when `event` is None (check_hooks' original behaviour), or one
+    event's commands when named. The one parser; check_hooks and
+    session_start_injected_skills both read through it rather than each re-walking the
+    settings.json shape (ci/rule-enforcement.md § One Policy, One Implementation)."""
+    settings = env.root / ".claude" / "settings.json"
+    if not settings.is_file():
+        return []
+    try:
+        data = json.loads(read_text(settings))
+    except ValueError:
+        return []
+    hooks = data.get("hooks")
+    if not isinstance(hooks, dict):
+        return []
+    events = [event] if event is not None else list(hooks.keys())
+    cmds: list[str] = []
+    for ev in events:
+        entries = hooks.get(ev)
+        for entry in entries if isinstance(entries, list) else []:
+            for hook in entry.get("hooks", []) if isinstance(entry, dict) else []:
+                cmds.append(str(hook.get("command", "")))
+    return cmds
+
+
+def resolve_hook_script(env: Env, token: str) -> Path | None:
+    """A hook-command token may spell its path as `./.claude/hooks/x.sh`, as
+    `"${CLAUDE_PROJECT_DIR}/.claude/hooks/x.sh"` (HOOK_CMD_TOKEN's character class
+    excludes `{`/`}`/`$`, so the match is already just the `/.claude/...` tail), or as a
+    bare basename. Anchoring on the last `.claude/` occurrence and joining that remainder
+    to env.root handles all three without ever letting an absolute-looking token escape
+    env.root — `env.root / "/.claude/x"` would silently discard env.root under plain
+    Path-joining, which is the shape .claude/settings.json actually uses for three of its
+    four SessionStart entries."""
+    marker = ".claude/"
+    idx = token.rfind(marker)
+    if idx != -1:
+        candidate = env.root / token[idx:]
+        if candidate.is_file():
+            return candidate
+    name = Path(token).name
+    for sub in ("hooks", "scripts"):
+        candidate = env.root / ".claude" / sub / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def session_start_injected_skills(env: Env, on_disk: set[str]) -> tuple[set[str], str]:
+    """A skill the harness injects verbatim at SessionStart (using-superpowers, via
+    .claude/hooks/superpowers-session-start.sh) is context on every turn and never a
+    `Skill` tool_use block, so check_unused_skills' transcript-derived `invoked` set can
+    never contain it — the same fact skill-reachability.conf already records for the
+    same skill ("Injected verbatim at SessionStart by the harness, never routed by
+    intent", skill-reachability.conf:76). Derived here, never hardcoded, from
+    settings.json's SessionStart entries and the scripts they name (DEC-0171).
+
+    Raw source, not strip_shell_noise: the literal lives inside a double-quoted
+    assignment, which that helper blanks — normalizing first would return the empty set
+    and leave the finding wrong with the matrix reporting green.
+
+    SESSION_CONTEXT_MARKER is required alongside the path literal because the literal
+    alone over-reports: .claude/scripts/setup.sh:59 names
+    `.claude/skills/agent-browser/SKILL.md` inside `if [ -f ... ]`, a presence guard that
+    injects nothing, and agent-browser is a real routing defect this finding must keep
+    surfacing.
+
+    Residue: a path named only in a comment inside a script that does emit
+    SessionStart context still over-exempts. Unchecked — bounded in practice by the
+    conjunction above, since a script emitting no session context is never consulted."""
+    settings = env.root / ".claude" / "settings.json"
+    if settings.is_file():
+        try:
+            json.loads(read_text(settings))
+        except ValueError:
+            return set(), "undetermined (settings.json unreadable)"
+    found: set[str] = set()
+    for cmd in hook_commands(env, event="SessionStart"):
+        for token in HOOK_CMD_TOKEN.findall(cmd):
+            path = resolve_hook_script(env, token)
+            if path is None:
+                continue
+            try:
+                src = read_text(path)
+            except OSError:
+                continue
+            if SESSION_CONTEXT_MARKER not in src:
+                continue
+            found.update(m for m in SKILL_PATH_LITERAL.findall(src) if m in on_disk)
+    if not found:
+        return set(), "none"
+    return found, f"{len(found)} SessionStart-injected excluded: {', '.join(sorted(found))}"
+
+
 def check_hooks(env: Env, rep: Report) -> None:
     settings = env.root / ".claude" / "settings.json"
     hooks_dir = env.root / ".claude" / "hooks"
     if not settings.is_file() or not hooks_dir.is_dir():
         return
-    try:
-        data = json.loads(read_text(settings))
-    except ValueError:
-        return
     registered: set[str] = set()
-    for entries in (data.get("hooks") or {}).values():
-        for entry in entries if isinstance(entries, list) else []:
-            for hook in entry.get("hooks", []) if isinstance(entry, dict) else []:
-                cmd = str(hook.get("command", ""))
-                registered.update(re.findall(r"[\w./-]+\.(?:sh|mjs|js|py)", cmd))
+    for cmd in hook_commands(env):
+        registered.update(HOOK_CMD_TOKEN.findall(cmd))
     on_disk = {p.name for p in hooks_dir.glob("*.sh")}
     registered_names = {Path(r).name for r in registered}
     unregistered = sorted(on_disk - registered_names)
@@ -1781,19 +1889,27 @@ def check_unused_skills(env: Env, rep: Report) -> None:
         except OSError:
             pass
     window_days = max((env.now - oldest) // DAY, 0)
-    never = sorted(on_disk - {s.split(":")[-1] for s in invoked})
-    rep.channel(
-        "components",
+    injected, injected_note = session_start_injected_skills(env, on_disk)
+    never = sorted(on_disk - {s.split(":")[-1] for s in invoked} - injected)
+    channel_msg = (
         f"ok: {len(files)} transcripts spanning {window_days}d, "
-        f"{len(invoked)} distinct skills invoked",
+        f"{len(invoked)} distinct skills invoked"
     )
+    if injected_note != "none":
+        channel_msg += f"; {injected_note}"
+    rep.channel("components", channel_msg)
     if never:
+        evidence = (
+            f"{len(never)} of {len(on_disk)} skills, window {window_days}d across "
+            f"{len(files)} transcripts: {', '.join(never[:20])}"
+            + (" …" if len(never) > 20 else "")
+        )
+        if injected:
+            evidence += f"; {injected_note}"
         rep.add(
             "low", "components", "skill-never-invoked", ".claude/skills/",
             "Skills have no recorded invocation in the transcript window",
-            f"{len(never)} of {len(on_disk)} skills, window {window_days}d across "
-            f"{len(files)} transcripts: {', '.join(never[:20])}"
-            + (" …" if len(never) > 20 else ""),
+            evidence,
             "For each: confirm it is routed in the decision matrix, then either fix the route "
             "or retire the skill. Never-invoked plus unrouted is a deletion candidate; "
             "never-invoked but routed is a routing defect.",
