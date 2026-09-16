@@ -93,6 +93,29 @@ ground. The source is keyed as `--auto` keys a glyph, re-keyed under six seeded 
 the α ≥ 128 silhouettes are compared by IoU. Below **0.90** mean IoU the source is refused. A transparent
 or noiseless source has nothing to perturb and passes.
 
+**The ladder's labels were re-derived, and three moved (#1410).** The `UNREADABLE` set was a frozen
+literal written by an earlier pass. Every one of the 48 rungs was traced again under `--auto`,
+against a scratch copy of the skill whose `MIN_STABILITY` is 0 so a refused rung still produces a
+sheet, and read again. The criterion, stated so a reader can check it: **does the trace still show
+the feature that makes the glyph that glyph** — the monitor's frame, the gear's toothed rim, the
+controller's body and holes, the wrench's *open* jaw.
+
+| Rung | Was | Is | What its sheet shows |
+|---|---|---|---|
+| `wrench-icon.s40.q15` | reads | **unreadable** | a smooth diagonal lump with no opening at either end |
+| `wrench-icon.s33.q30` | reads | **unreadable** | a rounded top with a shallow dent where the jaw was |
+| `wrench-icon.s25.q30` | reads | **unreadable** | the same: a dent, not an opening |
+
+The 45 other rungs kept their labels, including two that were re-examined and left alone:
+`gear-icon.s40.q30` (**reads** — its rim is unmistakably toothed, though its bore has become a
+squiggle) and `wrench-icon.s33.q20` (**reads** — its top is forked into a V, which is a jaw).
+
+**Stated plainly, because it is the obvious objection:** all three relabelled rungs are ones the new
+measure refuses, so the re-derivation improves the measure's apparent score. Three things bound
+that. The re-labelling ran **before** either threshold was chosen; **all 48** rungs were judged, not
+only the contested ones; and `gear-icon.s40.q30` was left `reads` although calling it unreadable
+would have *raised* the catch count. The criterion above is the check a reader can run.
+
 **Calibration — never on the held-out set.** A severity ladder built from the four clean RubyTech
 glyphs (×0.5 / 0.4 / 0.33 / 0.25, each at JPEG 30 with blur 0.6 and noise 6, JPEG 20 with noise 4, and
 JPEG 15 with blur 0.8 and noise 8: 48 sources), each traced under `--auto` and labelled by reading its
@@ -121,6 +144,108 @@ the clean glyphs (RubyTech and held-out crops, which must all pass):
 noise rivals, and misses a thick glyph the blur has merged — a gear whose teeth are gone is stable
 under noise and still wrong. `evals/degraded/src/computer-icon.destroyed.png` is one refused rung,
 committed as the eval's refusal case; `evals/degraded/ladder.py` rebuilds the ladder and prints every rung's label and verdict.
+
+**Edge ramp ÷ subject extent — the second measure, for the half stability misses (#1410).**
+`edges.edge_ramp` of the keyed, soft-matted source over the longest side of its α ≥ 128 bounding
+box. Above **0.20** the source is refused, with `reason: "ramp-extent"`.
+
+A blur destroys features smaller than its own width, and a glyph's features scale with the glyph, so
+an edge ramp means nothing until it is read against the size of the subject carrying it: the same
+2 px of softness is nothing on a 40 px mark and the whole of a 9 px one. It is the one dimensionless
+number among the candidates, and it is **not** the rejected "edge ramp ÷ stroke thickness" — median
+distance-transform thickness quantises to 1.0 px on almost every degraded rung, which is why that
+denominator carried no signal.
+
+Six further candidates were computed on all 48 rungs, the 4 clean RubyTech glyphs, the 7 committed
+degraded sources and the 10 held-out glyph crops:
+
+| Candidate | Why it lost |
+|---|---|
+| threshold IoU (α ≥ 96 against α ≥ 160) | clean glyphs 0.80–0.97, readable degraded 0.66–0.81, unreadable 0.66–0.84 — total overlap inside the degraded population |
+| ramp mass — share of visible pixels at partial alpha | separates clean from degraded and nothing inside degraded |
+| interior dimness | a shape property: clean glyphs span 0.19–1.0 |
+| blur robustness — IoU after a further 1 px box blur | high for a chunky clean glyph and for a destroyed one alike; it measures blobness, not damage |
+| interior valleys — the residue of a merged gap | works on the controller family and is identically zero for every wrench rung, readable or not |
+| **edge ramp ÷ subject extent** | **kept** |
+
+**The two combine as an OR, and the verdict names which fired.** A single blended score would hide
+both: they are answers to different questions, and `qa.json` carries each. Swept jointly over the
+relabelled ladder, subject to every clean RubyTech glyph, every clean held-out glyph and every
+committed degraded glyph the eval expects to pass passing, and `computer-icon.destroyed` being
+refused:
+
+| Measure(s) at `MIN_STABILITY` 0.90 | unreadable rungs refused | readable rungs refused |
+|---|---|---|
+| stability alone, against the *frozen* labels (the state #1410 reports) | 10 of 19 | 3 of 29 |
+| stability alone, against the relabelled ladder | 11 of 22 | 2 of 26 |
+| **both, `MAX_RAMP_EXTENT` 0.20** | **20 of 22** | **2 of 26** |
+
+Of the 20, **9 are refused by `ramp_extent` alone**, 5 by stability alone and 6 by both — which is
+the case for keeping two measures rather than replacing one with the other. The two still missed are
+`gear-icon.s33.q20` (ramp 0.136) and `wrench-icon.s50.q15` (0.188); the two false refusals are
+`wrench-icon.s33.q20` and `.s25.q20`, both on **stability**, both wrenches 7–9 px across, and both
+already refused before this measure existed.
+
+`MIN_STABILITY` did not move. A pair at 0.89 scores identically and sits further from the nearest
+must-pass source (`computer-icon.low`, 0.906), but every catch it adds is one this measure already
+makes, and lowering a bound that changes no verdict is a loosening with nothing to show for it.
+
+**Its residue, stated:** it says nothing about a source that is uniformly crisp and simply too
+small, which is what stability covers. Neither replaces the other, and together they still miss two
+rungs a reader can see are destroyed.
+
+## Colour source quality — the same two measures, keyed as a mark (#1409)
+
+A colour mark was assessed by nothing: `prep.check_source` returned without measuring unless
+`--mono` was passed, so `facebook-banner-mark.low` passed every bar at `--auto` — iou 0.970, mae
+11.74, edge_f1 0.802 — while its compare sheet shows a lumpy badge and a mangled "f". It was the one
+wrong-looking pass left on the held-out set.
+
+**What ships is `stability` and `ramp_extent` unchanged, computed on a source keyed the way `--auto`
+keys a colour mark** — flood at tolerance 40 with a soft matte, rather than globally at
+`GLYPH_TOLERANCE`. Bars of its own: **0.97** and **0.06**.
+
+Keying was the whole difficulty, and getting it wrong is what made three colour-specific candidates
+read backwards. A global key at a glyph's tolerance cuts a mark's own dark regions out of it, so the
+"subject" whose extent the ramp is divided by is whatever fragments survive: clean
+`facebook-banner-mark` scored `ramp_extent` 0.201 that way — higher than every degraded *glyph* in
+the corpus, and higher than its own degraded twin. Keyed as a mark it scores 0.043, and the twin
+0.111.
+
+| Candidate, measured on 21 ladder rungs, 8 clean colour assets and 5 degraded held-out marks | Why it lost |
+|---|---|
+| palette-region agreement under seeded noise (the shape #1409 proposes) | reads a mark's palette complexity, not its damage: clean `alert-mark` 0.884 against degraded `facebook-banner-mark.low` 0.849 |
+| the same, restricted to region interiors | inverted — clean `alert-mark` 0.963 and clean `facebook-banner-mark` 0.927 both score *below* the degraded twin's 1.000 |
+| disagreement ÷ label-boundary share | separates, but clean marks span 0.018–0.132 across six assets: 7× on a population whose degraded members span 0.115–0.166 |
+| transition width ÷ characteristic region size | collapses to 1 ÷ region size — clean `alert-mark` 0.0593 above degraded `facebook-banner-mark.low` 0.0561 |
+| **the two shipped measures, keyed as a mark** | **kept** |
+
+**The colour ladder goes further down than the glyph one, and its rungs carry no hand-read label.**
+`evals/degraded/colour_ladder.py` degrades `rubytech-mark.png` under the glyph ladder's three
+recipes at ×0.5 down to ×0.12 — 21 rungs. Two reasons it differs: at the glyph ladder's floor
+(×0.25) the mark is still 33×40 px and every rung reads, so a ladder stopping there carries no
+positive example; and below that, **a rung's `--auto` run leaves no trace to read**, because nothing
+in the grid passes. So the label is the run's own verdict — `traceable` or not — rather than a
+reading of a sheet that does not exist.
+
+| At `MIN_COLOUR_STABILITY` 0.97, `MAX_COLOUR_RAMP_EXTENT` 0.06 | Refused at prep |
+|---|---|
+| ladder rungs the `--auto` grid can still trace (7) | **0 of 7** |
+| ladder rungs nothing in the grid can trace (14) | **11 of 14** |
+| clean colour assets — RubyTech mark and lockup, 5 held-out marks (7) | **0 of 7** |
+| `evals/degraded/src/rubytech-mark.low.png`, which must pass | **kept** (0.991 / 0.016) |
+
+The bound sits just above the highest clean colour asset (`facebook-mark`, 0.0476) rather than
+anywhere higher: every rung above it is one nothing can trace, so the lowest feasible bound is the
+one that refuses the most, and the 26 % margin to that asset is what keeps it honest.
+`rubytech-logo` is deliberately in the must-pass set — the RubyTech eval requires it to fail at the
+**budget**, never at prep, and `evals/rubytech/run.sh` asserts that reason by name.
+
+**Its residue, stated:** three untraceable rungs are still kept (`s50.q20`, `s33.q30`, `s25.q20`)
+— they fail QA for reasons that are not degradation of the source, and a source measure cannot see
+them. And the calibration's positive examples are all one mark: the ladder is `rubytech-mark`
+degraded seven ways, so the bound is bounded-below by seven clean assets and bounded-above by one
+subject's ladder. A second colour subject would make it stronger.
 
 ## Why staircase exists, and why 0.35
 

@@ -230,7 +230,26 @@ agreement with the clean golden is the score that says the curves are right.
 `computer-icon.destroyed` is one rung of the 48-source ladder the `source-quality` refusal was calibrated
 on (`ladder.py` rebuilds it; `references/qa-thresholds.md` § Source quality has the table). It is refused
 at prep, before tracing, at silhouette stability 0.806. The four `.low` glyphs, the lowest of which is
-the computer at 0.911, keep passing with unchanged SVGs.
+the computer at 0.906, keep passing with unchanged SVGs.
+
+The refusal now carries a second measure and a second keying, and neither moves a row here — which is
+the point of saying so. Every source in this eval, scored the way its own kind is keyed:
+
+| source | kind | stability | ramp over extent | verdict |
+|---|---|---|---|---|
+| `computer-icon.destroyed` | glyph | 0.8057 | 0.2500 | **refused**, `stability` (both bounds fail; stability is reported first) |
+| `computer-icon.low` | glyph | 0.9063 | 0.0927 | pass |
+| `gear-icon.low` | glyph | 0.9566 | 0.1124 | pass |
+| `controller-icon.low` | glyph | 0.9723 | 0.1257 | pass |
+| `wrench-icon.low` | glyph | 0.9601 | 0.1192 | pass |
+| `wrench-icon.alpha`, `controller-icon.alpha.small` | glyph | 1.0 | 0.0 | pass — transparent PNGs, no ground noise to measure |
+| `rubytech-mark.low` | colour mark | 0.9912 | 0.0158 | pass |
+
+Bounds are 0.90 / 0.20 for a glyph and 0.97 / 0.06 for a colour mark, keyed globally at tolerance 25
+and by flood fill at 40 respectively (`references/qa-thresholds.md` §§ Source quality, Colour source
+quality). `computer-icon.low` is the closest pass on this set, 0.006 above the stability bound; the
+margin is small because the bound was calibrated on the ladder to sit just under the readable
+population, not padded to keep this eval comfortable.
 
 Every row above also carries `features` now: glyphs 1.0, the mark 0.9645 — no expectation moved, and
 `--auto` chose the same candidate for every asset.

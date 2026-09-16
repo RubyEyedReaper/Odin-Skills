@@ -43,10 +43,11 @@ ordinary stages; `qa.json` carries the whole grid under `search`. Nothing passin
 nearest miss named. Measured: 7–85 s per asset; bounded at 300 s. A tuning flag beside `--auto` is
 refused. Why the grid varies only trace-side axes: [references/tracing-presets.md](references/tracing-presets.md#auto).
 
-Held-out assets no flag was tuned on (`evals/heldout/`): 5/20 pass on the rows below, 10/20 under `--auto`.
-Of the 10 refused, three are glyph sources refused at prep as too degraded to read (`source-quality`) — the
-three that passed at 13/20 as blobs — and seven are colour marks that fail QA; every search also holds
-`features`, so a smaller SVG that drops a dot or fills a hole is never the one chosen.
+Held-out assets no flag was tuned on (`evals/heldout/`): 5/20 pass on the rows below, 9/20 under `--auto`.
+Of the 11 refused, eight are refused at prep as too degraded to read (`source-quality`) — three glyphs
+that passed at 13/20 as blobs, and five colour marks, one of which passed with a ragged "f" — and three
+are clean gradient marks that fail QA. Every pass looks right on its compare sheet; every search also
+holds `features`, so a smaller SVG that drops a dot or fills a hole is never the one chosen.
 
 ## Starting flags — when tuning by hand
 
@@ -79,7 +80,7 @@ Why each exists, and the vtracer numbers: [references/tracing-presets.md](refere
 
 | Refusal | Do | Never |
 |---|---|---|
-| prep `source-quality` | the glyph's own noise decides its silhouette (`references/qa-thresholds.md` § Source quality): get a larger or cleaner source | trace it anyway with hand flags — every trace of it is the wrong shape |
+| prep `source-quality` | the source is too degraded to read — a glyph or a colour mark, each against its own bars. `qa.json` → `source_quality.reason` says which way: `stability` — its own noise decides its silhouette; `ramp-extent` — its blur is wide next to the subject carrying it, so features have merged. Either way, get a larger or cleaner source (`references/qa-thresholds.md` § Source quality, § Colour source quality) | trace it anyway with hand flags — every trace of it is the wrong shape |
 | `opaque-background` | fix keying (`--bg`, `--tolerance`); `--allow-background` only if the ground is part of the design | delete the path by hand |
 | `budget-bytes` / `budget-paths` | fewer `--colors`, `--set filter_speckle=12` and up; if it still fails, the input is a layout — rebuild route | raise the budget |
 | QA `iou` / `edge_f1` | `--smooth 1.0` or lower, `--scale 6`, re-crop tighter | lower the threshold to pass |
