@@ -84,6 +84,12 @@ uncaptured (ADR-0069).
   retained transcripts", and the report states the window it scanned. A skill added last
   week and a skill nobody has ever wanted look identical over a 24-day window; read the
   finding against the skill's age before concluding anything.
+- **A skill injected verbatim at SessionStart never counts against it.** Such a skill is
+  used every turn as context, never as a `Skill` tool_use, so it is excluded from
+  `skill-never-invoked` by reading `.claude/settings.json`'s `SessionStart` entries and
+  the scripts they name — never a hardcoded skill name. The finding's evidence and the
+  `components` channel line name each excluded skill and its injecting hook, so the
+  exclusion is never silent (harness:RM-0656).
 - **A credential-shape match is reported by class, never by text.** The scanner prints the
   record id, the project and the match class. It does not quote the match, because a
   finding that quotes a secret has copied it into a report and then into an issue.
