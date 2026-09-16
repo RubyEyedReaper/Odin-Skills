@@ -1,7 +1,7 @@
 {
   "iou": 0.967,
   "mae": 11.963,
-  "edge_f1": 0.986,
+  "edge_f1": 0.9638,
   "jaggedness": 3.3372,
   "features": 1.0,
   "staircase": null,
@@ -63,7 +63,7 @@
         "qa": {
           "iou": 0.967,
           "mae": 10.4136,
-          "edge_f1": 0.9867,
+          "edge_f1": 0.9658,
           "jaggedness": 3.4463,
           "staircase": null,
           "features": 1.0,
@@ -93,7 +93,7 @@
         "qa": {
           "iou": 0.9735,
           "mae": 10.1614,
-          "edge_f1": 0.9914,
+          "edge_f1": 0.9697,
           "jaggedness": 3.8826,
           "staircase": null,
           "features": 1.0,
@@ -125,7 +125,7 @@
         "qa": {
           "iou": 0.968,
           "mae": 11.2629,
-          "edge_f1": 0.9758,
+          "edge_f1": 0.9571,
           "jaggedness": 3.5149,
           "staircase": null,
           "features": 1.0,
@@ -155,7 +155,7 @@
         "qa": {
           "iou": 0.9735,
           "mae": 10.9342,
-          "edge_f1": 0.9918,
+          "edge_f1": 0.9681,
           "jaggedness": 3.9282,
           "staircase": null,
           "features": 1.0,
@@ -187,7 +187,7 @@
         "qa": {
           "iou": 0.969,
           "mae": 11.3339,
-          "edge_f1": 0.9859,
+          "edge_f1": 0.9646,
           "jaggedness": 3.3641,
           "staircase": null,
           "features": 1.0,
@@ -217,7 +217,7 @@
         "qa": {
           "iou": 0.9735,
           "mae": 10.9313,
-          "edge_f1": 0.9909,
+          "edge_f1": 0.9685,
           "jaggedness": 3.9091,
           "staircase": null,
           "features": 1.0,
@@ -249,7 +249,7 @@
         "qa": {
           "iou": 0.9666,
           "mae": 9.8995,
-          "edge_f1": 0.9793,
+          "edge_f1": 0.9706,
           "jaggedness": 3.6198,
           "staircase": null,
           "features": 1.0,
@@ -279,7 +279,7 @@
         "qa": {
           "iou": 0.9645,
           "mae": 11.2223,
-          "edge_f1": 0.9673,
+          "edge_f1": 0.9521,
           "jaggedness": 3.4838,
           "staircase": null,
           "features": 1.0,
@@ -311,7 +311,7 @@
         "qa": {
           "iou": 0.967,
           "mae": 10.2394,
-          "edge_f1": 0.9866,
+          "edge_f1": 0.9664,
           "jaggedness": 3.4394,
           "staircase": null,
           "features": 1.0,
@@ -341,7 +341,7 @@
         "qa": {
           "iou": 0.9656,
           "mae": 11.3609,
-          "edge_f1": 0.9692,
+          "edge_f1": 0.9545,
           "jaggedness": 3.4816,
           "staircase": null,
           "features": 1.0,
@@ -373,7 +373,7 @@
         "qa": {
           "iou": 0.967,
           "mae": 11.963,
-          "edge_f1": 0.986,
+          "edge_f1": 0.9638,
           "jaggedness": 3.3372,
           "staircase": null,
           "features": 1.0,
@@ -403,7 +403,7 @@
         "qa": {
           "iou": 0.9659,
           "mae": 11.5458,
-          "edge_f1": 0.9906,
+          "edge_f1": 0.9634,
           "jaggedness": 3.6576,
           "staircase": null,
           "features": 1.0,
@@ -435,7 +435,7 @@
         "qa": {
           "iou": 0.9676,
           "mae": 9.6974,
-          "edge_f1": 0.9919,
+          "edge_f1": 0.9749,
           "jaggedness": 3.9232,
           "staircase": null,
           "features": 1.0,
@@ -465,7 +465,7 @@
         "qa": {
           "iou": 0.9687,
           "mae": 11.7554,
-          "edge_f1": 0.9832,
+          "edge_f1": 0.9657,
           "jaggedness": 3.8873,
           "staircase": null,
           "features": 1.0,
@@ -497,7 +497,7 @@
         "qa": {
           "iou": 0.968,
           "mae": 10.584,
-          "edge_f1": 0.9893,
+          "edge_f1": 0.9725,
           "jaggedness": 5.1102,
           "staircase": null,
           "features": 1.0,
@@ -527,7 +527,7 @@
         "qa": {
           "iou": 0.969,
           "mae": 11.9882,
-          "edge_f1": 0.9828,
+          "edge_f1": 0.9646,
           "jaggedness": 3.8745,
           "staircase": null,
           "features": 1.0,
@@ -559,7 +559,7 @@
         "qa": {
           "iou": 0.9683,
           "mae": 11.3408,
-          "edge_f1": 0.9884,
+          "edge_f1": 0.9707,
           "jaggedness": 4.2269,
           "staircase": null,
           "features": 1.0,
@@ -589,7 +589,7 @@
         "qa": {
           "iou": 0.969,
           "mae": 12.085,
-          "edge_f1": 0.9859,
+          "edge_f1": 0.9646,
           "jaggedness": 3.8258,
           "staircase": null,
           "features": 1.0,
@@ -623,7 +623,7 @@
         "qa": {
           "iou": 0.9663,
           "mae": 10.8526,
-          "edge_f1": 0.99,
+          "edge_f1": 0.9632,
           "jaggedness": 4.2148,
           "staircase": null,
           "features": 1.0,
@@ -653,7 +653,7 @@
         "qa": {
           "iou": 0.9659,
           "mae": 11.3303,
-          "edge_f1": 0.9904,
+          "edge_f1": 0.9648,
           "jaggedness": 3.8739,
           "staircase": null,
           "features": 1.0,
@@ -685,7 +685,7 @@
         "qa": {
           "iou": 0.9669,
           "mae": 11.4856,
-          "edge_f1": 0.9856,
+          "edge_f1": 0.9604,
           "jaggedness": 3.6975,
           "staircase": null,
           "features": 1.0,
@@ -715,7 +715,7 @@
         "qa": {
           "iou": 0.9666,
           "mae": 11.4857,
-          "edge_f1": 0.9895,
+          "edge_f1": 0.9644,
           "jaggedness": 3.8591,
           "staircase": null,
           "features": 1.0,
@@ -747,7 +747,7 @@
         "qa": {
           "iou": 0.9669,
           "mae": 13.0651,
-          "edge_f1": 0.9613,
+          "edge_f1": 0.9479,
           "jaggedness": 3.6715,
           "staircase": null,
           "features": 1.0,
@@ -779,7 +779,7 @@
         "qa": {
           "iou": 0.9669,
           "mae": 12.3766,
-          "edge_f1": 0.9753,
+          "edge_f1": 0.9561,
           "jaggedness": 3.7942,
           "staircase": null,
           "features": 1.0,
@@ -813,7 +813,7 @@
         "qa": {
           "iou": 0.9712,
           "mae": 9.3815,
-          "edge_f1": 0.9413,
+          "edge_f1": 0.9494,
           "jaggedness": 2.9579,
           "staircase": null,
           "features": 1.0,
@@ -843,7 +843,7 @@
         "qa": {
           "iou": 0.9722,
           "mae": 8.3412,
-          "edge_f1": 0.9367,
+          "edge_f1": 0.9405,
           "jaggedness": 3.3285,
           "staircase": null,
           "features": 1.0,
@@ -875,7 +875,7 @@
         "qa": {
           "iou": 0.9685,
           "mae": 9.4891,
-          "edge_f1": 0.9299,
+          "edge_f1": 0.9604,
           "jaggedness": 3.0897,
           "staircase": null,
           "features": 1.0,
@@ -905,7 +905,7 @@
         "qa": {
           "iou": 0.972,
           "mae": 9.0714,
-          "edge_f1": 0.9308,
+          "edge_f1": 0.9492,
           "jaggedness": 3.4995,
           "staircase": null,
           "features": 1.0,
@@ -937,7 +937,7 @@
         "qa": {
           "iou": 0.9706,
           "mae": 11.954,
-          "edge_f1": 0.8938,
+          "edge_f1": 0.9179,
           "jaggedness": 2.535,
           "staircase": null,
           "features": 1.0,
@@ -967,7 +967,7 @@
         "qa": {
           "iou": 0.9726,
           "mae": 10.7014,
-          "edge_f1": 0.9003,
+          "edge_f1": 0.9356,
           "jaggedness": 3.167,
           "staircase": null,
           "features": 1.0,
@@ -999,16 +999,14 @@
         "qa": {
           "iou": 0.9861,
           "mae": 9.5009,
-          "edge_f1": 0.736,
+          "edge_f1": 0.9138,
           "jaggedness": 3.8843,
           "staircase": null,
           "features": 1.0,
           "lost_features": [],
-          "failures": [
-            "edge_f1"
-          ]
+          "failures": []
         },
-        "pass": false
+        "pass": true
       },
       {
         "flags": [
@@ -1031,16 +1029,14 @@
         "qa": {
           "iou": 0.9884,
           "mae": 6.754,
-          "edge_f1": 0.7912,
+          "edge_f1": 0.942,
           "jaggedness": 2.3242,
           "staircase": null,
           "features": 1.0,
           "lost_features": [],
-          "failures": [
-            "edge_f1"
-          ]
+          "failures": []
         },
-        "pass": false
+        "pass": true
       },
       {
         "flags": [
@@ -1065,16 +1061,14 @@
         "qa": {
           "iou": 0.9859,
           "mae": 9.106,
-          "edge_f1": 0.7627,
+          "edge_f1": 0.9162,
           "jaggedness": 3.9599,
           "staircase": null,
           "features": 1.0,
           "lost_features": [],
-          "failures": [
-            "edge_f1"
-          ]
+          "failures": []
         },
-        "pass": false
+        "pass": true
       },
       {
         "flags": [
@@ -1097,7 +1091,7 @@
         "qa": {
           "iou": 0.9815,
           "mae": 7.4241,
-          "edge_f1": 0.8095,
+          "edge_f1": 0.9285,
           "jaggedness": 2.8592,
           "staircase": null,
           "features": 1.0,
@@ -1129,16 +1123,14 @@
         "qa": {
           "iou": 0.9872,
           "mae": 11.6743,
-          "edge_f1": 0.6494,
+          "edge_f1": 0.8678,
           "jaggedness": 3.2137,
           "staircase": null,
           "features": 1.0,
           "lost_features": [],
-          "failures": [
-            "edge_f1"
-          ]
+          "failures": []
         },
-        "pass": false
+        "pass": true
       },
       {
         "flags": [
@@ -1161,16 +1153,14 @@
         "qa": {
           "iou": 0.9861,
           "mae": 10.6411,
-          "edge_f1": 0.6919,
+          "edge_f1": 0.892,
           "jaggedness": 2.5986,
           "staircase": null,
           "features": 1.0,
           "lost_features": [],
-          "failures": [
-            "edge_f1"
-          ]
+          "failures": []
         },
-        "pass": false
+        "pass": true
       }
     ],
     "chosen": 10,

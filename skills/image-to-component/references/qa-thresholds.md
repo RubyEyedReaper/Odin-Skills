@@ -7,7 +7,7 @@ and scores it with `scripts/diffmetric.py`. Defaults live in `DEFAULT_THRESHOLDS
 |---|---|---|
 | `iou` — alpha silhouette overlap (α ≥ 128) | ≥ 0.95 | missing or extra shapes, lost transparency, background left in |
 | `mae` — mean abs RGB error on visible pixels, 0–255 | ≤ 12 | wrong colours, merged regions, over-quantization |
-| `edge_f1` — Sobel edge agreement within ±1px | ≥ 0.80 | drifted outlines, lost detail, over-smoothing |
+| `edge_f1` — Sobel edge agreement within ±1px, edges taken over a black and a white ground so no subject colour hides its outline | ≥ 0.80 | drifted outlines, lost detail, over-smoothing |
 | `jaggedness` — the render's outline zig-zag finer than its shape (`scripts/jaggedness.py`) | ≤ 15 | pixel staircases and tracer wobble, which IoU and edge_f1 both absorb |
 | `features` — lowest recall of any counted reference feature (`scripts/features.py`) | ≥ 0.5 | a dropped dot, a filled hole, a detail painted over — which every average above absorbs (#1392) |
 | `staircase` — share of a hard source's one-pixel steps the render keeps (`scripts/jaggedness.py`) | ≤ 0.35 | an aliased source's steps traced at `--scale` ≥ 2, which `jaggedness` reads as real corners. Scored only when prep reports a hard source edge; `null` otherwise |
@@ -194,6 +194,30 @@ makes, and lowering a bound that changes no verdict is a loosening with nothing 
 small, which is what stability covers. Neither replaces the other, and together they still miss two
 rungs a reader can see are destroyed.
 
+**The two false refusals cannot be separated, measured (2026-09-16).** Both routes proposed for
+them — scale the stability bar for a very small subject, or stop counting the anti-aliasing flips a
+7–9 px silhouette cannot avoid — were computed on all 48 rungs (`evals/degraded/ladder.py` plus
+per-rung silhouette extent, area, boundary length and mean flipped pixels across the six noise
+draws). Each has an unreadable rung the refusal catches today on the far side of a readable wrench:
+
+| Measure | `wrench-icon.s25.q20` (reads) | nearest unreadable, caught only by stability |
+|---|---|---|
+| stability, extent | 0.8722 at 8 px | `gear-icon.s25.q20`: 0.8688 at 7 px, ramp 0.159 |
+| flipped pixels ÷ boundary length | 0.177 | `gear-icon.s25.q20` 0.147, `gear-icon.s25.q15` 0.217 |
+
+| Measure | `wrench-icon.s33.q20` (reads) | nearest unreadable, caught only by stability |
+|---|---|---|
+| stability, extent | 0.837 at 9 px | `computer-icon.s33.q30`: 0.8145 at 12 px, ramp 0.173 |
+| flipped pixels ÷ boundary length | 0.269 — higher than 9 of the 11 unreadable rungs whose verdict names stability | `computer-icon.s33.q30` 0.263 |
+
+A size-scaled bar that keeps both wrenches (below 0.837 for subjects ≤ 9 px) releases
+`gear-icon.s25.q20` and `gear-icon.s25.q15`, neither of which `ramp_extent` catches: 18 of 22
+unreadable refused for 0 of 26 readable, against 20 and 2 today. A flip-per-boundary bar has no
+cut at all that orders the two wrenches on the readable side. The wrench reads at 7–9 px because its
+jaw is a V that survives a moved boundary; a 7 px gear's teeth do not — which is the shape
+knowledge § Source quality already says no single measure carries. Both stay refused, and a
+source this small should be supplied larger.
+
 ## Colour source quality — the same two measures, keyed as a mark (#1409)
 
 A colour mark was assessed by nothing: `prep.check_source` returned without measuring unless
@@ -296,6 +320,10 @@ its teeth are one source pixel deep. Everything else separates with room either 
   | 4–16 colour trace, per-path linear fit | `mae` 12.3–17.7, never below the flat trace |
   | one shared linear or radial 4-stop gradient over every high-variance path, with and without iterative path reassignment | `mae` 27–40: vtracer's stacked paths lie under the glyph, so the white outline is repainted with the gradient |
   | naming the refusal `gradient-fill` from a smooth-region share of the reference | the RubyTech gem scores 0.53–0.99 and synthetic gradient marks 0.0–0.97 at every step size tried — a shaded facet and a gradient are one class to any stdlib measure found |
+  | **region-first** (2026-09-16): segment the saturated region of the reference (chroma ≥ 60–150), fit one linear (18 angles) or radial (49 centres) gradient with 4–10 least-squares stops to that region's own pixels, trace its mask binary and paint it **on top of** the best flat candidate, so no stacked path can repaint it | synthetic marks: a gradient body 11.32 → 10.02 at best, but its white dot is covered (`features` 0.0); a gradient-stroked ring mark 13.72 → 11.68 with `iou` and `features` failing. The real held-out marks, read once as acceptance: `instagram-mark` 16.48 → 16.64 at best, `whatsapp-mark` 15.46 → 14.81 — neither near 12. The fitted model's own error on the region is 14–18 per channel: those marks are 2–3 px gradient **strokes** on a dark ground, not gradient-filled bodies, and most of the error is each stroke's soft cross-profile at ×4, which no along-the-mark gradient can represent |
 
   Fitting would also widen `svg2tsx`'s dialect (#1352) to `defs` and gradients with `useId`-scoped ids;
-  that stays undone until a fit passes `mae` on a calibration mark.
+  that stays undone until a fit passes `mae` on a calibration mark. The synthetic four-stop mark the
+  first attempts used was never committed; the region-first attempt rebuilt three at 26 px (a radial
+  body with a white ring and dot, a radial-stroked ring mark with a dark interior, a linear-stroked
+  outline) and nothing it measured argues for re-opening DEC-0168.

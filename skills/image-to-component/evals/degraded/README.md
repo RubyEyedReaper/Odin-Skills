@@ -168,6 +168,10 @@ The grid now tries every colour setting with its quantized regions' borders vote
 | same flags `--smooth 1` | 0.9628 | 11.66 | 0.8660 | 5.99 | 0.8870 | 108 | 33717 |
 | **`--auto` now**, ×2 / 96 / speckle 7 / `--smooth 1` | 0.9643 | 11.80 | 0.8568 | 7.07 | 0.8853 | 98 | 31122 |
 
+Every `edge_f1` in this file was scored over a mid-grey ground. Since `d5a20e1d` edges are taken over
+black and white (`scripts/diffmetric.py`), and the same 31122-byte SVG scores 0.9075; no verdict here moved,
+and `out/summary.tsv` carries the current figures.
+
 The search takes the smallest smoothed candidate that passes, which is 96 colours rather than 64: fewer
 paths and bytes, edge_f1 +0.011, agreement −0.002. Compare sheets: facet borders and the hexagon's
 rim run clean where the unsmoothed trace steps along the noise; the controller's buttons are round;

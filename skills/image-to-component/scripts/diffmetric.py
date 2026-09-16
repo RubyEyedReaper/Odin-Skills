@@ -7,7 +7,8 @@ lets the gated suite test the metric with no toolchain installed.
 Three numbers, each catching a different failure:
   iou      alpha silhouette overlap        — missing or extra shapes, lost transparency
   mae      mean abs RGB error, visible px  — wrong colours, merged colour regions
-  edge_f1  Sobel edge agreement ±tolerance — jagged curves, lost detail, drifted outlines
+  edge_f1  Sobel edge agreement ±tolerance — jagged curves, lost detail, drifted outlines;
+           edges over a black and a white ground, so no subject colour hides its outline
 
 one about small shapes, which every average above absorbs (`features.py`):
   features    lowest recall of any counted reference feature — a dropped dot, a filled hole (#1392)
@@ -52,19 +53,30 @@ def mae_rgb(a: bytes, b: bytes) -> float:
     return 0.0 if count == 0 else total / count
 
 
-def _luma_over_grey(buf: bytes, width: int, height: int) -> list[float]:
-    # Composite over mid-grey so an alpha boundary is an edge even where the colour is not.
+# The grounds an alpha boundary is judged against. A single mid-grey ground hides the outline of any
+# subject whose luma is near 127.5 — a mid blue is ~117 — so its silhouette scored as no edge at
+# all. Sobel is linear in the composite and mid-grey is the mean of these two, so on one of them every
+# boundary is at least as strong as it was over grey: the union loses no edge the grey ground found.
+EDGE_GROUNDS = (0.0, 255.0)
+
+
+def _luma_over(buf: bytes, width: int, height: int, ground: float) -> list[float]:
     out = []
     for i in range(0, width * height * 4, 4):
         alpha = buf[i + 3] / 255
         luma = 0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2]
-        out.append(luma * alpha + 127.5 * (1 - alpha))
+        out.append(luma * alpha + ground * (1 - alpha))
     return out
 
 
 def _edges(buf: bytes, width: int, height: int) -> set[tuple[int, int]]:
-    lum = _luma_over_grey(buf, width, height)
+    edges = set()
+    for ground in EDGE_GROUNDS:
+        edges |= _sobel_edges(_luma_over(buf, width, height, ground), width, height)
+    return edges
 
+
+def _sobel_edges(lum: list[float], width: int, height: int) -> set[tuple[int, int]]:
     def at(x, y):
         return lum[min(max(y, 0), height - 1) * width + min(max(x, 0), width - 1)]
 

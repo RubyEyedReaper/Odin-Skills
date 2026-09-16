@@ -59,6 +59,16 @@ class EdgeF1(unittest.TestCase):
         b = square(W, H, 14, 14, 4)
         self.assertEqual(diffmetric.edge_f1(a, b, W, H, tolerance=1), 0.0)
 
+    def test_mid_grey_luma_outline_is_still_an_edge(self):
+        # (127, 128, 127) has luma 127.7, within 0.2 of the 127.5 grey a composite over mid-grey
+        # uses, so its alpha boundary is a Sobel magnitude near 1 and neither image had an edge:
+        # the two distant squares scored 1.0 through the both-empty branch. A clean flat mark in a
+        # mid-luma colour (a Facebook blue is ~117) lost most of its outline the same way.
+        grey_ish = (127, 128, 127, 255)
+        a = square(W, H, 0, 0, 4, colour=grey_ish)
+        b = square(W, H, 14, 14, 4, colour=grey_ish)
+        self.assertEqual(diffmetric.edge_f1(a, b, W, H, tolerance=1), 0.0)
+
 
 class Compare(unittest.TestCase):
     def test_pass_and_named_failures(self):

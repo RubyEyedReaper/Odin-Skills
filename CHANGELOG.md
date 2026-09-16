@@ -18,6 +18,14 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component` clean brand marks** — `edge_f1` now finds edges on the reference and the
+  render composited over both a black and a white ground, rather than one, so an anti-aliased white
+  glyph inside a coloured mark keeps the boundary a single ground erased. The clean Facebook mark
+  passes (`edge_f1` 0.63 → 0.92) and the held-out set goes from 9 to 10 of 20, with no pass that
+  looks wrong. A region-first gradient fill was measured on the real Instagram and WhatsApp marks and
+  declined, so DEC-0168 stands; `references/qa-thresholds.md` records the attempt beside the others,
+  and records why the two tiny-wrench false refusals cannot be separated from unreadable rungs.
+
 - **`image-to-component` source quality** — the prep-stage refusal now carries two measures rather
   than one: silhouette stability under the source's own noise, and the edge ramp measured against the
   subject's extent, which catches a glyph whose blur merged its features while the silhouette stayed

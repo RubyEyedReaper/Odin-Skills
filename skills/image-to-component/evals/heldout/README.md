@@ -181,7 +181,7 @@ refused on `mae` — fitting gradients was measured on a synthetic mark and decl
 
 ## Source quality, both kinds — 9/20 (#1409, #1410)
 
-`out/` holds this run: `bash evals/heldout/run.sh evals/heldout/out -- --auto`, at `cc8c57a3`. Two
+Superseded by the section after it, which `out/` holds; this run was `bash evals/heldout/run.sh evals/heldout/out -- --auto`, at `cc8c57a3`. Two
 changes closed the two gaps the section above recorded: `ramp_extent` gives the glyph refusal a
 second bar, for a source whose blur has merged the features its silhouette keeps stable (#1410); and
 a colour source is assessed at all, by the same two measures keyed the way a mark is keyed — flood
@@ -211,11 +211,45 @@ rule requires.
 `out/` — so the compare-sheet reading recorded for those nine in the section above still describes
 these files, rather than being re-asserted over a regenerated set.
 
-What is left, stated as the gap rather than as a result: the three **clean** gradient marks
-(`facebook-mark`, `instagram-mark`, `whatsapp-mark`) still fail QA, and should — their sources are
+What was left, stated as the gap rather than as a result: the three **clean** gradient marks
+(`facebook-mark`, `instagram-mark`, `whatsapp-mark`) still failed QA, and should — their sources are
 clean, so a prep refusal would be wrong, and `mae` on a 26 px gradient mark is DEC-0168's declined
 case, not this one. Every clean colour asset in the three evals passes source quality, including the
 RubyTech lockup, which must keep failing at the **budget**; the bound is 0.97 for that reason
 (`evals/rubytech/README.md`).
 
+## Clean brand marks — 10/20
+
+`out/` holds this run: `bash evals/heldout/run.sh evals/heldout/out -- --auto`, at `d5a20e1d`. The
+three clean refusals the section above ends on were read once each, as acceptance cases; every
+change was chosen on a reproduction outside this set, as the freeze rule requires.
+
+**`facebook-mark` was a metric defect, not a trace defect.** `edge_f1` composited both images over
+one mid-grey ground, and the mark's blue sits within ~10 luma of that grey, so its alpha boundary was
+almost never an edge: 84 of 466 silhouette-boundary pixels counted, and the candidates' edge_f1
+swung 0.00–0.74 while iou held at 0.91–0.97. Edges are now taken over a black and a white ground and
+unioned — a superset of the old set, with no bar moved. The reproduction and failing test is a
+synthetic mid-luma square (`tests/test_diffmetric.py`).
+
+| asset | before | after |
+|---|---|---|
+| `facebook-mark` | refused, `auto:edge_f1` (iou 0.9558, mae 9.71, edge_f1 0.6342) | **pass** at 1075 bytes: iou 0.9557, mae 11.46, edge_f1 0.9234, features 1.0 — the sheet shows the rounded square and the "f" cutout |
+| `instagram-mark` | refused, `auto:mae` 16.48 (edge_f1 0.8462) | refused, `auto:mae` 16.48 (edge_f1 0.9355) |
+| `whatsapp-mark` | refused, `auto:mae` 15.46 (edge_f1 0.9019) | refused, `auto:mae` 15.46 (edge_f1 0.914) |
+| every other row | – | same verdict, same SVG and component; edge_f1 moves under 0.006 on glyphs, and on `alert-mark` 0.9766 → 0.9835, `facebook-banner-mark` 0.986 → 0.9638 |
+
+| | source quality, both kinds | here |
+|---|---|---|
+| pass rate | 9/20 | **10/20** |
+| passes that look right on their compare sheet | 9 | **10** |
+| passes that look wrong | 0 | **0** |
+| refused | 11 — 8 at prep, 3 at QA | **10 — 8 at prep, 2 at QA** |
+
+**`instagram-mark` and `whatsapp-mark` stay refused, and DEC-0168 stands.** They are not
+gradient-filled bodies: each is 2–3 px gradient **strokes** on a dark ground (a ring and a circle; a
+speech-bubble outline around a dark teal fill). A region-first route — one linear or radial gradient
+fitted to the saturated region's own pixels and painted over the flat trace — moved them to 16.64
+and 14.81 at best, and most of the remaining error is each stroke's soft cross-profile, which no
+along-the-mark gradient represents. The attempt is recorded with the earlier ones in
+`references/qa-thresholds.md` § Known limits.
 

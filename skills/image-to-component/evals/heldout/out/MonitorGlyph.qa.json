@@ -1,7 +1,7 @@
 {
   "iou": 0.9542,
   "mae": 0.0,
-  "edge_f1": 0.9913,
+  "edge_f1": 0.991,
   "jaggedness": 2.0098,
   "features": 1.0,
   "staircase": null,
@@ -57,7 +57,7 @@
         "qa": {
           "iou": 0.9542,
           "mae": 0.0,
-          "edge_f1": 0.9913,
+          "edge_f1": 0.991,
           "jaggedness": 2.0098,
           "staircase": null,
           "features": 1.0,
@@ -85,7 +85,7 @@
         "qa": {
           "iou": 0.9397,
           "mae": 0.0,
-          "edge_f1": 0.9758,
+          "edge_f1": 0.9759,
           "jaggedness": 1.9256,
           "staircase": null,
           "features": 1.0,
@@ -201,7 +201,7 @@
         "qa": {
           "iou": 0.9547,
           "mae": 0.0,
-          "edge_f1": 0.9105,
+          "edge_f1": 0.913,
           "jaggedness": 3.4926,
           "staircase": null,
           "features": 1.0,
@@ -229,7 +229,7 @@
         "qa": {
           "iou": 0.9755,
           "mae": 0.0,
-          "edge_f1": 0.9942,
+          "edge_f1": 0.9941,
           "jaggedness": 3.6926,
           "staircase": null,
           "features": 1.0,
@@ -257,7 +257,7 @@
         "qa": {
           "iou": 0.9773,
           "mae": 0.0,
-          "edge_f1": 0.9957,
+          "edge_f1": 0.9955,
           "jaggedness": 3.7732,
           "staircase": null,
           "features": 1.0,
