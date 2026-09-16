@@ -9,6 +9,10 @@ allowed-tools:
   - Bash(npx impeccable *)
 ---
 
+<!-- odin:suppressed-under-operational -->
+**Odin routing note — suppressed under the `operational` memory class.** This is a product-web skill. `.claude/hooks/odin-skill-gate.sh` emits its suggestion arm only when the active memory class is in-project (`task:<slug>` in `.claude/.runtime/active-mem-class`); under `operational` — harness-only work, and the default when that file is absent — the arm is suppressed and nothing here is ever suggested by intent. Invoke it explicitly with the `Skill` tool when it is wanted during harness work. Checked by `.claude/scripts/skill-reachability-check.sh`.
+<!-- /odin:suppressed-under-operational -->
+
 Designs and iterates production-grade frontend interfaces. Real working code, committed design choices, exceptional craft.
 
 ## Setup
