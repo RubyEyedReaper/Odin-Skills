@@ -1,7 +1,7 @@
 {
   "iou": 0.9833,
   "mae": 0.0,
-  "edge_f1": 0.9998,
+  "edge_f1": 0.9992,
   "jaggedness": 2.4817,
   "features": 1.0,
   "staircase": null,

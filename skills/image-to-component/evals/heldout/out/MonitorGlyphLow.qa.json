@@ -1,7 +1,7 @@
 {
   "iou": 0.9607,
   "mae": 0.0,
-  "edge_f1": 0.9863,
+  "edge_f1": 0.9864,
   "jaggedness": 4.2028,
   "features": 1.0,
   "staircase": null,
@@ -57,7 +57,7 @@
         "qa": {
           "iou": 0.9084,
           "mae": 0.0,
-          "edge_f1": 0.9665,
+          "edge_f1": 0.9656,
           "jaggedness": 2.6575,
           "staircase": null,
           "features": 1.0,
@@ -87,7 +87,7 @@
         "qa": {
           "iou": 0.8655,
           "mae": 0.0,
-          "edge_f1": 0.9102,
+          "edge_f1": 0.9137,
           "jaggedness": 2.7708,
           "staircase": null,
           "features": 1.0,
@@ -117,7 +117,7 @@
         "qa": {
           "iou": 0.9351,
           "mae": 0.0,
-          "edge_f1": 0.9877,
+          "edge_f1": 0.9873,
           "jaggedness": 3.374,
           "staircase": null,
           "features": 1.0,
@@ -147,7 +147,7 @@
         "qa": {
           "iou": 0.9348,
           "mae": 0.0,
-          "edge_f1": 0.9885,
+          "edge_f1": 0.9888,
           "jaggedness": 3.6673,
           "staircase": null,
           "features": 1.0,
@@ -175,7 +175,7 @@
         "qa": {
           "iou": 0.9337,
           "mae": 0.0,
-          "edge_f1": 0.9202,
+          "edge_f1": 0.9225,
           "jaggedness": 4.2509,
           "staircase": null,
           "features": 1.0,
@@ -205,7 +205,7 @@
         "qa": {
           "iou": 0.8614,
           "mae": 0.0,
-          "edge_f1": 0.7044,
+          "edge_f1": 0.7093,
           "jaggedness": 4.1924,
           "staircase": null,
           "features": 1.0,
@@ -236,7 +236,7 @@
         "qa": {
           "iou": 0.9607,
           "mae": 0.0,
-          "edge_f1": 0.9863,
+          "edge_f1": 0.9864,
           "jaggedness": 4.2028,
           "staircase": null,
           "features": 1.0,
@@ -264,7 +264,7 @@
         "qa": {
           "iou": 0.9653,
           "mae": 0.0,
-          "edge_f1": 0.9968,
+          "edge_f1": 0.9966,
           "jaggedness": 4.4803,
           "staircase": null,
           "features": 1.0,
