@@ -109,11 +109,13 @@ RubyTech assets downscaled ×0.4–×0.5 — never on this set's rows.
 | + colour regions voted smooth, preferred when passing | 13/20 | 455 s |
 | + global soft matte peak 0.99, coverage gamma 1.15 | 13/20 | 382 s |
 
-## Final — `--auto`, every item landed
+## The 13/20 run — `--auto`, before the fidelity pass
 
-`out/` holds this run: `bash evals/heldout/run.sh evals/heldout/out -- --auto`. Pass rate **13/20**, up
-from 5/20 on the starting rows (6/20 on those rows after the matte change). A refusal names the nearest
-miss's failures and scores.
+Superseded twice since, by the two sections below; `out/` holds the **last** of them, not this one.
+The table is kept because the two before/after tables that follow are written against it. Run as
+`bash evals/heldout/run.sh evals/heldout/out -- --auto`. Pass rate **13/20**, up from 5/20 on the
+starting rows (6/20 on those rows after the matte change). A refusal names the nearest miss's
+failures and scores.
 
 | asset | exit | failed at | iou | mae | edge_f1 | jaggedness | agreement_iou | svg_bytes |
 |---|---|---|---|---|---|---|---|---|
@@ -155,7 +157,7 @@ and the next section is what they changed.
 
 Both refusals were designed and calibrated on `evals/rubytech`, `evals/degraded`, a ladder of degraded
 RubyTech glyphs and synthetic marks; this set contributed its pass rate afterwards, and the compare sheets
-read for the before/after below. `out/` holds this run.
+read for the before/after below. Superseded by the section after it, which `out/` holds.
 
 | asset | before | after |
 |---|---|---|
@@ -176,5 +178,44 @@ read for the before/after below. `out/` holds this run.
 `source-quality` covers `--color currentColor` glyphs only, because no colour ladder was built to
 calibrate it; that remaining pass is the recorded gap. The gradient marks (Instagram, WhatsApp) are still
 refused on `mae` — fitting gradients was measured on a synthetic mark and declined (DEC-0168).
+
+## Source quality, both kinds — 9/20 (#1409, #1410)
+
+`out/` holds this run: `bash evals/heldout/run.sh evals/heldout/out -- --auto`, at `cc8c57a3`. Two
+changes closed the two gaps the section above recorded: `ramp_extent` gives the glyph refusal a
+second bar, for a source whose blur has merged the features its silhouette keeps stable (#1410); and
+a colour source is assessed at all, by the same two measures keyed the way a mark is keyed — flood
+fill at tolerance 40 rather than a global key at 25 (#1409). Both were calibrated on the 48-rung
+glyph ladder and a 21-rung colour ladder of RubyTech sources (`evals/degraded/ladder.py`,
+`evals/degraded/colour_ladder.py`); this set contributed its pass rate afterwards, as the freeze
+rule requires.
+
+| asset | before | after |
+|---|---|---|
+| `facebook-banner-mark.low` | pass, "f" ragged and square lumpy (iou 0.9702, mae 11.74, edge_f1 0.8018) | **refused at prep**, `source-quality` → `stability` 0.9617 against 0.97 |
+| `facebook-mark.low` | refused at QA (`mae`) after a 300 s search | **refused at prep**, `stability` 0.9490 |
+| `instagram-mark.low` | refused at QA (`mae`) after a 300 s search | **refused at prep**, `stability` 0.9398 |
+| `whatsapp-mark.low` | refused at QA (`iou`, `mae`) after a 300 s search | **refused at prep**, `stability` 0.9188 |
+| `alert-mark.low` | refused at QA (`edge_f1`) after a 300 s search | **refused at prep**, `ramp-extent` 0.0968 against 0.06 |
+| every other row | – | same verdict, same numbers, same bytes |
+
+| | 13/20 run | fidelity pass | here |
+|---|---|---|---|
+| pass rate | 13/20 | 10/20 | **9/20** |
+| passes that look right on their compare sheet | 8 | 9 | **9** |
+| passes that look wrong | 5 | 1 | **0** |
+| refused | 7, all at QA | 10 — 3 at prep, 7 at QA | **11 — 8 at prep, 3 at QA** |
+
+**The nine passes are the same nine, byte for byte.** `cc8c57a3` changes `pass-rate.txt`,
+`summary.tsv` and deletes `FacebookBannerMarkLow.{svg,tsx,qa.json}`, and touches nothing else under
+`out/` — so the compare-sheet reading recorded for those nine in the section above still describes
+these files, rather than being re-asserted over a regenerated set.
+
+What is left, stated as the gap rather than as a result: the three **clean** gradient marks
+(`facebook-mark`, `instagram-mark`, `whatsapp-mark`) still fail QA, and should — their sources are
+clean, so a prep refusal would be wrong, and `mae` on a 26 px gradient mark is DEC-0168's declined
+case, not this one. Every clean colour asset in the three evals passes source quality, including the
+RubyTech lockup, which must keep failing at the **budget**; the bound is 0.97 for that reason
+(`evals/rubytech/README.md`).
 
 

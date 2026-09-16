@@ -10,12 +10,12 @@ clock-glyph.low	1	prep:source-quality	-	-	-	-	-	-	-
 thermometer-glyph	0	-	0.9652	0.0	0.9816	1.7264	None	-	2005
 thermometer-glyph.low	1	prep:source-quality	-	-	-	-	-	-	-
 facebook-mark	1	auto:edge_f1	0.9558	9.7118	0.6342	2.5938	None	-	2219
-facebook-mark.low	1	auto:mae	0.9569	14.1763	0.8517	4.3489	None	-	2372
+facebook-mark.low	1	prep:source-quality	-	-	-	-	-	-	-
 instagram-mark	1	auto:mae	0.9693	16.4778	0.8462	4.1936	None	-	7864
-instagram-mark.low	1	auto:mae	0.9565	13.1768	0.8625	4.956	None	-	3503
+instagram-mark.low	1	prep:source-quality	-	-	-	-	-	-	-
 whatsapp-mark	1	auto:mae	0.9502	15.464	0.9019	6.0119	None	-	7911
-whatsapp-mark.low	1	auto:iou,mae	0.8855	19.497	0.8903	4.6432	None	-	2897
+whatsapp-mark.low	1	prep:source-quality	-	-	-	-	-	-	-
 alert-mark	0	-	0.9785	9.7785	0.9766	0.0061	None	-	762
-alert-mark.low	1	auto:edge_f1	0.9604	10.9025	0.5724	1.6002	None	-	5290
+alert-mark.low	1	prep:source-quality	-	-	-	-	-	-	-
 facebook-banner-mark	0	-	0.967	11.963	0.986	3.3372	None	-	988
-facebook-banner-mark.low	0	-	0.9702	11.7418	0.8018	4.7821	None	-	5787
+facebook-banner-mark.low	1	prep:source-quality	-	-	-	-	-	-	-

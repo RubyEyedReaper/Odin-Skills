@@ -8,7 +8,13 @@ the eval: the ladder is a calibration record, not an expectation.
 The four clean RubyTech glyphs at x0.5 / 0.4 / 0.33 / 0.25, each under three recipes, 48 sources.
 `UNREADABLE` is the label read from each rung's `--auto` compare sheet — does the trace read as the
 glyph — which `references/qa-thresholds.md` § Source quality tabulates. Prints one row per rung:
-name, label, silhouette stability, and whether `quality.assess` refuses it.
+name, label, silhouette stability, ramp over extent, the measure that refused, and the verdict.
+
+**The labels are re-derived, not inherited.** Every rung in this literal was read again from a sheet
+regenerated against a copy of the skill with the refusal disabled, so that refused rungs still
+produce one; the diff against the previous set, and the rungs that were contested, are in
+`references/qa-thresholds.md`. A threshold calibrated against a label nobody re-checked is
+calibrated against nothing.
 """
 from __future__ import annotations
 
@@ -24,12 +30,18 @@ CLEAN = os.path.join(HERE, "..", "rubytech", "src")
 GLYPHS = ("computer-icon", "gear-icon", "controller-icon", "wrench-icon")
 SCALES = (0.5, 0.4, 0.33, 0.25)
 RECIPES = ((0.6, 6, 30), (0, 4, 20), (0.8, 8, 15))  # (blur, noise, JPEG quality)
+# The criterion, so a reader can check these against the sheets rather than take them on trust: does
+# the trace still show the feature that makes the glyph that glyph — the monitor's frame, the gear's
+# toothed rim, the controller's body and holes, the wrench's OPEN jaw. A dent where the jaw was is
+# not a jaw.
 UNREADABLE = frozenset(f"{g}.s{s}.q{q}" for g, s, q in (
     ("computer-icon", 25, 15), ("computer-icon", 25, 20), ("computer-icon", 25, 30), ("computer-icon", 33, 15),
     ("computer-icon", 33, 20), ("computer-icon", 33, 30), ("computer-icon", 40, 15), ("computer-icon", 50, 15),
     ("gear-icon", 25, 15), ("gear-icon", 25, 20), ("gear-icon", 25, 30), ("gear-icon", 33, 15),
     ("gear-icon", 33, 20), ("gear-icon", 33, 30), ("gear-icon", 40, 15), ("controller-icon", 25, 15),
-    ("wrench-icon", 25, 15), ("wrench-icon", 33, 15), ("wrench-icon", 50, 15)))
+    # The three the re-derivation moved, all wrenches whose jaw had closed to a dent (#1410).
+    ("wrench-icon", 25, 15), ("wrench-icon", 25, 30), ("wrench-icon", 33, 15), ("wrench-icon", 33, 30),
+    ("wrench-icon", 40, 15), ("wrench-icon", 50, 15)))
 
 
 def degrade(img: Image.Image, scale: float, blur: float, noise: float, quality: int, rng: random.Random) -> Image.Image:
@@ -62,6 +74,7 @@ def main(argv: list[str]) -> int:
                 rgba = img.convert("RGBA")
                 verdict = quality.assess(rgba.tobytes(), *rgba.size)
                 print(name, "unreadable" if name in UNREADABLE else "reads", verdict["stability"],
+                      verdict["ramp_extent"], verdict["reason"] or "-",
                       "kept" if verdict["pass"] else "refused", sep="\t")
     return 0
 

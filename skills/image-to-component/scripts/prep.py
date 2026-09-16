@@ -39,9 +39,10 @@ against the trace input, because that would hide exactly the loss quantization i
 --edge-report  writes `hard` or `soft` (`edges.classify`) for the keyed, trimmed source before it is
            upscaled — an upscale turns every hard edge into a ramp. QA reads it to decide whether
            the `staircase` bound applies.
---mono also refuses a source too degraded to trace (`quality.assess`, exit 3), before keying it.
+Every source is refused if it is too degraded to trace (`quality.assess`, exit 3), before keying:
+a glyph by the bars a glyph is held to, a colour mark by its own. --mono selects which.
 Exit codes: 0 written, 1 nothing left after keying (tolerance too high), 2 usage/unreadable,
-3 source-quality: a glyph source whose own noise decides its silhouette.
+3 source-quality: a source whose own noise decides its silhouette, or whose blur has merged it.
 """
 from __future__ import annotations
 
@@ -152,24 +153,21 @@ class SourceRefused(Exception):
     """A glyph source too degraded to trace (`quality.assess`). args[0] is the assessment."""
 
 
-def check_source(src: str, crop: str | None, mono: bool) -> dict | None:
-    """Refuse a `--mono` glyph source whose silhouette its own noise moves (#1391); None for a colour source.
+def check_source(src: str, crop: str | None, mono: bool) -> dict:
+    """Refuse a source too degraded to trace — a glyph (#1391, #1410) or a colour mark (#1409).
 
-    Raises SourceRefused. Measured on the cropped source before any keying, trimming or upscaling.
+    Raises SourceRefused. Measured on the cropped source before any keying, trimming or upscaling;
+    `mono` decides both how it is keyed for the measurement and which bars it is held to.
     """
-    if not mono:
-        return None
     img = _open(src, crop)
-    assessment = quality.assess(img.tobytes(), *img.size)
+    assessment = quality.assess(img.tobytes(), *img.size, mono=mono)
     if not assessment["pass"]:
         raise SourceRefused(assessment)
     return assessment
 
 
-def refusal_message(assessment: dict) -> str:
-    return (f"source-quality: silhouette stability {assessment['stability']:.3f} under the source's own noise "
-            f"(sigma {assessment['sigma']:g}) is below {quality.MIN_STABILITY:g} — the degradation has already "
-            "decided this glyph's shape; supply a larger or cleaner source")
+
+refusal_message = quality.refusal_message  # stdlib, so the gated suite can hold its wording
 
 
 def keyed_source(src: str, crop: str | None, bg_spec: str, key: str, matte: str,

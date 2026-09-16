@@ -30,3 +30,14 @@ here drifts.
 
 The mark's `mae` sits close to the 12 bound on purpose: the source is a rendered gem with facet
 gradients, and 32 flat colours is the fewest that clear it inside the logo budget.
+
+## Why the lockup's refusal is still the budget's, not source quality's (#1409)
+
+Both colour assets here are clean, and the colour source-quality refusal added at prep leaves both
+alone: the mark scores silhouette stability 0.9997 / ramp-over-extent 0.0049, the lockup 0.9977 /
+0.0015, against bounds of 0.97 and 0.06 (`references/qa-thresholds.md` § Colour source quality).
+That is load-bearing rather than incidental — `rubytech-logo` is this eval's one **refusal**
+expectation, and it names the stage: `budget-bytes`/`budget-paths`, because the tagline is text. A
+stability bound of 0.98 would have refused it at prep instead, which is the same verdict reached for
+the wrong reason, and this eval would have gone green while no longer testing what it says it tests.
+The bound is 0.97 for that reason, recorded with the rest of the calibration.

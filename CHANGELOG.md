@@ -18,6 +18,17 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component` source quality** — the prep-stage refusal now carries two measures rather
+  than one: silhouette stability under the source's own noise, and the edge ramp measured against the
+  subject's extent, which catches a glyph whose blur merged its features while the silhouette stayed
+  stable. On the calibration ladder, unreadable rungs refused go from 11 of 22 to 20 of 22, with two
+  false refusals on the readable population, both of which predate the new measure. Colour sources are
+  assessed too, against a colour ladder of their own, so a degraded colour mark is refused instead of
+  shipping ragged. Each refusal names the measure that fired.
+
+- **`leek`** — the hygiene sweep reaches interactive sessions past its age bound, and names a session
+  outliving the work it was started for.
+
 - **`image-to-component` fidelity** — a `features` QA bar that refuses a render which drops a small
   feature of the reference, read by both QA and `--auto`'s selection, so the smallest passing
   candidate can no longer lose a dot or a hole; a source-quality refusal at prep for a glyph too
