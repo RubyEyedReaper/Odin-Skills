@@ -1,0 +1,82 @@
+[
+  {
+    "query": "picking between postgres, mysql and cockroachdb for a new saas backend, tight budget but we run a lot of relational joins and need managed cloud hosting — which one",
+    "should_trigger": true
+  },
+  {
+    "query": "we've got 14 backlog items and only capacity for 5 this sprint, need to rank them with RICE so I can defend the cut list to the PM",
+    "should_trigger": true
+  },
+  {
+    "query": "torn between build vs buy for auth — okta, keycloak, or rolling our own — for a 3-person team on a yc-startup budget, want the tradeoffs actually scored not just gut feel",
+    "should_trigger": true
+  },
+  {
+    "query": "comparing next.js, remix and sveltekit for the new marketing site, want a weighted scorecard against SEO, dx, and hosting cost instead of just vibes",
+    "should_trigger": true
+  },
+  {
+    "query": "should we go kubernetes or plain docker-compose for our 6-service app — weigh ops overhead against scalability headroom and tell me which wins given our 2-person infra team",
+    "should_trigger": true
+  },
+  {
+    "query": "ranking these 8 feature ideas from last week's user interviews by impact vs effort so I can bring a prioritized shortlist to the roadmap review",
+    "should_trigger": true
+  },
+  {
+    "query": "team keeps arguing rest vs graphql for the new public api and the budget for docs/tooling is limited — help settle this with actual weighted criteria",
+    "should_trigger": true
+  },
+  {
+    "query": "need to choose a message queue — kafka, rabbitmq or sqs — for a bursty event system with a small ops team, give me a scored comparison across throughput, ops cost and durability",
+    "should_trigger": true
+  },
+  {
+    "query": "which ci provider should we standardize on across our 5 repos, github actions, circleci or buildkite, considering cost, build speed and how much the team already knows each one",
+    "should_trigger": true
+  },
+  {
+    "query": "monorepo vs polyrepo for the new platform — can you weigh maintainability, ci speed and onboarding cost and actually recommend one with a number behind it",
+    "should_trigger": true
+  },
+  {
+    "query": "we already decided postgres for the new orders service last quarter, just need help writing the migration that adds the new discount_code column",
+    "should_trigger": false
+  },
+  {
+    "query": "should I use useState or useReducer for this one toggle flag in my modal component, feels like overkill either way",
+    "should_trigger": false
+  },
+  {
+    "query": "trying to figure out where to even start on the onboarding redesign, there's like five open questions that all depend on each other and I don't know the shape yet",
+    "should_trigger": false
+  },
+  {
+    "query": "help me brainstorm what the new onboarding page could look like — thinking editorial style vs a bento grid but nothing's nailed down yet",
+    "should_trigger": false
+  },
+  {
+    "query": "what should I work on next, we've got like 40 open roadmap items and I honestly don't know where to start today",
+    "should_trigger": false
+  },
+  {
+    "query": "grill me on this migration plan before I show it to the team tomorrow, poke holes in my assumptions about the rollback window",
+    "should_trigger": false
+  },
+  {
+    "query": "prioritize my errands for today: laundry, groceries, and calling the dentist back",
+    "should_trigger": false
+  },
+  {
+    "query": "we're set on redis for the session cache, just need help tuning the eviction policy and the ttl values for the login tokens",
+    "should_trigger": false
+  },
+  {
+    "query": "is 3 or 4 the better number of retries for this http client before it gives up and surfaces an error to the user",
+    "should_trigger": false
+  },
+  {
+    "query": "map out the tradeoffs between microservices and a monolith for our team so I understand the shape of the debate — not looking for a final verdict yet, just the landscape",
+    "should_trigger": false
+  }
+]
