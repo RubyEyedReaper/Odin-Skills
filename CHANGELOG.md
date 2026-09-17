@@ -22,6 +22,11 @@ sync; entries below record what changed in this distribution.
   registered worktree instead of only the checkout the crontab runs, with a rule for differing copies.
   Before this, unattended revival refused every opus coordinator and never launched a session.
 
+- **`revive` reads a campaign from the manifest's own repository** — the campaign-status channel
+  resolves against the checkout holding the revival manifest rather than the engine's own, so a
+  campaign whose manifest and roadmap items exist only on its branch reads its open-item count
+  instead of `undetermined`.
+
 ### Added
 
 - **`image-to-component` clean brand marks** — `edge_f1` now finds edges on the reference and the
