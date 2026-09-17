@@ -26,14 +26,16 @@ import { GearIcon } from "./icons";
 | Guarantee | How |
 |---|---|
 | Typed props | `interface <Name>Props extends SVGProps<SVGSVGElement> { title?: string }` |
-| Responsive | `viewBox` preserved (derived from width/height when absent); width/height removed from the root |
+| Responsive | `viewBox` preserved (derived from width/height when absent); the source's width/height removed from the root |
 | Accessible when labelled | `title` → `<title id>` via `useId()` + `aria-labelledby`; `title`, `aria-label` or `aria-labelledby` → `role="img"` |
 | Silent when decorative | no label → `aria-hidden`, `focusable="false"` |
 | Caller wins | `{...props}` spread after every default |
 | Themeable | `--color currentColor`: the root gets `fill="currentColor"` (a binary trace carries no paint of its own), and every paint except `none`/`transparent` becomes `currentColor` |
 | Safe | `<script>`, `<image>`, `<foreignObject>`, `<use>`, `<iframe>` and `on*` attributes refuse conversion (exit 1) |
 | Clean | source `<title>`, `<desc>`, `<metadata>`, comments and XML prolog dropped |
-| JSX-correct | hyphenated attributes camel-cased, `class` → `className`, `style` string → object, values with quotes or braces emitted as expressions |
+| JSX-correct | hyphenated attributes camel-cased (`fill-rule` → `fillRule`), values with quotes or braces emitted as expressions; `class` and `style` never reach this step — they are outside the dialect and refused above |
+| Sized, when replaced | a `--replace` run passes `--size <step>`: the props gain `size?: number \| string`, defaulting to the snapped scale step, drawn as `width`/`height` before `{...props}` so a caller's own width still wins |
+| Attributed, when replaced | a `--replace` run passes `--header` lines: a leading comment naming library, slug, version and licence, and for a brand mark "a trademark of its owner — follow its brand guidelines" ([replacement.md](replacement.md)) |
 | Discoverable | named + default export; `typecheck.sh` writes a sorted `index.ts` barrel |
 
 ## Naming

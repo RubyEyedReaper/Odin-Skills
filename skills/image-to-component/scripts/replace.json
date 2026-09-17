@@ -1,0 +1,10 @@
+{
+  "bar": 0.55,
+  "margin": 0.08,
+  "auto_margin": 0.4,
+  "auto_min_px": 16,
+  "min_weight": 4,
+  "equivalent": 0.95,
+  "shortlist": 24,
+  "sigmas": [0, 0.4, 0.7, 1.0, 1.4, 1.9]
+}

@@ -1,0 +1,32 @@
+{
+  "named": "simple-icons:x",
+  "fit": 0.5535,
+  "runner_up": "material:hourglass",
+  "margin": 0.4013,
+  "weight": 43.55,
+  "accepted": true,
+  "reason": null,
+  "interpretation": "alpha",
+  "sigma": 0.4,
+  "step": 0.94,
+  "mode": "named",
+  "libraries": {
+    "material": "material@0.47.3",
+    "simple-icons": "simple-icons@16.31.0"
+  },
+  "library": "simple-icons",
+  "slug": "x",
+  "version": "16.31.0",
+  "licence": "CC0-1.0",
+  "emission": {
+    "fills": null,
+    "backplate": null,
+    "refused": null
+  },
+  "material_weight": null,
+  "size": {
+    "measured": 12.292,
+    "step": 12,
+    "value": 12
+  }
+}

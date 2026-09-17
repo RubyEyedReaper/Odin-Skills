@@ -1,0 +1,44 @@
+{
+  "named": "material:error-fill",
+  "fit": 0.8391,
+  "runner_up": "material:video_call-fill",
+  "margin": 0.4054,
+  "weight": 74.04,
+  "accepted": true,
+  "reason": null,
+  "interpretation": "knockout",
+  "sigma": 1.0,
+  "step": 0.94,
+  "mode": "named",
+  "libraries": {
+    "material": "material@0.47.3",
+    "simple-icons": "simple-icons@16.31.0"
+  },
+  "library": "material",
+  "slug": "error-fill",
+  "version": "0.47.3",
+  "licence": "Apache-2.0",
+  "emission": {
+    "fills": [
+      "#E61A42"
+    ],
+    "backplate": "#FFCFD3",
+    "refused": null
+  },
+  "material_weight": 700,
+  "stroke_ratio": 0.1795,
+  "weight_ratios": {
+    "100": 0.3922,
+    "200": 0.3714,
+    "300": 0.4043,
+    "400": 0.3731,
+    "500": 0.333,
+    "600": 0.3245,
+    "700": 0.2903
+  },
+  "size": {
+    "measured": 23.314,
+    "step": 24,
+    "value": 24
+  }
+}

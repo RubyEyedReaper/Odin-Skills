@@ -1,0 +1,17 @@
+{
+  "named": "material:schedule",
+  "fit": 0.4355,
+  "runner_up": null,
+  "margin": null,
+  "weight": null,
+  "accepted": false,
+  "reason": "bar",
+  "interpretation": "alpha",
+  "sigma": 0.7,
+  "step": 0.88,
+  "mode": "named",
+  "libraries": {
+    "material": "material@0.47.3",
+    "simple-icons": "simple-icons@16.31.0"
+  }
+}

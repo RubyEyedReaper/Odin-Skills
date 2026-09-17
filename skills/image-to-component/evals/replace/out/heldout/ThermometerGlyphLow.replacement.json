@@ -1,0 +1,17 @@
+{
+  "named": "material:device_thermostat",
+  "fit": 0.6975,
+  "runner_up": "simple-icons:chessdotcom",
+  "margin": -0.5035,
+  "weight": 7.73,
+  "accepted": false,
+  "reason": "adversary",
+  "interpretation": "alpha",
+  "sigma": 1.4,
+  "step": 1.06,
+  "mode": "named",
+  "libraries": {
+    "material": "material@0.47.3",
+    "simple-icons": "simple-icons@16.31.0"
+  }
+}

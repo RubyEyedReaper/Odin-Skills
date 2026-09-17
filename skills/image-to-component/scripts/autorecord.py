@@ -5,7 +5,10 @@ a "search" key), and when no candidate passed (there is no QA report, so a faili
 "search" names every candidate and the nearest miss), and when the source was refused before the search
 (`"refused": "source-quality"`, whose reason becomes the failure).
 
-    python3 -m scripts.autorecord search.json Name.qa.json
+    python3 -m scripts.autorecord search.json Name.qa.json [--key replacement]
+
+`--key` names the qa.json key the record lands under (default `search`); `i2c.sh --replace` files its
+verdict as `replacement` the same way.
 
 Exit codes: 0 written, 2 unreadable search report or unwritable qa.json.
 """
@@ -18,8 +21,11 @@ import sys
 
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    key = "search"
+    if len(argv) == 4 and argv[2] == "--key":
+        key, argv = argv[3], argv[:2]
     if len(argv) != 2:
-        print("usage: autorecord.py search.json Name.qa.json", file=sys.stderr)
+        print("usage: autorecord.py search.json Name.qa.json [--key name]", file=sys.stderr)
         return 2
     search_path, qa_path = argv
     try:
@@ -28,10 +34,13 @@ def main(argv: list[str] | None = None) -> int:
         if os.path.exists(qa_path):
             with open(qa_path, encoding="utf-8") as fh:
                 report = json.load(fh)
+        elif search.get("accepted"):
+            # A verified replacement is the run's whole output: no trace, so no trace QA to pass or fail.
+            report = {"pass": True, "failures": [], "route": "replace"}
         else:
             # A source refused before any candidate was traced names its reason; otherwise nothing passed.
             report = {"pass": False, "failures": [search.get("refused", "auto")]}
-        report["search"] = search
+        report[key] = search
         with open(qa_path, "w", encoding="utf-8") as fh:
             json.dump(report, fh, indent=2)
             fh.write("\n")

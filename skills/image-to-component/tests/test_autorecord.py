@@ -52,6 +52,21 @@ class AutoRecord(unittest.TestCase):
         self.assertEqual(autorecord.main([os.path.join(self.dir, "missing.json"), self.qa]), 2)
         self.assertFalse(os.path.exists(self.qa))
 
+    def test_an_accepted_replacement_with_no_trace_report_is_a_passing_record(self):
+        with open(self.search, "w", encoding="utf-8") as fh:
+            json.dump({"accepted": True, "named": "material:build"}, fh)
+        self.assertEqual(autorecord.main([self.search, self.qa, "--key", "replacement"]), 0)
+        report = json.load(open(self.qa))
+        self.assertEqual((report["pass"], report["failures"], report["route"]), (True, [], "replace"))
+
+    def test_a_replacement_record_lands_under_its_own_key_beside_qa(self):
+        with open(self.qa, "w", encoding="utf-8") as fh:
+            json.dump({"iou": 0.99, "pass": True, "failures": []}, fh)
+        self.assertEqual(autorecord.main([self.search, self.qa, "--key", "replacement"]), 0)
+        report = json.load(open(self.qa))
+        self.assertEqual((report["iou"], report["replacement"]), (0.99, SEARCH))
+        self.assertNotIn("search", report)
+
 
 if __name__ == "__main__":
     unittest.main()
