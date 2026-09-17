@@ -152,6 +152,41 @@ A branch with **no common ancestor** is not this case and cannot be rebased at a
 `git merge-tree` refuses outright. That is a separate history to import or retire, not a conflict
 to resolve.
 
+### After a reconstruction, teardown reads a verdict, not a memory (harness:RM-0450)
+
+A wave that folds several branches' registry rows into one squashed integration commit (the
+`resolve-registry.py`-mediated case in the table above) produces a landed diff that resembles none
+of the single-branch commits it is made of. `git cherry`/`git range-diff` never pair it — not
+occasionally, **permanently**, since no later commit will ever look more like the original patch
+than the fold did. Before this fix, `bl_classify` read that as `unlanded` forever, and the only
+way to know otherwise was a human remembering which commits went into which fold.
+
+`bl_classify` now answers this directly: it verifies the content each unpaired commit added is
+actually present in `main` (id-blind for `MISTAKES.md` rows, digit-blind for the runbook's
+`# expect N` lines, verbatim for everything else) and returns **`landed-reconstructed`** instead of
+`unlanded`/`undetermined` when it is. Run it per branch, after the wave lands:
+
+```sh
+. .claude/scripts/lib/branch-landedness.sh
+bl_classify "$REPO" <branch> origin/main
+```
+
+**`landed-reconstructed` is safe to treat exactly like `landed` for teardown** — the check requires
+positive, per-commit content evidence, not merely the absence of a conflict. Run the Teardown
+commands below on it.
+
+**Named gap, not silently hidden:** `branch-retention-check.sh` and `harness-audit.sh` do not yet
+carry a `landed-reconstructed)` arm alongside their `landed)` one, so their own reports still show
+a reconstructed-and-landed branch in the `at-risk`/default bucket until they gain one (tracked as a
+SCOPE follow-up from harness:RM-0450 — the two files sit outside that item's authorization). Until
+then, a coordinator reading either script's report cross-checks with the `bl_classify` command
+above rather than trusting the script's bucket for a branch it knows was part of a fold.
+
+`.claude/scripts/resolve-registry.py`'s `roadmap.json` arm is excluded from this check: that file
+is regenerated as canonical JSON, so a branch's raw diff will not generally appear as literal lines
+in the reconstructed document even when the item landed intact. A roadmap item folded into a wave
+still needs a human or a follow-up check to confirm landedness — `bl_classify` will not.
+
 ## 5. Teardown
 
 ```sh

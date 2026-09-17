@@ -234,7 +234,7 @@ ps_unlanded() {
     [ "$b" = "$base" ] && continue
     verdict="$(bl_classify "$dir" "$b" "$base" 2>/dev/null)"
     case "$verdict" in
-      landed|contained) landed=$((landed + 1)) ;;
+      landed|landed-reconstructed|contained) landed=$((landed + 1)) ;;
       evidence-unavailable|undetermined|'') unknown=$((unknown + 1)) ;;
       *) unlanded=$((unlanded + 1)) ;;
     esac
