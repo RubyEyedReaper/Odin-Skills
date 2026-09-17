@@ -353,7 +353,7 @@ for f in "${rows[@]}"; do
     fi
 
     case "$landedness" in
-      landed)
+      landed|landed-reconstructed)
         verdict=landed ;;
       undetermined|evidence-unavailable|remote-unreadable|unfetched|commit-count-unreadable)
         verdict=undetermined ;;
