@@ -18,6 +18,7 @@ the suite rather than failing silently at 21:00 on a Monday.
       "worktree": "/home/dell/Documents/Repos/odin-wt-fix-coord",
       "brief": "coordinator",
       "model": "opus",
+      "model_reason": "A campaign coordinator integrates several workers' branches and resolves conflicts across them",
       "items": ["harness:RM-0262", "harness:RM-0349"]
     }
   ]
@@ -47,10 +48,37 @@ rather than guessing, because the guess is invisible and wrong by hours.
 | `role` | The display name the session was launched with. This is what the engine matches against the daemon roster's `name`, so it must be exactly the string passed to `odin-relay.sh --name`. |
 | `kind` | `coordinator`, `monitor` or `worker`. Exactly one `coordinator` per manifest — two would provision the same worktrees. |
 | `branch` | The branch this role owns. Written into the generated handoff's `active_branch` and its authorization scope. |
-| `worktree` | An absolute path. Cron has no working directory of yours, and a relative path resolves against whatever `/` cron hands the job. |
+| `worktree` | An absolute path. Cron has no working directory of yours, and a relative path resolves against whatever `/` cron hands the job. The revived session is launched **in** it (`odin-relay.sh --cwd`), and the generated handoff declares it as `worktree:` so the relay refuses a launch anywhere else (#1471). A coordinator's `worktree` also decides which copy of this manifest the schedule trusts — see below. |
 | `brief` | Which brief shape the handoff generator uses. |
 | `items` | Qualified roadmap ids (`slug:RM-####`). Ids are per-file counters, so a bare one names different work in every roadmap (ADR-0050). |
-| `model` | Optional. Omitted means Sonnet. `opus` only where the role's own work is the deep-reasoning kind — a coordinator resolving forks, not a worker executing a plan somebody else wrote. |
+| `model` | Optional. Omitted means Sonnet. `opus` only where the role's own work is the deep-reasoning kind — a coordinator resolving forks, not a worker executing a plan somebody else wrote. One of `sonnet`, `opus`, `haiku`. |
+| `model_reason` | **Required when `model` is anything but `sonnet`.** What about this role's own work needs that tier. The engine writes it into the generated handoff, because `odin-relay.sh` refuses a non-default tier that does not say why — and before this field existed that refusal ended every opus revival: 567 ticks, zero launches (#1307). The validator and the engine both refuse its absence, so the failure names the manifest rather than a generated file. |
+
+## Where the schedule finds a manifest
+
+Not in one checkout. Cron runs `revival-tick.sh` from whatever checkout the crontab names, and that
+checkout holds whatever branch it last held — measured 527 commits behind `main` on the day this
+was written, blind to a manifest landed on `main` and to one committed on a campaign branch (#1442).
+So the tick enumerates **every registered worktree** (`git worktree list`) and reads each one's
+`.claude/docs/revival/*.json` (DEC-0184). `revival-tick.sh --list` prints what it found, and
+`revival-cron.sh status` reads that same list.
+
+Copies of one manifest are keyed on `revival`, and worktrees cut at different moments hold different
+revisions of it, so which copy counts is a rule rather than a race:
+
+1. A copy inside the worktree **its own coordinator role names** is authoritative.
+2. Identical copies are one manifest.
+3. Differing copies resolve to the one whose **last commit descends from every other variant's** —
+   the later revision of one file. A coordinator that moved worktrees leaves exactly this shape.
+4. Anything else — an uncommitted copy, revisions on divergent branches — is **refused**, every path
+   named, exit 1. Never "the first one found".
+
+The engine runs with the chosen copy's tree as its root, so the campaign manifest and the handoff it
+generates come from the same tree. A worktree listing git cannot produce exits 3 and launches nothing.
+
+**Which code runs is still the crontab's checkout.** Discovery fixes what the schedule can see, not
+which revision of the tick executes; `revival-cron.sh status` prints that checkout and how far behind
+`origin/main` it sits.
 
 ## What the manifest must never hold
 
