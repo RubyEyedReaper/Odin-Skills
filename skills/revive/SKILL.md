@@ -87,6 +87,7 @@ bash .claude/scripts/fleet-revive.sh --dry-run     # what would happen, launchin
 bash .claude/scripts/fleet-revive.sh               # the decision, for real
 bash .claude/scripts/fleet-heartbeat.sh --once     # one line appended; decides nothing
 bash .claude/scripts/revival-manifest-check.sh     # the manifest is a plan, not a status
+bash .claude/scripts/revival-tick.sh --list        # which manifests, from which worktree; runs nothing
 bash .claude/scripts/revival-cron.sh status        # armed? and what would a tick do?
 bash .claude/scripts/revival-cron.sh install       # two entries; idempotent
 bash .claude/scripts/revival-cron.sh remove        # exactly what install wrote, and nothing else
@@ -108,6 +109,16 @@ Exit codes are the interface, so a caller greps nothing:
 One JSON manifest per campaign under `.claude/docs/revival/<slug>.json`, committed. What it holds,
 field by field, and what it deliberately does not:
 [revival-record.md](references/revival-record.md).
+
+Three things a cold reader gets wrong, each of which kept a coordinator down on this host:
+
+- **A non-default `model` needs a `model_reason`.** The relay refuses the tier otherwise, and the
+  validator refuses the manifest first so the failure names the file you can fix.
+- **The schedule reads every registered worktree, not its own checkout.** Copies of one `revival`
+  resolve by rule — the copy in the coordinator's own worktree, then the later revision in git
+  history — and a dispute nothing can order is refused. `revival-tick.sh --list` shows the result.
+- **The revived session starts in the role's `worktree`**, passed to the relay as `--cwd` and
+  declared in the handoff, so a launch anywhere else is refused rather than silent.
 
 ## What the heartbeat is for
 

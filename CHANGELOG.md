@@ -16,6 +16,12 @@ sync; entries below record what changed in this distribution.
   side that is not a git work tree falls back to every file on disk and says so. Matrix:
   `scripts/tests/sync-from-odin.test.sh`. (#11)
 
+- **`revive` launches a coordinator** — a revival manifest role that names a non-default model now
+  carries `model_reason`, written through into the generated handoff, so the relay accepts it; the
+  revived session starts in the role's own worktree; and the tick discovers manifests across every
+  registered worktree instead of only the checkout the crontab runs, with a rule for differing copies.
+  Before this, unattended revival refused every opus coordinator and never launched a session.
+
 ### Added
 
 - **`image-to-component` clean brand marks** — `edge_f1` now finds edges on the reference and the
