@@ -104,6 +104,29 @@ Every transient fact is therefore measured at fire time:
 | Where are the branches? | `git ls-remote` |
 | Which worktrees exist? | `git worktree list` |
 
+### Which tree each channel reads
+
+Discovery (above) hands `fleet-revive.sh` the manifest's own tree as its positional `ROOT` in the
+scheduled path. But `ROOT` is also the engine's **own** checkout when the script is invoked
+directly — its documented CLI form, and the shape a bug reproduction takes (#1474). Two different
+questions get asked of two different trees, and conflating them is the defect this row exists to
+name:
+
+| Channel | Resolves against |
+|---|---|
+| Bridge lock, daemon roster, session listing | host-global paths (`ODIN_REVIVAL_LOCK` / `ODIN_REVIVAL_ROSTER` / the agents command) — not tree-scoped at all |
+| The manifest's `not_before`, `roles`, `model`/`model_reason` | the manifest file itself, wherever discovery found it |
+| Campaign open-item count | the manifest's **own repository** — `$ROOT` when the manifest already resolves inside it, else `git -C <manifest's directory> rev-parse --show-toplevel` (#1474) — never `$ROOT` unconditionally |
+| Remote branch tips, `git worktree list`, the relay, the generated handoff's directory | the engine's own `$ROOT` — these are about the engine's checkout, not the campaign's data |
+
+A revival manifest discovered in a campaign worktree names a campaign whose manifest and roadmap
+items are committed on that worktree's own branch, and are not necessarily on the engine's. Reading
+the open-item count from `$ROOT` in that case reads a tree that has never heard of the campaign —
+"campaign undetermined", forever, because the same tick runs again with the same wrong root next
+time. The fix is unconditional: it holds whether the engine was invoked through `revival-tick.sh`'s
+discovery (which already, in the common case, hands it the right tree) or directly, naming a
+manifest that lives somewhere else entirely.
+
 ## What a role claim adds, and why the roster is not enough
 
 `.claude/hooks/odin-role-claim.sh` writes `.claude/.runtime/revival/<session-id>.tsv` at
