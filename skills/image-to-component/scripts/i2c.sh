@@ -7,7 +7,12 @@
 #          [--iou N] [--mae N] [--edge-f1 N] [--jaggedness N] [--staircase N] [--features N]
 #   i2c.sh <image> --name <ComponentName> --kind icon|logo|illustration --out <dir> --auto
 #          [--crop x,y,w,h] [--bg auto|none|#rrggbb] [--color original|currentColor] [--allow-background]
+#   either form also takes --replace auto|<lib>:<slug>[,<lib>:<slug>...]
 #
+# --replace runs first, before prep's source-quality check: a known icon or brand mark in the source is
+# verified against the library icons it could be confused with (scripts/replace_run.py) and, when accepted,
+# the library vector is emitted instead of a trace. Nothing accepted → the run continues exactly as without
+# the flag. Either way qa.json carries the verdict under "replacement".
 # --auto searches a fixed grid for the kind (scripts/autogrid.py), keeps the smallest SVG that passes
 # every check, and runs it through the stages below; qa.json records the grid under "search". It takes
 # no tuning flag — choosing them is its job. Nothing passing is exit 1, naming the nearest miss.
@@ -22,11 +27,11 @@ set -euo pipefail
 # shellcheck source=toolchain.sh
 . "$(dirname "${BASH_SOURCE[0]}")/toolchain.sh"
 
-usage() { sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+usage() { sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
 [ $# -ge 1 ] || usage
 src="$1"; shift
-name="" kind="" out="" crop="" bg="auto" key="flood" matte="hard" tolerance="40" scale="1" smooth="auto" sharpen="0" colors="0" color="original" allow_bg="" auto="" search_report="" tuned=""
+name="" kind="" out="" crop="" bg="auto" key="flood" matte="hard" tolerance="40" scale="1" smooth="auto" sharpen="0" colors="0" color="original" allow_bg="" auto="" search_report="" tuned="" replace=""
 trace_sets=() qa_args=() pass_through=()
 need() { [ $# -ge 2 ] || { echo "i2c: $1 needs a value" >&2; exit 2; }; }
 while [ $# -gt 0 ]; do
@@ -47,6 +52,7 @@ while [ $# -gt 0 ]; do
     --allow-background) allow_bg="--allow-background"; shift ;;
     --set) need "$@"; trace_sets+=(--set "$2"); tuned="$1"; shift 2 ;;
     --auto) auto=1; shift ;;
+    --replace) need "$@"; replace="$2"; shift 2 ;;
     --search-report) need "$@"; search_report="$2"; shift 2 ;;
     --iou|--mae|--edge-f1|--jaggedness|--staircase|--features) need "$@"; qa_args+=("$1" "$2"); shift 2 ;;
     *) echo "i2c: unknown argument $1" >&2; usage ;;
@@ -59,12 +65,32 @@ done
 mkdir -p "$out"
 
 stage() { printf 'i2c: %-9s %s\n' "$1" "$2" >&2; }
-fail() { echo "i2c: FAILED at $1 (exit $2)" >&2; exit "$3"; }
+replacement_report=""
+record_replacement() {
+  [ -z "$replacement_report" ] || i2c_stdlib autorecord "$replacement_report" "$out/$name.qa.json" --key replacement
+}
+fail() { echo "i2c: FAILED at $1 (exit $2)" >&2; record_replacement; exit "$3"; }
 
 prepared="$out/$name.src.png"
 work="$(mktemp -d)"
 trap 'find "$work" -depth -delete' EXIT
 traced="$work/traced.svg"
+
+if [ -n "$replace" ]; then
+  stage replace "$replace"
+  i2c_lib_fetch || fail replace 2 2
+  replace_args=("$src" --refs "$replace" --report "$work/replacement.json" --name "$name" --kind "$kind" --out "$out" "${pass_through[@]}")
+  [ "$color" = currentColor ] && replace_args+=(--mono)
+  rc=0; i2c_py replace_run "${replace_args[@]}" || rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 4 ] || fail replace "$rc" 2
+  replacement_report="$work/replacement.json"
+  if [ "$rc" -eq 0 ]; then
+    find "$out" -maxdepth 1 -name "$name.qa.json" -delete
+    record_replacement
+    stage done "$out/$name.{svg,tsx} (replaced)"
+    exit 0
+  fi
+fi
 
 if [ -n "$auto" ]; then
   [ -z "$tuned" ] || { echo "i2c: --auto chooses the tuning flags itself; drop $tuned" >&2; exit 2; }
@@ -85,9 +111,11 @@ if [ -n "$auto" ]; then
   fi
   [ "$rc" -eq 0 ] || fail auto "$rc" 2
   mapfile -t flags <<< "$chosen"
+  rc=0
   bash "${BASH_SOURCE[0]}" "$src" --name "$name" --kind "$kind" --out "$out" --color "$color" $allow_bg \
-    "${pass_through[@]}" "${flags[@]}" "${qa_args[@]}" --search-report "$work/search.json" || exit $?
-  exit 0
+    "${pass_through[@]}" "${flags[@]}" "${qa_args[@]}" --search-report "$work/search.json" || rc=$?
+  record_replacement
+  exit "$rc"
 fi
 
 stage prep "$src -> $prepared"
@@ -120,4 +148,5 @@ rc=0; i2c_py render_diff "$prepared" "$out/$name.svg" --report "$out/$name.qa.js
 [ -z "$search_report" ] || i2c_stdlib autorecord "$search_report" "$out/$name.qa.json"
 [ "$rc" -eq 0 ] || fail qa "$rc" "$([ "$rc" -eq 1 ] && echo 1 || echo 2)"
 
+record_replacement
 stage done "$out/$name.{svg,tsx}"

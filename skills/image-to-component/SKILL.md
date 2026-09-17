@@ -15,6 +15,7 @@ description: Use when a raster — PNG, JPG, WebP, screenshot, mockup crop — m
 | Text of any size | Real text in markup. Never traced |
 | Designing a new icon or logo | `frontend-design`, `impeccable` |
 | A static HTML export | `web-artifacts-builder` |
+| A known icon or brand mark, recognisable but too small or degraded to trace | **here, `--replace`** — the pinned library vector, verified against its look-alikes ([references/replacement.md](references/replacement.md)) |
 | **One isolated icon, logo mark, illustration or object → SVG + TSX** | **here** |
 
 ## Pipeline
@@ -23,11 +24,13 @@ description: Use when a raster — PNG, JPG, WebP, screenshot, mockup crop — m
 bash scripts/doctor.sh          # 0 ready · 1 launcher missing · 3 tools could not resolve
 bash scripts/i2c.sh <image> --name <Pascal> --kind icon|logo|illustration --out <dir> --auto [--color currentColor]
 bash scripts/i2c.sh <image> --name <Pascal> --kind icon|logo|illustration --out <dir> [flags]   # hand-tuned
+bash scripts/i2c.sh <image> --name <Pascal> --kind icon|logo --out <dir> --replace material:build|simple-icons:facebook|auto [--auto]
 bash scripts/typecheck.sh <dir> # strict tsc over every .tsx + writes index.ts
 ```
 
-`i2c.sh` runs prep → trace (vtracer) → optimize (SVGO) → check → generate → QA, stops at the first
-failed stage and names it. Any vtracer parameter passes through as `--set key=value`. Exit 1 = a check refused; 2 = usage or tool failure. Nothing is installed
+`i2c.sh` runs [replace] → prep → trace (vtracer) → optimize (SVGO) → check → generate → QA, stops at the first
+failed stage and names it. `--replace` runs first: an accepted replacement ends the run with the library
+vector; anything else continues exactly as without it, with the verdict filed in `qa.json` → `replacement`. Any vtracer parameter passes through as `--set key=value`. Exit 1 = a check refused; 2 = usage or tool failure. Nothing is installed
 globally — pins live in `scripts/toolchain.sh`.
 
 ## Start with `--auto`
@@ -48,6 +51,7 @@ Of the 10 refused, eight are refused at prep as too degraded to read (`source-qu
 that passed at 13/20 as blobs, and five colour marks, one of which passed with a ragged "f" — and two
 are clean marks drawn in thin gradient strokes that fail `mae` (`references/qa-thresholds.md` § Known limits). Every pass looks right on its compare sheet; every search also
 holds `features`, so a smaller SVG that drops a dot or fills a hole is never the one chosen.
+Under `--replace` the same held-out marks and glyphs give 0 wrong replacements, 2 replaced, 4 refused — both Facebook marks are the pre-2023 artwork and fall through by design (DEC-0182); counts and reasons in [evals/replace/README.md](evals/replace/README.md#held-out--scored-never-calibrated-on).
 
 ## Starting flags — when tuning by hand
 
@@ -80,7 +84,7 @@ Why each exists, and the vtracer numbers: [references/tracing-presets.md](refere
 
 | Refusal | Do | Never |
 |---|---|---|
-| prep `source-quality` | the source is too degraded to read — a glyph or a colour mark, each against its own bars. `qa.json` → `source_quality.reason` says which way: `stability` — its own noise decides its silhouette; `ramp-extent` — its blur is wide next to the subject carrying it, so features have merged. Either way, get a larger or cleaner source (`references/qa-thresholds.md` § Source quality, § Colour source quality) | trace it anyway with hand flags — every trace of it is the wrong shape |
+| prep `source-quality` | if a person recognises it as a library icon or brand mark, name it: `--replace <lib>:<slug>` ([references/replacement.md](references/replacement.md)). Otherwise the source is too degraded to read — a glyph or a colour mark, each against its own bars. `qa.json` → `source_quality.reason` says which way: `stability` — its own noise decides its silhouette; `ramp-extent` — its blur is wide next to the subject carrying it, so features have merged. Either way, get a larger or cleaner source (`references/qa-thresholds.md` § Source quality, § Colour source quality) | trace it anyway with hand flags — every trace of it is the wrong shape |
 | `opaque-background` | fix keying (`--bg`, `--tolerance`); `--allow-background` only if the ground is part of the design | delete the path by hand |
 | `budget-bytes` / `budget-paths` | fewer `--colors`, `--set filter_speckle=12` and up; if it still fails, the input is a layout — rebuild route | raise the budget |
 | QA `iou` / `edge_f1` | `--smooth 1.0` or lower, `--scale 6`, re-crop tighter | lower the threshold to pass |
@@ -100,7 +104,9 @@ pass rate is the record, and nothing is tuned by reading its per-asset results (
 logo lockup (tagline in ~9px type) that **must be refused at the budget**. `evals/degraded/run.sh`
 — the same assets half-size, blurred, noisy and JPEG-soft, run under `--auto` with no hand flags: glyphs must pass and agree with a frozen
 clean trace, and the noisy colour mark must pass inside the logo budget. Rerun all three after any pin, preset, grid, flag or
-threshold change; commit a regeneration on its own.
+threshold change; commit a regeneration on its own. `evals/replace/run.sh` — a seeded ladder of library
+icons at 8–40 px, confusers and negatives, scored with `scripts/replace.json`; any wrong replacement is exit 1.
+Its numbers are chosen on the `calibrate` split only (its README).
 
 ## Red flags
 
@@ -109,6 +115,7 @@ threshold change; commit a regeneration on its own.
 | "Trace the whole mockup, then split it" | Megabytes of paths, text as outlines, no semantics. Rebuild route. |
 | "QA fails by a hair, loosen it" | Thresholds are the product. Change the input, not the bar. |
 | "Binary mode on the RGBA file" | vtracer binary ignores alpha → one full square. `i2c.sh` feeds it a silhouette. |
+| "It's obviously the Facebook f — lower the margin so it replaces" | A wrong replacement passes every silhouette number and ships the wrong mark. The margin is calibrated on the ladder; a refusal falls through, which is correct. |
 | "SVGR would do this" | Considered: traced output is `svg/g/path` only, and `svg2tsx.py` is what the offline gate can test. |
 
 Tests: `python3 -m unittest discover -s tests -t .` (stdlib only, no toolchain).

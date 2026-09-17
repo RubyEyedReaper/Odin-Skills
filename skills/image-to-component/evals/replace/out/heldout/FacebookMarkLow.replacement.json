@@ -1,0 +1,17 @@
+{
+  "named": "simple-icons:facebook",
+  "fit": 0.501,
+  "runner_up": null,
+  "margin": null,
+  "weight": null,
+  "accepted": false,
+  "reason": "bar",
+  "interpretation": "ground",
+  "sigma": 0.7,
+  "step": 1.0,
+  "mode": "named",
+  "libraries": {
+    "material": "material@0.47.3",
+    "simple-icons": "simple-icons@16.31.0"
+  }
+}

@@ -174,7 +174,8 @@ def refusal_message(assessment: dict) -> str:
     """Name the measure that refused, not just the fact of the refusal — they mean different things."""
     mono = assessment["mono"]
     subject = "glyph" if mono else "mark"
-    tail = f"the degradation has already decided this {subject}'s shape; supply a larger or cleaner source"
+    tail = (f"the degradation has already decided this {subject}'s shape; supply a larger or cleaner source, "
+            "or --replace <lib>:<slug>")
     if assessment["reason"] == "ramp-extent":
         bound = MAX_RAMP_EXTENT if mono else MAX_COLOUR_RAMP_EXTENT
         return (f"source-quality: edge ramp over subject extent {assessment['ramp_extent']:.3f} is above "

@@ -1,0 +1,17 @@
+{
+  "named": "simple-icons:facebook",
+  "fit": 0.7164,
+  "runner_up": "material:attribution-fill",
+  "margin": -0.0421,
+  "weight": 56.32,
+  "accepted": false,
+  "reason": "adversary",
+  "interpretation": "knockout",
+  "sigma": 1.0,
+  "step": 0.94,
+  "mode": "named",
+  "libraries": {
+    "material": "material@0.47.3",
+    "simple-icons": "simple-icons@16.31.0"
+  }
+}

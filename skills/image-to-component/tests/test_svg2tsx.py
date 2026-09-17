@@ -182,5 +182,36 @@ class Barrel(unittest.TestCase):
         self.assertEqual(out, 'export { AIcon } from "./AIcon";\nexport { ZIcon } from "./ZIcon";\n')
 
 
+class ReplacementComponent(unittest.TestCase):
+    """What a --replace run adds: provenance in a header comment, and a size prop on the declared scale."""
+
+    HEADER = ["Material Symbols 0.47.3 outlined/alarm, weight 400 — Apache-2.0, Copyright Google LLC"]
+
+    def test_a_header_is_emitted_as_a_leading_comment_block(self):
+        tsx = svg2tsx.convert(GLYPH_SVG, "AlarmIcon", header=self.HEADER)
+        self.assertTrue(tsx.startswith("/**\n * Material Symbols 0.47.3 outlined/alarm"))
+        self.assertLess(tsx.index(" */"), tsx.index("import "))
+
+    def test_a_header_line_cannot_close_the_comment_early(self):
+        with self.assertRaises(ValueError):
+            svg2tsx.convert(GLYPH_SVG, "AlarmIcon", header=["evil */ export const x = 1;"])
+
+    def test_size_becomes_a_prop_defaulting_to_the_snapped_step_that_the_caller_overrides(self):
+        tsx = svg2tsx.convert(GLYPH_SVG, "AlarmIcon", size=24)
+        self.assertIn("size?: number | string;", tsx)
+        self.assertIn("{ title, size = 24, ...props }", tsx)
+        self.assertLess(tsx.index("width={size}"), tsx.index("{...props}"))
+        self.assertIn("height={size}", tsx)
+
+    def test_without_either_the_component_is_byte_identical_to_before(self):
+        self.assertEqual(svg2tsx.convert(GLYPH_SVG, "GearIcon", "currentColor"),
+                         svg2tsx.convert(GLYPH_SVG, "GearIcon", "currentColor", header=None, size=None))
+        self.assertNotIn("size", svg2tsx.convert(GLYPH_SVG, "GearIcon"))
+
+    def test_a_non_positive_size_is_refused(self):
+        with self.assertRaises(ValueError):
+            svg2tsx.convert(GLYPH_SVG, "AlarmIcon", size=0)
+
+
 if __name__ == "__main__":
     unittest.main()

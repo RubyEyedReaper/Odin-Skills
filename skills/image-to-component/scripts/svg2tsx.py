@@ -7,6 +7,7 @@ offline converter is the only one the gated suite can exercise. Hand-authored SV
 write, not one to run through this (#1352).
 
     python3 -m scripts.svg2tsx in.svg --name RubyTechLogo [--color currentColor] --out Out.tsx
+            [--header LINE]... [--size 24]            # a --replace run: provenance comment, size prop
     python3 -m scripts.svg2tsx --barrel <dir>      # writes <dir>/index.ts from *.tsx names
 
 Exit codes: 0 written, 1 input refused (unsafe or unscalable), 2 usage.
@@ -121,7 +122,10 @@ def _view_box(root: ET.Element) -> str:
     raise ValueError("SVG has no viewBox and no numeric width/height; it cannot scale")
 
 
-def convert(svg_text: str, name: str, color_mode: str = "original") -> str:
+def convert(svg_text: str, name: str, color_mode: str = "original", header: list[str] | None = None,
+            size: float | None = None) -> str:
+    """The component source. `header` lines become a leading comment (a replacement's provenance);
+    `size` adds a `size` prop defaulting to it, drawn as width and height before the caller's props."""
     if color_mode not in COLOR_MODES:
         raise ValueError(f"color_mode must be one of {COLOR_MODES}, got {color_mode!r}")
     try:
@@ -140,6 +144,10 @@ def convert(svg_text: str, name: str, color_mode: str = "original") -> str:
     if color_mode == "currentColor" and root.get("fill") is None:
         root_attrs.append('fill="currentColor"')
     root_attrs += _attrs(root, color_mode, ROOT_DROPPED_ATTRS | {"viewBox", "xmlns"})
+    if size is not None:
+        if not size > 0:
+            raise ValueError(f"size must be a positive number, got {size!r}")
+        root_attrs += ["width={size}", "height={size}"]
     root_attrs += [
         'role={labelled ? "img" : undefined}',
         "aria-hidden={labelled ? undefined : true}",
@@ -150,15 +158,26 @@ def convert(svg_text: str, name: str, color_mode: str = "original") -> str:
     body = [line for child in root for line in _render(child, color_mode, 3)]
     root_open = "\n".join(f"{INDENT * 3}{a}" for a in root_attrs)
 
+    comment = []
+    if header:
+        if any("*/" in line or "\n" in line for line in header):
+            raise ValueError("a header line may not contain '*/' or a newline")
+        comment = ["/**", *(f" * {line}".rstrip() for line in header), " */"]
+    size_prop = [f"{INDENT}/** Rendered width and height; defaults to the declared scale step. */",
+                 f"{INDENT}size?: number | string;"] if size is not None else []
+    params = f"{{ title, size = {size:g}, ...props }}" if size is not None else "{ title, ...props }"
+
     return "\n".join([
+        *comment,
         'import { useId, type SVGProps } from "react";',
         "",
         f"export interface {component}Props extends SVGProps<SVGSVGElement> {{",
         f"{INDENT}/** Accessible name. Omit for decorative use; the icon is then aria-hidden. */",
         f"{INDENT}title?: string;",
+        *size_prop,
         "}",
         "",
-        f"export function {component}({{ title, ...props }}: {component}Props) {{",
+        f"export function {component}({params}: {component}Props) {{",
         f"{INDENT}const titleId = useId();",
         f'{INDENT}const labelled = Boolean(title || props["aria-label"] || props["aria-labelledby"]);',
         f"{INDENT}return (",
@@ -190,6 +209,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--color", choices=COLOR_MODES, default="original")
     parser.add_argument("--out")
     parser.add_argument("--barrel", metavar="DIR")
+    parser.add_argument("--header", action="append", metavar="LINE", help="a provenance comment line (repeatable)")
+    parser.add_argument("--size", type=float, help="default width and height, as a size prop")
     args = parser.parse_args(argv)
 
     if args.barrel:
@@ -202,7 +223,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         with open(args.svg, encoding="utf-8") as fh:
-            tsx = convert(fh.read(), args.name, args.color)
+            tsx = convert(fh.read(), args.name, args.color, header=args.header, size=args.size)
     except OSError as exc:
         print(f"svg2tsx: {exc}", file=sys.stderr)
         return 2

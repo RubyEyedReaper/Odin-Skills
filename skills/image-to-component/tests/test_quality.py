@@ -191,6 +191,13 @@ class RefusalMessage(unittest.TestCase):
         self.assertNotIn("edge ramp", message)
 
 
+class RefusalOffersReplacement(unittest.TestCase):
+    def test_every_refusal_names_the_replace_route(self):
+        for message in (quality.refusal_message(quality.assess(_noisy_disc(28, radius=8, ramp=9, noise=3), 28, 28)),
+                        quality.refusal_message(quality.assess(_two_region_mark(48, bleed=6, noise=3), 48, 48, mono=False))):
+            self.assertTrue(message.endswith("or --replace <lib>:<slug>"), message)
+
+
 class Stability(unittest.TestCase):
     def test_a_bold_glyph_on_a_noisy_card_is_readable(self):
         buf = _glyph(24, lambda x, y: 5 <= x < 19 and 5 <= y < 19, noise=6)

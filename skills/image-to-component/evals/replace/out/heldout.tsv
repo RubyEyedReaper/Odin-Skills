@@ -1,0 +1,7 @@
+asset	names	exit	accepted	reason	named	fit	runner_up	margin	weight	interpretation
+facebook-mark.low	simple-icons:facebook	4	False	bar	simple-icons:facebook	0.501	None	None	None	ground
+facebook-banner-mark.low	simple-icons:facebook	4	False	adversary	simple-icons:facebook	0.7164	material:attribution-fill	-0.0421	56.32	knockout
+alert-mark.low	material:error-fill	0	True	None	material:error-fill	0.8391	material:video_call-fill	0.4054	74.04	knockout
+x-glyph.low	simple-icons:x	0	True	None	simple-icons:x	0.5535	material:hourglass	0.4013	43.55	alpha
+clock-glyph.low	material:schedule	4	False	bar	material:schedule	0.4355	None	None	None	alpha
+thermometer-glyph.low	material:device_thermostat,material:thermostat	4	False	adversary	material:device_thermostat	0.6975	simple-icons:chessdotcom	-0.5035	7.73	alpha

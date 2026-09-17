@@ -8,6 +8,15 @@ sync; entries below record what changed in this distribution.
 
 ## [Unreleased]
 
+### Added
+
+- **`image-to-component --replace`** — recognise a known icon or brand mark in a raster and emit the
+  pinned library vector (simple-icons, Material Symbols outlined) instead of a trace, accepted only when
+  it clears a calibrated bar and beats every library adversary by a margin; refused otherwise, with the
+  trace route unchanged. Adds a scale module with a declared `scales.json`, a provenance header and
+  `size` prop on replaced TSX, `references/replacement.md`, and `evals/replace/` (wrong replacements 0
+  on the eval split and on held-out).
+
 ### Fixed
 
 - **`scripts/sync-from-odin.sh` compares what git would publish** — tracked files plus untracked ones
