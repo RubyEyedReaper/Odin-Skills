@@ -343,26 +343,186 @@ eval-confuser-ellipse-16-20.jpg	confusers	16	ellipse	missed	ellipse	False	indist
 eval-confuser-rounded-rect-16-21.jpg	confusers	16	rounded-rect	missed	rounded-rect	False	adversary	0.8519	ellipse	0.4908	13.15	rounded-rect
 eval-confuser-pill-16-22.jpg	confusers	16	pill	missed	pill	False	adversary	0.8883	circle	0.496	14.23	pill
 eval-confuser-ellipse-16-23.jpg	confusers	16	ellipse	missed	ellipse	False	indistinguishable	0.851	pill	0.5073	8.67	ellipse
+eval-stroked-rect-8-0.jpg	stroked	8	rect	missed	None	False	hole		None			
+eval-stroked-rect-8-1.jpg	stroked	8	rect	missed	None	False	too-small		None			
+eval-stroked-rect-8-2.jpg	stroked	8	rect	missed	None	False	too-small		None			
+eval-stroked-rect-8-3.jpg	stroked	8	rect	missed	None	False	asymmetry		None			
+eval-stroked-rect-10-0.jpg	stroked	10	rect	missed	None	False	too-small		None			
+eval-stroked-rect-10-1.jpg	stroked	10	rect	missed	None	False	too-small		None			
+eval-stroked-rect-10-2.jpg	stroked	10	rect	missed	None	False	too-small		None			
+eval-stroked-rect-10-3.jpg	stroked	10	rect	missed	None	False	hole		None			
+eval-stroked-rect-12-0.jpg	stroked	12	rect	missed	None	False	too-small		None			
+eval-stroked-rect-12-1.jpg	stroked	12	rect	missed	None	False	hole		None			
+eval-stroked-rect-12-2.jpg	stroked	12	rect	missed	None	False	too-small		None			
+eval-stroked-rect-12-3.jpg	stroked	12	rect	missed	rounded-rect	False	radius	0.86	radius:rect	0.2313	2.07	rounded-rect
+eval-stroked-rect-16-0.jpg	stroked	16	rect	missed	rect	False	indistinguishable	0.7939	radius:rounded-rect	0.6585	4.48	rect
+eval-stroked-rect-16-1.jpg	stroked	16	rect	missed	None	False	hole		None			
+eval-stroked-rect-16-2.jpg	stroked	16	rect	missed	rect	False	indistinguishable	0.8317	radius:rounded-rect	0.3987	8.22	rect
+eval-stroked-rect-16-3.jpg	stroked	16	rect	missed	rect	False	adversary	0.7966	radius:rounded-rect	0.3078	16.07	rect
+eval-stroked-rect-20-0.jpg	stroked	20	rect	missed	rect	False	indistinguishable	0.8377	radius:rounded-rect	0.5935	4.96	rect
+eval-stroked-rect-20-1.jpg	stroked	20	rect	missed	rect	False	hole-shape	0.708	ellipse	0.6415	63.73	rect
+eval-stroked-rect-20-2.jpg	stroked	20	rect	missed	rect	False	indistinguishable	0.788	radius:rounded-rect	0.6831	8.19	rect
+eval-stroked-rect-20-3.jpg	stroked	20	rect	missed	rect	False	indistinguishable	0.8489	radius:rounded-rect	0.766	10.53	rect
+eval-stroked-rect-24-0.jpg	stroked	24	rect	missed	rect	False	indistinguishable	0.8934	radius:rounded-rect	0.395	8.58	rect
+eval-stroked-rect-24-1.jpg	stroked	24	rect	missed	rect	False	indistinguishable	0.7879	radius:rounded-rect	0.5569	5.51	rect
+eval-stroked-rect-24-2.jpg	stroked	24	rect	missed	rect	False	indistinguishable	0.8551	radius:rounded-rect	0.4646	10.32	rect
+eval-stroked-rect-24-3.jpg	stroked	24	rect	missed	rect	False	indistinguishable	0.8627	radius:rounded-rect	0.7174	5.4	rect
+eval-stroked-rect-32-0.jpg	stroked	32	rect	correct	rect	True	accepted	0.9007	radius:rounded-rect	0.7561	15.26	rect
+eval-stroked-rect-32-1.jpg	stroked	32	rect	missed	rect	False	indistinguishable	0.8713	radius:rounded-rect	0.7229	8.65	rect
+eval-stroked-rect-32-2.jpg	stroked	32	rect	correct	rect	True	accepted	0.8173	radius:rounded-rect	0.7806	18.93	rect
+eval-stroked-rect-32-3.jpg	stroked	32	rect	missed	rect	False	adversary	0.8539	radius:rounded-rect	0.4595	21.98	rect
+eval-stroked-rect-40-0.jpg	stroked	40	rect	correct	rect	True	accepted	0.9153	radius:rounded-rect	0.7981	25.25	rect
+eval-stroked-rect-40-1.jpg	stroked	40	rect	correct	rect	True	accepted	0.8892	radius:rounded-rect	0.7742	22.52	rect
+eval-stroked-rect-40-2.jpg	stroked	40	rect	correct	rect	True	accepted	0.8644	radius:rounded-rect	0.8402	31.99	rect
+eval-stroked-rect-40-3.jpg	stroked	40	rect	missed	rect	False	indistinguishable	0.8876	radius:rounded-rect	0.6805	9.43	rect
+eval-stroked-rounded-rect-8-0.jpg	stroked	8	rounded-rect	missed	None	False	asymmetry		None			
+eval-stroked-rounded-rect-8-1.jpg	stroked	8	rounded-rect	missed	None	False	too-small		None			
+eval-stroked-rounded-rect-8-2.jpg	stroked	8	rounded-rect	missed	None	False	convexity		None			
+eval-stroked-rounded-rect-8-3.jpg	stroked	8	rounded-rect	missed	None	False	hole		None			
+eval-stroked-rounded-rect-10-0.jpg	stroked	10	rounded-rect	missed	None	False	too-small		None			
+eval-stroked-rounded-rect-10-1.jpg	stroked	10	rounded-rect	missed	None	False	too-small		None			
+eval-stroked-rounded-rect-10-2.jpg	stroked	10	rounded-rect	missed	None	False	too-small		None			
+eval-stroked-rounded-rect-10-3.jpg	stroked	10	rounded-rect	missed	None	False	too-small		None			
+eval-stroked-rounded-rect-12-0.jpg	stroked	12	rounded-rect	correct	rounded-rect	True	accepted	0.7227	circle	0.6306	19.09	rounded-rect
+eval-stroked-rounded-rect-12-1.jpg	stroked	12	rounded-rect	missed	None	False	too-small		None			
+eval-stroked-rounded-rect-12-2.jpg	stroked	12	rounded-rect	correct	rounded-rect	True	accepted	0.8116	radius:rect	0.5651	12.44	rounded-rect
+eval-stroked-rounded-rect-12-3.jpg	stroked	12	rounded-rect	correct	rounded-rect	True	accepted	0.7937	circle	0.7205	23.26	rounded-rect
+eval-stroked-rounded-rect-16-0.jpg	stroked	16	rounded-rect	missed	None	False	too-small		None			
+eval-stroked-rounded-rect-16-1.jpg	stroked	16	rounded-rect	missed	None	False	too-small		None			
+eval-stroked-rounded-rect-16-2.jpg	stroked	16	rounded-rect	missed	rounded-rect	False	adversary	0.7381	circle	0.2066	33.49	rounded-rect
+eval-stroked-rounded-rect-16-3.jpg	stroked	16	rounded-rect	missed	rounded-rect	False	adversary	0.853	ellipse	0.3871	30.61	rounded-rect
+eval-stroked-rounded-rect-20-0.jpg	stroked	20	rounded-rect	correct	rounded-rect	True	accepted	0.771	radius:rect	0.6403	57.64	rounded-rect
+eval-stroked-rounded-rect-20-1.jpg	stroked	20	rounded-rect	missed	rounded-rect	False	adversary	0.8227	ellipse	0.378	41.85	rounded-rect
+eval-stroked-rounded-rect-20-2.jpg	stroked	20	rounded-rect	missed	rounded-rect	False	adversary	0.8632	radius:rect	0.4914	22.04	rounded-rect
+eval-stroked-rounded-rect-20-3.jpg	stroked	20	rounded-rect	correct	rounded-rect	True	accepted	0.8036	radius:pill	0.7753	44.15	rounded-rect
+eval-stroked-rounded-rect-24-0.jpg	stroked	24	rounded-rect	missed	None	False	source-quality		None			
+eval-stroked-rounded-rect-24-1.jpg	stroked	24	rounded-rect	correct	rounded-rect	True	accepted	0.7586	ellipse	0.5391	98.39	rounded-rect
+eval-stroked-rounded-rect-24-2.jpg	stroked	24	rounded-rect	correct	rounded-rect	True	accepted	0.8604	ellipse	0.6259	66.82	rounded-rect
+eval-stroked-rounded-rect-24-3.jpg	stroked	24	rounded-rect	correct	rounded-rect	True	accepted	0.7874	ellipse	0.7874	105.18	rounded-rect
+eval-stroked-rounded-rect-32-0.jpg	stroked	32	rounded-rect	correct	rounded-rect	True	accepted	0.8304	radius:pill	0.809	89.55	rounded-rect
+eval-stroked-rounded-rect-32-1.jpg	stroked	32	rounded-rect	correct	rounded-rect	True	accepted	0.8782	radius:pill	0.5863	44.67	rounded-rect
+eval-stroked-rounded-rect-32-2.jpg	stroked	32	rounded-rect	missed	rounded-rect	False	radius	0.8791	radius:rect	0.6024	12.56	rounded-rect
+eval-stroked-rounded-rect-32-3.jpg	stroked	32	rounded-rect	correct	rounded-rect	True	accepted	0.841	radius:pill	0.6192	46.26	rounded-rect
+eval-stroked-rounded-rect-40-0.jpg	stroked	40	rounded-rect	correct	rounded-rect	True	accepted	0.925	circle	0.9204	326.49	rounded-rect
+eval-stroked-rounded-rect-40-1.jpg	stroked	40	rounded-rect	correct	rounded-rect	True	accepted	0.848	circle	0.809	380.18	rounded-rect
+eval-stroked-rounded-rect-40-2.jpg	stroked	40	rounded-rect	correct	rounded-rect	True	accepted	0.7687	ellipse	0.8021	235.58	rounded-rect
+eval-stroked-rounded-rect-40-3.jpg	stroked	40	rounded-rect	correct	rounded-rect	True	accepted	0.8637	radius:rect	0.7404	73.29	rounded-rect
+eval-stroked-circle-8-0.jpg	stroked	8	circle	missed	None	False	hole		None			
+eval-stroked-circle-8-1.jpg	stroked	8	circle	missed	None	False	too-small		None			
+eval-stroked-circle-8-2.jpg	stroked	8	circle	missed	None	False	too-small		None			
+eval-stroked-circle-8-3.jpg	stroked	8	circle	missed	None	False	components		None			
+eval-stroked-circle-10-0.jpg	stroked	10	circle	missed	circle	False	indistinguishable	0.8245	pill	0.3096	10.91	circle
+eval-stroked-circle-10-1.jpg	stroked	10	circle	missed	None	False	components		None			
+eval-stroked-circle-10-2.jpg	stroked	10	circle	missed	circle	False	indistinguishable	0.805	rounded-rect	0.2994	7.53	circle
+eval-stroked-circle-10-3.jpg	stroked	10	circle	correct	circle	True	accepted	0.8127	filled	0.9528	32.89	circle,pill
+eval-stroked-circle-12-0.jpg	stroked	12	circle	missed	circle	False	adversary	0.8557	pill	0.0493	12.75	circle
+eval-stroked-circle-12-1.jpg	stroked	12	circle	correct	circle	True	accepted	0.8735	filled	0.9651	60.9	circle,pill
+eval-stroked-circle-12-2.jpg	stroked	12	circle	missed	circle	False	indistinguishable	0.804	pill	0.0871	7.29	circle
+eval-stroked-circle-12-3.jpg	stroked	12	circle	correct	circle	True	accepted	0.8068	filled	0.9667	38.3	circle,pill
+eval-stroked-circle-16-0.jpg	stroked	16	circle	missed	circle	False	adversary	0.8406	pill	0.294	20.56	circle
+eval-stroked-circle-16-1.jpg	stroked	16	circle	missed	circle	False	adversary	0.8258	pill	0.2626	20.56	circle
+eval-stroked-circle-16-2.jpg	stroked	16	circle	missed	circle	False	hole-shape	0.8301	filled	0.9829	63.66	circle,pill
+eval-stroked-circle-16-3.jpg	stroked	16	circle	missed	None	False	hole		None			
+eval-stroked-circle-20-0.jpg	stroked	20	circle	correct	circle	True	accepted	0.8409	filled	0.9802	153.45	circle,pill
+eval-stroked-circle-20-1.jpg	stroked	20	circle	correct	circle	True	accepted	0.7676	filled	0.9483	220.05	circle,pill
+eval-stroked-circle-20-2.jpg	stroked	20	circle	missed	None	False	hole		None			
+eval-stroked-circle-20-3.jpg	stroked	20	circle	correct	circle	True	accepted	0.8332	filled	0.9829	153.96	circle,pill
+eval-stroked-circle-24-0.jpg	stroked	24	circle	correct	circle	True	accepted	0.8159	filled	0.9841	201.95	circle,pill
+eval-stroked-circle-24-1.jpg	stroked	24	circle	correct	circle	True	accepted	0.8468	filled	0.9904	154.61	circle,pill
+eval-stroked-circle-24-2.jpg	stroked	24	circle	correct	circle	True	accepted	0.8424	filled	0.9354	227.76	circle,pill
+eval-stroked-circle-24-3.jpg	stroked	24	circle	correct	circle	True	accepted	0.8452	filled	0.9891	177.36	circle,pill
+eval-stroked-circle-32-0.jpg	stroked	32	circle	correct	circle	True	accepted	0.8392	filled	0.9918	381.43	circle,pill
+eval-stroked-circle-32-1.jpg	stroked	32	circle	correct	circle	True	accepted	0.903	filled	0.9919	284.97	circle,pill
+eval-stroked-circle-32-2.jpg	stroked	32	circle	correct	circle	True	accepted	0.8661	filled	0.9639	382.6	circle,pill
+eval-stroked-circle-32-3.jpg	stroked	32	circle	correct	circle	True	accepted	0.914	filled	0.9945	256.62	circle,pill
+eval-stroked-circle-40-0.jpg	stroked	40	circle	correct	circle	True	accepted	0.8453	filled	0.9935	758.71	circle,pill
+eval-stroked-circle-40-1.jpg	stroked	40	circle	correct	circle	True	accepted	0.8251	filled	0.9811	535.25	circle,pill
+eval-stroked-circle-40-2.jpg	stroked	40	circle	correct	circle	True	accepted	0.9131	filled	0.9916	576.23	circle,pill
+eval-stroked-circle-40-3.jpg	stroked	40	circle	correct	circle	True	accepted	0.9047	filled	0.9969	419.69	circle,pill
+eval-stroked-ellipse-8-0.jpg	stroked	8	ellipse	missed	None	False	hole		None			
+eval-stroked-ellipse-8-1.jpg	stroked	8	ellipse	missed	None	False	hole		None			
+eval-stroked-ellipse-8-2.jpg	stroked	8	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-8-3.jpg	stroked	8	ellipse	missed	None	False	hole		None			
+eval-stroked-ellipse-10-0.jpg	stroked	10	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-10-1.jpg	stroked	10	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-10-2.jpg	stroked	10	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-10-3.jpg	stroked	10	ellipse	missed	None	False	asymmetry		None			
+eval-stroked-ellipse-12-0.jpg	stroked	12	ellipse	missed	None	False	hole		None			
+eval-stroked-ellipse-12-1.jpg	stroked	12	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-12-2.jpg	stroked	12	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-12-3.jpg	stroked	12	ellipse	missed	None	False	too-small		None			
+eval-stroked-ellipse-16-0.jpg	stroked	16	ellipse	missed	pill	False	adversary	0.8359	ellipse	-0.1157	16.06	pill
+eval-stroked-ellipse-16-1.jpg	stroked	16	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-16-2.jpg	stroked	16	ellipse	missed	None	False	too-small		None			
+eval-stroked-ellipse-16-3.jpg	stroked	16	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-20-0.jpg	stroked	20	ellipse	missed	None	False	components		None			
+eval-stroked-ellipse-20-1.jpg	stroked	20	ellipse	missed	ellipse	False	adversary	0.8127	pill	0.4712	21.12	ellipse
+eval-stroked-ellipse-20-2.jpg	stroked	20	ellipse	missed	ellipse	False	adversary	0.8211	pill	0.1247	18.46	ellipse
+eval-stroked-ellipse-20-3.jpg	stroked	20	ellipse	correct	ellipse	True	accepted	0.8033	rounded-rect	0.5403	24.51	ellipse
+eval-stroked-ellipse-24-0.jpg	stroked	24	ellipse	missed	ellipse	False	adversary	0.7786	pill	0.4223	31.78	ellipse
+eval-stroked-ellipse-24-1.jpg	stroked	24	ellipse	missed	ellipse	False	adversary	0.7903	pill	0.4403	27.25	ellipse
+eval-stroked-ellipse-24-2.jpg	stroked	24	ellipse	correct	ellipse	True	accepted	0.8512	pill	0.6665	28.34	ellipse
+eval-stroked-ellipse-24-3.jpg	stroked	24	ellipse	correct	ellipse	True	accepted	0.8264	pill	0.5463	33.34	ellipse
+eval-stroked-ellipse-32-0.jpg	stroked	32	ellipse	missed	ellipse	False	adversary	0.871	pill	0.2787	59.93	ellipse
+eval-stroked-ellipse-32-1.jpg	stroked	32	ellipse	correct	ellipse	True	accepted	0.8498	pill	0.5346	60.45	ellipse
+eval-stroked-ellipse-32-2.jpg	stroked	32	ellipse	correct	ellipse	True	accepted	0.865	pill	0.6249	58.4	ellipse
+eval-stroked-ellipse-32-3.jpg	stroked	32	ellipse	correct	ellipse	True	accepted	0.8407	pill	0.7112	57.13	ellipse
+eval-stroked-ellipse-40-0.jpg	stroked	40	ellipse	missed	ellipse	False	adversary	0.887	pill	0.4332	98.28	ellipse
+eval-stroked-ellipse-40-1.jpg	stroked	40	ellipse	correct	ellipse	True	accepted	0.8809	pill	0.5905	85.42	ellipse
+eval-stroked-ellipse-40-2.jpg	stroked	40	ellipse	correct	ellipse	True	accepted	0.8489	pill	0.5737	81.15	ellipse
+eval-stroked-ellipse-40-3.jpg	stroked	40	ellipse	correct	ellipse	True	accepted	0.798	pill	0.7098	97.63	ellipse
+eval-stroked-pill-8-0.jpg	stroked	8	pill	missed	None	False	components		None			
+eval-stroked-pill-8-1.jpg	stroked	8	pill	missed	None	False	convexity		None			
+eval-stroked-pill-8-2.jpg	stroked	8	pill	missed	None	False	asymmetry		None			
+eval-stroked-pill-8-3.jpg	stroked	8	pill	missed	None	False	too-small		None			
+eval-stroked-pill-10-0.jpg	stroked	10	pill	missed	None	False	convexity		None			
+eval-stroked-pill-10-1.jpg	stroked	10	pill	missed	None	False	too-small		None			
+eval-stroked-pill-10-2.jpg	stroked	10	pill	missed	None	False	too-small		None			
+eval-stroked-pill-10-3.jpg	stroked	10	pill	missed	None	False	hole		None			
+eval-stroked-pill-12-0.jpg	stroked	12	pill	missed	None	False	too-small		None			
+eval-stroked-pill-12-1.jpg	stroked	12	pill	missed	None	False	hole		None			
+eval-stroked-pill-12-2.jpg	stroked	12	pill	missed	None	False	too-small		None			
+eval-stroked-pill-12-3.jpg	stroked	12	pill	missed	None	False	hole		None			
+eval-stroked-pill-16-0.jpg	stroked	16	pill	missed	rounded-rect	False	adversary	0.8165	ellipse	0.0995	17.99	rounded-rect
+eval-stroked-pill-16-1.jpg	stroked	16	pill	missed	ellipse	False	adversary	0.7273	pill	0.1223	12.81	ellipse
+eval-stroked-pill-16-2.jpg	stroked	16	pill	missed	None	False	too-small		None			
+eval-stroked-pill-16-3.jpg	stroked	16	pill	missed	None	False	convexity		None			
+eval-stroked-pill-20-0.jpg	stroked	20	pill	missed	None	False	components		None			
+eval-stroked-pill-20-1.jpg	stroked	20	pill	missed	None	False	too-small		None			
+eval-stroked-pill-20-2.jpg	stroked	20	pill	missed	None	False	too-small		None			
+eval-stroked-pill-20-3.jpg	stroked	20	pill	missed	None	False	too-small		None			
+eval-stroked-pill-24-0.jpg	stroked	24	pill	missed	ellipse	False	adversary	0.7615	pill	-0.0023	36.49	ellipse
+eval-stroked-pill-24-1.jpg	stroked	24	pill	correct	pill	True	accepted	0.7844	ellipse	0.6536	39.06	pill
+eval-stroked-pill-24-2.jpg	stroked	24	pill	missed	rounded-rect	False	adversary	0.8394	ellipse	0.0506	40.78	rounded-rect
+eval-stroked-pill-24-3.jpg	stroked	24	pill	missed	pill	False	adversary	0.8565	ellipse	0.4715	36.15	pill
+eval-stroked-pill-32-0.jpg	stroked	32	pill	correct	pill	True	accepted	0.7642	ellipse	0.581	75.71	pill
+eval-stroked-pill-32-1.jpg	stroked	32	pill	missed	rounded-rect	False	adversary	0.7692	ellipse	0.4858	83.88	rounded-rect
+eval-stroked-pill-32-2.jpg	stroked	32	pill	missed	rounded-rect	False	adversary	0.7982	ellipse	0.4515	77.27	rounded-rect
+eval-stroked-pill-32-3.jpg	stroked	32	pill	correct	pill	True	accepted	0.7649	radius:rounded-rect	0.6075	36.91	pill
+eval-stroked-pill-40-0.jpg	stroked	40	pill	correct	pill	True	accepted	0.8827	ellipse	0.7685	99.34	pill
+eval-stroked-pill-40-1.jpg	stroked	40	pill	missed	pill	False	adversary	0.8552	ellipse	0.4423	106.74	pill
+eval-stroked-pill-40-2.jpg	stroked	40	pill	correct	pill	True	accepted	0.7794	ellipse	0.6767	107.86	pill
+eval-stroked-pill-40-3.jpg	stroked	40	pill	missed	None	False	hole		None			
 computer-icon.destroyed.png	negatives	None	None	refused	None	False	source-quality		None			
 controller-icon.alpha.small.png	negatives	None	None	refused	None	False	hole		None			
 eval-negative-controller-icon.alpha.small-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
 eval-negative-controller-icon.alpha.small-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
 eval-negative-controller-icon.alpha.small-12.jpg	negatives	12	None	refused	None	False	source-quality		None			
 eval-negative-controller-icon.alpha.small-16.jpg	negatives	16	None	refused	None	False	source-quality		None			
-eval-negative-controller-icon.alpha.small-20.jpg	negatives	20	None	refused	None	False	composite		None			
+eval-negative-controller-icon.alpha.small-20.jpg	negatives	20	None	refused	None	False	convexity		None			
 eval-negative-controller-icon.alpha.small-24.jpg	negatives	24	None	refused	None	False	convexity		None			
-eval-negative-controller-icon.alpha.small-32.jpg	negatives	32	None	refused	None	False	composite		None			
+eval-negative-controller-icon.alpha.small-32.jpg	negatives	32	None	refused	None	False	convexity		None			
 eval-negative-controller-icon.alpha.small-40.jpg	negatives	40	None	refused	None	False	hole		None			
-gear-icon.low.png	negatives	None	None	refused	None	False	hole		None			
+gear-icon.low.png	negatives	None	None	refused	None	False	convexity		None			
 eval-negative-gear-icon.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
-eval-negative-gear-icon.low-10.jpg	negatives	10	None	refused	None	False	composite		None			
-eval-negative-gear-icon.low-12.jpg	negatives	12	None	refused	None	False	composite		None			
-eval-negative-gear-icon.low-16.jpg	negatives	16	None	refused	None	False	composite		None			
-eval-negative-gear-icon.low-20.jpg	negatives	20	None	refused	None	False	composite		None			
-eval-negative-gear-icon.low-24.jpg	negatives	24	None	refused	None	False	composite		None			
-eval-negative-gear-icon.low-32.jpg	negatives	32	None	refused	None	False	composite		None			
-eval-negative-gear-icon.low-40.jpg	negatives	40	None	refused	None	False	composite		None			
-wrench-icon.alpha.png	negatives	None	None	refused	None	False	hole		None			
+eval-negative-gear-icon.low-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
+eval-negative-gear-icon.low-12.jpg	negatives	12	None	refused	None	False	source-quality		None			
+eval-negative-gear-icon.low-16.jpg	negatives	16	None	refused	None	False	source-quality		None			
+eval-negative-gear-icon.low-20.jpg	negatives	20	None	refused	None	False	source-quality		None			
+eval-negative-gear-icon.low-24.jpg	negatives	24	None	refused	None	False	source-quality		None			
+eval-negative-gear-icon.low-32.jpg	negatives	32	None	refused	None	False	hole		None			
+eval-negative-gear-icon.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
+wrench-icon.alpha.png	negatives	None	None	refused	None	False	composite		None			
 eval-negative-wrench-icon.alpha-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
 eval-negative-wrench-icon.alpha-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
 eval-negative-wrench-icon.alpha-12.jpg	negatives	12	None	refused	None	False	source-quality		None			
@@ -371,93 +531,253 @@ eval-negative-wrench-icon.alpha-20.jpg	negatives	20	None	refused	None	False	conv
 eval-negative-wrench-icon.alpha-24.jpg	negatives	24	None	refused	None	False	convexity		None			
 eval-negative-wrench-icon.alpha-32.jpg	negatives	32	None	refused	None	False	hole		None			
 eval-negative-wrench-icon.alpha-40.jpg	negatives	40	None	refused	None	False	hole		None			
-alert-mark.low.png	negatives	None	None	refused	None	False	hole		None			
-eval-negative-alert-mark.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
-eval-negative-alert-mark.low-10.jpg	negatives	10	None	refused	None	False	composite		None			
-eval-negative-alert-mark.low-12.jpg	negatives	12	None	refused	None	False	source-quality		None			
-eval-negative-alert-mark.low-16.jpg	negatives	16	None	refused	None	False	hole		None			
-eval-negative-alert-mark.low-20.jpg	negatives	20	None	refused	None	False	hole		None			
-eval-negative-alert-mark.low-24.jpg	negatives	24	None	refused	None	False	hole		None			
-eval-negative-alert-mark.low-32.jpg	negatives	32	None	refused	None	False	hole		None			
-eval-negative-alert-mark.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
+alert-mark.low.png	composite	None	circle	missed	None	False	source-quality		None			
+eval-negative-alert-mark.low-8.jpg	composite	8	circle	missed	None	False	source-quality		None			
+eval-negative-alert-mark.low-10.jpg	composite	10	circle	missed	None	False	source-quality		None			
+eval-negative-alert-mark.low-12.jpg	composite	12	circle	missed	None	False	source-quality		None			
+eval-negative-alert-mark.low-16.jpg	composite	16	circle	missed	None	False	source-quality		None			
+eval-negative-alert-mark.low-20.jpg	composite	20	circle	missed	None	False	source-quality		None			
+eval-negative-alert-mark.low-24.jpg	composite	24	circle	missed	None	False	source-quality		None			
+eval-negative-alert-mark.low-32.jpg	composite	32	circle	missed	None	False	source-quality		None			
+eval-negative-alert-mark.low-40.jpg	composite	40	circle	missed	None	False	source-quality		None			
 clock-glyph.low.png	negatives	None	None	refused	None	False	source-quality		None			
-eval-negative-clock-glyph.low-8.jpg	negatives	8	None	refused	None	False	hole		None			
-eval-negative-clock-glyph.low-10.jpg	negatives	10	None	refused	None	False	hole		None			
-eval-negative-clock-glyph.low-12.jpg	negatives	12	None	refused	None	False	hole		None			
-eval-negative-clock-glyph.low-16.jpg	negatives	16	None	refused	None	False	hole		None			
-eval-negative-clock-glyph.low-20.jpg	negatives	20	None	refused	None	False	hole		None			
-eval-negative-clock-glyph.low-24.jpg	negatives	24	None	refused	None	False	hole		None			
-eval-negative-clock-glyph.low-32.jpg	negatives	32	None	refused	None	False	hole		None			
-eval-negative-clock-glyph.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
-facebook-banner-mark.low.png	negatives	None	None	refused	None	False	hole		None			
-eval-negative-facebook-banner-mark.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
-eval-negative-facebook-banner-mark.low-10.jpg	negatives	10	None	refused	None	False	composite		None			
-eval-negative-facebook-banner-mark.low-12.jpg	negatives	12	None	refused	None	False	composite		None			
-eval-negative-facebook-banner-mark.low-16.jpg	negatives	16	None	refused	None	False	composite		None			
-eval-negative-facebook-banner-mark.low-20.jpg	negatives	20	None	refused	None	False	composite		None			
-eval-negative-facebook-banner-mark.low-24.jpg	negatives	24	None	refused	None	False	composite		None			
-eval-negative-facebook-banner-mark.low-32.jpg	negatives	32	None	refused	None	False	composite		None			
-eval-negative-facebook-banner-mark.low-40.jpg	negatives	40	None	refused	None	False	composite		None			
-facebook-mark.low.png	negatives	None	None	refused	None	False	convexity		None			
-eval-negative-facebook-mark.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
-eval-negative-facebook-mark.low-10.jpg	negatives	10	None	refused	None	False	composite		None			
-eval-negative-facebook-mark.low-12.jpg	negatives	12	None	refused	None	False	source-quality		None			
-eval-negative-facebook-mark.low-16.jpg	negatives	16	None	refused	None	False	hole		None			
-eval-negative-facebook-mark.low-20.jpg	negatives	20	None	refused	None	False	hole		None			
-eval-negative-facebook-mark.low-24.jpg	negatives	24	None	refused	None	False	composite		None			
-eval-negative-facebook-mark.low-32.jpg	negatives	32	None	refused	None	False	composite		None			
-eval-negative-facebook-mark.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
+eval-negative-clock-glyph.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
+eval-negative-clock-glyph.low-10.jpg	negatives	10	None	refused	None	False	components		None			
+eval-negative-clock-glyph.low-12.jpg	negatives	12	None	refused	None	False	components		None			
+eval-negative-clock-glyph.low-16.jpg	negatives	16	None	refused	None	False	components		None			
+eval-negative-clock-glyph.low-20.jpg	negatives	20	None	refused	None	False	components		None			
+eval-negative-clock-glyph.low-24.jpg	negatives	24	None	refused	None	False	components		None			
+eval-negative-clock-glyph.low-32.jpg	negatives	32	None	refused	None	False	components		None			
+eval-negative-clock-glyph.low-40.jpg	negatives	40	None	refused	None	False	components		None			
+facebook-banner-mark.low.png	composite	None	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-banner-mark.low-8.jpg	composite	8	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-banner-mark.low-10.jpg	composite	10	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-banner-mark.low-12.jpg	composite	12	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-banner-mark.low-16.jpg	composite	16	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-banner-mark.low-20.jpg	composite	20	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-banner-mark.low-24.jpg	composite	24	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-banner-mark.low-32.jpg	composite	32	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-banner-mark.low-40.jpg	composite	40	rounded-rect	missed	None	False	source-quality		None			
+facebook-mark.low.png	composite	None	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-mark.low-8.jpg	composite	8	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-mark.low-10.jpg	composite	10	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-mark.low-12.jpg	composite	12	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-mark.low-16.jpg	composite	16	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-mark.low-20.jpg	composite	20	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-mark.low-24.jpg	composite	24	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-mark.low-32.jpg	composite	32	rounded-rect	missed	None	False	source-quality		None			
+eval-negative-facebook-mark.low-40.jpg	composite	40	rounded-rect	missed	None	False	source-quality		None			
 gamepad-glyph.low.png	negatives	None	None	refused	None	False	components		None			
-eval-negative-gamepad-glyph.low-8.jpg	negatives	8	None	refused	None	False	hole		None			
-eval-negative-gamepad-glyph.low-10.jpg	negatives	10	None	refused	None	False	composite		None			
-eval-negative-gamepad-glyph.low-12.jpg	negatives	12	None	refused	None	False	hole		None			
+eval-negative-gamepad-glyph.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
+eval-negative-gamepad-glyph.low-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
+eval-negative-gamepad-glyph.low-12.jpg	negatives	12	None	refused	None	False	source-quality		None			
 eval-negative-gamepad-glyph.low-16.jpg	negatives	16	None	refused	None	False	hole		None			
 eval-negative-gamepad-glyph.low-20.jpg	negatives	20	None	refused	None	False	hole		None			
 eval-negative-gamepad-glyph.low-24.jpg	negatives	24	None	refused	None	False	hole		None			
 eval-negative-gamepad-glyph.low-32.jpg	negatives	32	None	refused	None	False	hole		None			
 eval-negative-gamepad-glyph.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
 instagram-mark.low.png	negatives	None	None	refused	None	False	source-quality		None			
-eval-negative-instagram-mark.low-8.jpg	negatives	8	None	refused	None	False	composite		None			
+eval-negative-instagram-mark.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
 eval-negative-instagram-mark.low-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
-eval-negative-instagram-mark.low-12.jpg	negatives	12	None	refused	None	False	composite		None			
-eval-negative-instagram-mark.low-16.jpg	negatives	16	None	refused	None	False	source-quality		None			
-eval-negative-instagram-mark.low-20.jpg	negatives	20	None	refused	None	False	composite		None			
+eval-negative-instagram-mark.low-12.jpg	negatives	12	None	refused	None	False	components		None			
+eval-negative-instagram-mark.low-16.jpg	negatives	16	None	refused	None	False	hole		None			
+eval-negative-instagram-mark.low-20.jpg	negatives	20	None	refused	None	False	hole		None			
 eval-negative-instagram-mark.low-24.jpg	negatives	24	None	refused	None	False	hole		None			
-eval-negative-instagram-mark.low-32.jpg	negatives	32	None	refused	None	False	hole		None			
+eval-negative-instagram-mark.low-32.jpg	negatives	32	None	refused	None	False	convexity		None			
 eval-negative-instagram-mark.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
 monitor-glyph.low.png	negatives	None	None	refused	None	False	components		None			
 eval-negative-monitor-glyph.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
-eval-negative-monitor-glyph.low-10.jpg	negatives	10	None	refused	None	False	asymmetry		None			
-eval-negative-monitor-glyph.low-12.jpg	negatives	12	None	refused	None	False	hole		None			
-eval-negative-monitor-glyph.low-16.jpg	negatives	16	None	refused	None	False	hole		None			
-eval-negative-monitor-glyph.low-20.jpg	negatives	20	None	refused	None	False	source-quality		None			
-eval-negative-monitor-glyph.low-24.jpg	negatives	24	None	refused	None	False	hole		None			
-eval-negative-monitor-glyph.low-32.jpg	negatives	32	None	refused	None	False	hole		None			
-eval-negative-monitor-glyph.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
+eval-negative-monitor-glyph.low-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
+eval-negative-monitor-glyph.low-12.jpg	negatives	12	None	refused	None	False	source-quality		None			
+eval-negative-monitor-glyph.low-16.jpg	negatives	16	None	refused	None	False	components		None			
+eval-negative-monitor-glyph.low-20.jpg	negatives	20	None	refused	None	False	hole		None			
+eval-negative-monitor-glyph.low-24.jpg	negatives	24	None	refused	None	False	components		None			
+eval-negative-monitor-glyph.low-32.jpg	negatives	32	None	refused	None	False	components		None			
+eval-negative-monitor-glyph.low-40.jpg	negatives	40	None	refused	None	False	components		None			
 thermometer-glyph.low.png	negatives	None	None	refused	None	False	source-quality		None			
-eval-negative-thermometer-glyph.low-8.jpg	negatives	8	None	refused	None	False	composite		None			
-eval-negative-thermometer-glyph.low-10.jpg	negatives	10	None	refused	None	False	composite		None			
-eval-negative-thermometer-glyph.low-12.jpg	negatives	12	None	refused	None	False	composite		None			
-eval-negative-thermometer-glyph.low-16.jpg	negatives	16	None	refused	None	False	composite		None			
-eval-negative-thermometer-glyph.low-20.jpg	negatives	20	None	refused	None	False	composite		None			
-eval-negative-thermometer-glyph.low-24.jpg	negatives	24	None	refused	None	False	composite		None			
-eval-negative-thermometer-glyph.low-32.jpg	negatives	32	None	refused	None	False	composite		None			
-eval-negative-thermometer-glyph.low-40.jpg	negatives	40	None	refused	None	False	composite		None			
+eval-negative-thermometer-glyph.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
+eval-negative-thermometer-glyph.low-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
+eval-negative-thermometer-glyph.low-12.jpg	negatives	12	None	refused	None	False	source-quality		None			
+eval-negative-thermometer-glyph.low-16.jpg	negatives	16	None	refused	None	False	source-quality		None			
+eval-negative-thermometer-glyph.low-20.jpg	negatives	20	None	refused	None	False	source-quality		None			
+eval-negative-thermometer-glyph.low-24.jpg	negatives	24	None	refused	None	False	source-quality		None			
+eval-negative-thermometer-glyph.low-32.jpg	negatives	32	None	refused	None	False	source-quality		None			
+eval-negative-thermometer-glyph.low-40.jpg	negatives	40	None	refused	None	False	source-quality		None			
 whatsapp-mark.low.png	negatives	None	None	refused	None	False	source-quality		None			
-eval-negative-whatsapp-mark.low-8.jpg	negatives	8	None	refused	None	False	hole		None			
-eval-negative-whatsapp-mark.low-10.jpg	negatives	10	None	refused	None	False	hole		None			
-eval-negative-whatsapp-mark.low-12.jpg	negatives	12	None	refused	None	False	hole		None			
-eval-negative-whatsapp-mark.low-16.jpg	negatives	16	None	refused	None	False	hole		None			
-eval-negative-whatsapp-mark.low-20.jpg	negatives	20	None	refused	None	False	hole		None			
-eval-negative-whatsapp-mark.low-24.jpg	negatives	24	None	refused	None	False	hole		None			
-eval-negative-whatsapp-mark.low-32.jpg	negatives	32	None	refused	None	False	hole		None			
-eval-negative-whatsapp-mark.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
+eval-negative-whatsapp-mark.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
+eval-negative-whatsapp-mark.low-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
+eval-negative-whatsapp-mark.low-12.jpg	negatives	12	None	refused	None	False	components		None			
+eval-negative-whatsapp-mark.low-16.jpg	negatives	16	None	refused	None	False	source-quality		None			
+eval-negative-whatsapp-mark.low-20.jpg	negatives	20	None	refused	None	False	source-quality		None			
+eval-negative-whatsapp-mark.low-24.jpg	negatives	24	None	refused	None	False	source-quality		None			
+eval-negative-whatsapp-mark.low-32.jpg	negatives	32	None	refused	None	False	components		None			
+eval-negative-whatsapp-mark.low-40.jpg	negatives	40	None	refused	None	False	components		None			
 x-glyph.low.png	negatives	None	None	refused	None	False	source-quality		None			
 eval-negative-x-glyph.low-8.jpg	negatives	8	None	refused	None	False	source-quality		None			
-eval-negative-x-glyph.low-10.jpg	negatives	10	None	refused	None	False	hole		None			
-eval-negative-x-glyph.low-12.jpg	negatives	12	None	refused	None	False	hole		None			
-eval-negative-x-glyph.low-16.jpg	negatives	16	None	refused	None	False	hole		None			
+eval-negative-x-glyph.low-10.jpg	negatives	10	None	refused	None	False	source-quality		None			
+eval-negative-x-glyph.low-12.jpg	negatives	12	None	refused	None	False	convexity		None			
+eval-negative-x-glyph.low-16.jpg	negatives	16	None	refused	None	False	convexity		None			
 eval-negative-x-glyph.low-20.jpg	negatives	20	None	refused	None	False	hole		None			
 eval-negative-x-glyph.low-24.jpg	negatives	24	None	refused	None	False	hole		None			
-eval-negative-x-glyph.low-32.jpg	negatives	32	None	refused	None	False	components		None			
-eval-negative-x-glyph.low-40.jpg	negatives	40	None	refused	None	False	components		None			
+eval-negative-x-glyph.low-32.jpg	negatives	32	None	refused	None	False	hole		None			
+eval-negative-x-glyph.low-40.jpg	negatives	40	None	refused	None	False	hole		None			
+eval-composite-rect-8-0.png	composite	8	rect	missed	None	False	source-quality		None			
+eval-composite-rect-8-1.jpg	composite	8	rect	missed	None	False	source-quality		None			
+eval-composite-rect-8-2.png	composite	8	rect	missed	None	False	source-quality		None			
+eval-composite-rect-8-3.jpg	composite	8	rect	missed	None	False	source-quality		None			
+eval-composite-rect-10-0.png	composite	10	rect	missed	None	False	source-quality		None			
+eval-composite-rect-10-1.jpg	composite	10	rect	missed	None	False	source-quality		None			
+eval-composite-rect-10-2.png	composite	10	rect	missed	None	False	too-small		None			
+eval-composite-rect-10-3.jpg	composite	10	rect	missed	None	False	source-quality		None			
+eval-composite-rect-12-0.png	composite	12	rect	missed	None	False	source-quality		None			
+eval-composite-rect-12-1.jpg	composite	12	rect	missed	None	False	source-quality		None			
+eval-composite-rect-12-2.png	composite	12	rect	missed	None	False	source-quality		None			
+eval-composite-rect-12-3.jpg	composite	12	rect	missed	None	False	source-quality		None			
+eval-composite-rect-16-0.png	composite	16	rect	missed	None	False	source-quality		None			
+eval-composite-rect-16-1.jpg	composite	16	rect	missed	None	False	source-quality		None			
+eval-composite-rect-16-2.png	composite	16	rect	missed	None	False	source-quality		None			
+eval-composite-rect-16-3.jpg	composite	16	rect	missed	None	False	source-quality		None			
+eval-composite-rect-20-0.png	composite	20	rect	missed	None	False	source-quality		None			
+eval-composite-rect-20-1.jpg	composite	20	rect	missed	None	False	components		None			
+eval-composite-rect-20-2.png	composite	20	rect	correct	rect	True	accepted	0.9662	ellipse	0.9947	41.39	rect
+eval-composite-rect-20-3.jpg	composite	20	rect	missed	None	False	source-quality		None			
+eval-composite-rect-24-0.png	composite	24	rect	missed	None	False	source-quality		None			
+eval-composite-rect-24-1.jpg	composite	24	rect	missed	None	False	source-quality		None			
+eval-composite-rect-24-2.png	composite	24	rect	correct	rect	True	accepted	0.9976	circle	0.9896	97.47	rect
+eval-composite-rect-24-3.jpg	composite	24	rect	missed	None	False	source-quality		None			
+eval-composite-rect-32-0.png	composite	32	rect	missed	None	False	source-quality		None			
+eval-composite-rect-32-1.jpg	composite	32	rect	missed	None	False	source-quality		None			
+eval-composite-rect-32-2.png	composite	32	rect	missed	None	False	source-quality		None			
+eval-composite-rect-32-3.jpg	composite	32	rect	missed	None	False	source-quality		None			
+eval-composite-rect-40-0.png	composite	40	rect	correct	rect	True	accepted	0.9649	ellipse	0.8979	172.95	rect
+eval-composite-rect-40-1.jpg	composite	40	rect	missed	None	False	source-quality		None			
+eval-composite-rect-40-2.png	composite	40	rect	correct	rect	True	accepted	0.9546	ellipse	0.8916	178.47	rect
+eval-composite-rect-40-3.jpg	composite	40	rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-8-0.png	composite	8	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-8-1.jpg	composite	8	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-8-2.png	composite	8	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-8-3.jpg	composite	8	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-10-0.png	composite	10	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-10-1.jpg	composite	10	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-10-2.png	composite	10	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-10-3.jpg	composite	10	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-12-0.png	composite	12	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-12-1.jpg	composite	12	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-12-2.png	composite	12	rounded-rect	missed	None	False	too-small		None			
+eval-composite-rounded-rect-12-3.jpg	composite	12	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-16-0.png	composite	16	rounded-rect	missed	rounded-rect	False	radius	0.967	ellipse	0.8911	25.95	rounded-rect
+eval-composite-rounded-rect-16-1.jpg	composite	16	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-16-2.png	composite	16	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-16-3.jpg	composite	16	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-20-0.png	composite	20	rounded-rect	missed	rounded-rect	False	radius	0.946	circle	0.867	61.62	rounded-rect
+eval-composite-rounded-rect-20-1.jpg	composite	20	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-20-2.png	composite	20	rounded-rect	missed	rounded-rect	False	radius	0.9333	ellipse	0.9347	32.8	rounded-rect
+eval-composite-rounded-rect-20-3.jpg	composite	20	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-24-0.png	composite	24	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-24-1.jpg	composite	24	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-24-2.png	composite	24	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-24-3.jpg	composite	24	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-32-0.png	composite	32	rounded-rect	correct	rounded-rect	True	accepted	0.9637	ellipse	0.9305	57.36	rounded-rect
+eval-composite-rounded-rect-32-1.jpg	composite	32	rounded-rect	correct	rounded-rect	True	accepted	0.9678	circle	0.8655	132.87	rounded-rect
+eval-composite-rounded-rect-32-2.png	composite	32	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-32-3.jpg	composite	32	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-40-0.png	composite	40	rounded-rect	correct	rounded-rect	True	accepted	0.9762	circle	0.9803	123.26	rounded-rect
+eval-composite-rounded-rect-40-1.jpg	composite	40	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-rounded-rect-40-2.png	composite	40	rounded-rect	correct	rounded-rect	True	accepted	0.9962	ellipse	0.991	193.67	rounded-rect
+eval-composite-rounded-rect-40-3.jpg	composite	40	rounded-rect	missed	None	False	source-quality		None			
+eval-composite-circle-8-0.png	composite	8	circle	missed	None	False	source-quality		None			
+eval-composite-circle-8-1.jpg	composite	8	circle	missed	None	False	source-quality		None			
+eval-composite-circle-8-2.png	composite	8	circle	missed	None	False	source-quality		None			
+eval-composite-circle-8-3.jpg	composite	8	circle	missed	None	False	source-quality		None			
+eval-composite-circle-10-0.png	composite	10	circle	missed	None	False	source-quality		None			
+eval-composite-circle-10-1.jpg	composite	10	circle	missed	None	False	source-quality		None			
+eval-composite-circle-10-2.png	composite	10	circle	correct	circle	True	accepted	0.9331	None			circle,pill
+eval-composite-circle-10-3.jpg	composite	10	circle	missed	None	False	source-quality		None			
+eval-composite-circle-12-0.png	composite	12	circle	missed	None	False	source-quality		None			
+eval-composite-circle-12-1.jpg	composite	12	circle	missed	None	False	source-quality		None			
+eval-composite-circle-12-2.png	composite	12	circle	missed	None	False	source-quality		None			
+eval-composite-circle-12-3.jpg	composite	12	circle	missed	None	False	source-quality		None			
+eval-composite-circle-16-0.png	composite	16	circle	missed	None	False	source-quality		None			
+eval-composite-circle-16-1.jpg	composite	16	circle	missed	None	False	source-quality		None			
+eval-composite-circle-16-2.png	composite	16	circle	missed	None	False	source-quality		None			
+eval-composite-circle-16-3.jpg	composite	16	circle	missed	None	False	source-quality		None			
+eval-composite-circle-20-0.png	composite	20	circle	missed	None	False	source-quality		None			
+eval-composite-circle-20-1.jpg	composite	20	circle	missed	None	False	source-quality		None			
+eval-composite-circle-20-2.png	composite	20	circle	correct	circle	True	accepted	0.9544	None			circle,pill
+eval-composite-circle-20-3.jpg	composite	20	circle	missed	None	False	source-quality		None			
+eval-composite-circle-24-0.png	composite	24	circle	correct	circle	True	accepted	0.9417	None			circle,pill
+eval-composite-circle-24-1.jpg	composite	24	circle	missed	None	False	source-quality		None			
+eval-composite-circle-24-2.png	composite	24	circle	correct	circle	True	accepted	0.9419	None			circle,pill
+eval-composite-circle-24-3.jpg	composite	24	circle	missed	None	False	source-quality		None			
+eval-composite-circle-32-0.png	composite	32	circle	correct	circle	True	accepted	0.9807	None			circle,pill
+eval-composite-circle-32-1.jpg	composite	32	circle	missed	None	False	source-quality		None			
+eval-composite-circle-32-2.png	composite	32	circle	correct	circle	True	accepted	0.9443	None			circle,pill
+eval-composite-circle-32-3.jpg	composite	32	circle	missed	None	False	source-quality		None			
+eval-composite-circle-40-0.png	composite	40	circle	correct	circle	True	accepted	0.9778	None			circle,pill
+eval-composite-circle-40-1.jpg	composite	40	circle	missed	None	False	source-quality		None			
+eval-composite-circle-40-2.png	composite	40	circle	correct	circle	True	accepted	0.9885	None			circle,pill
+eval-composite-circle-40-3.jpg	composite	40	circle	missed	None	False	source-quality		None			
+eval-composite-ellipse-8-0.png	composite	8	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-8-1.jpg	composite	8	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-8-2.png	composite	8	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-8-3.jpg	composite	8	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-10-0.png	composite	10	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-10-1.jpg	composite	10	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-10-2.png	composite	10	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-10-3.jpg	composite	10	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-12-0.png	composite	12	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-12-1.jpg	composite	12	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-12-2.png	composite	12	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-12-3.jpg	composite	12	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-16-0.png	composite	16	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-16-1.jpg	composite	16	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-16-2.png	composite	16	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-16-3.jpg	composite	16	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-20-0.png	composite	20	ellipse	missed	ellipse	False	composite-interior:fit	0.8683	pill	0.7774	13.11	ellipse
+eval-composite-ellipse-20-1.jpg	composite	20	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-20-2.png	composite	20	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-20-3.jpg	composite	20	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-24-0.png	composite	24	ellipse	correct	ellipse	True	accepted	0.9526	pill	0.8403	19.31	ellipse
+eval-composite-ellipse-24-1.jpg	composite	24	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-24-2.png	composite	24	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-24-3.jpg	composite	24	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-32-0.png	composite	32	ellipse	correct	ellipse	True	accepted	0.93	pill	0.7463	33.26	ellipse
+eval-composite-ellipse-32-1.jpg	composite	32	ellipse	correct	ellipse	True	accepted	0.9426	pill	0.6042	32.75	ellipse
+eval-composite-ellipse-32-2.png	composite	32	ellipse	correct	ellipse	True	accepted	0.9859	pill	0.9629	35.69	ellipse
+eval-composite-ellipse-32-3.jpg	composite	32	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-40-0.png	composite	40	ellipse	correct	ellipse	True	accepted	0.9889	pill	0.9766	55.39	ellipse
+eval-composite-ellipse-40-1.jpg	composite	40	ellipse	missed	None	False	source-quality		None			
+eval-composite-ellipse-40-2.png	composite	40	ellipse	correct	ellipse	True	accepted	0.9523	pill	0.8979	55.7	ellipse
+eval-composite-ellipse-40-3.jpg	composite	40	ellipse	missed	None	False	source-quality		None			
+eval-composite-pill-8-0.png	composite	8	pill	missed	None	False	source-quality		None			
+eval-composite-pill-8-1.jpg	composite	8	pill	missed	None	False	source-quality		None			
+eval-composite-pill-8-2.png	composite	8	pill	missed	None	False	source-quality		None			
+eval-composite-pill-8-3.jpg	composite	8	pill	missed	None	False	source-quality		None			
+eval-composite-pill-10-0.png	composite	10	pill	missed	None	False	source-quality		None			
+eval-composite-pill-10-1.jpg	composite	10	pill	missed	None	False	source-quality		None			
+eval-composite-pill-10-2.png	composite	10	pill	missed	None	False	too-small		None			
+eval-composite-pill-10-3.jpg	composite	10	pill	missed	None	False	source-quality		None			
+eval-composite-pill-12-0.png	composite	12	pill	missed	None	False	source-quality		None			
+eval-composite-pill-12-1.jpg	composite	12	pill	missed	None	False	source-quality		None			
+eval-composite-pill-12-2.png	composite	12	pill	missed	None	False	source-quality		None			
+eval-composite-pill-12-3.jpg	composite	12	pill	missed	None	False	source-quality		None			
+eval-composite-pill-16-0.png	composite	16	pill	missed	None	False	source-quality		None			
+eval-composite-pill-16-1.jpg	composite	16	pill	missed	None	False	source-quality		None			
+eval-composite-pill-16-2.png	composite	16	pill	missed	None	False	source-quality		None			
+eval-composite-pill-16-3.jpg	composite	16	pill	missed	None	False	source-quality		None			
+eval-composite-pill-20-0.png	composite	20	pill	correct	pill	True	accepted	0.9674	ellipse	0.8495	14.98	pill
+eval-composite-pill-20-1.jpg	composite	20	pill	missed	None	False	source-quality		None			
+eval-composite-pill-20-2.png	composite	20	pill	missed	None	False	too-small		None			
+eval-composite-pill-20-3.jpg	composite	20	pill	missed	None	False	source-quality		None			
+eval-composite-pill-24-0.png	composite	24	pill	correct	pill	True	accepted	0.9441	ellipse	0.6635	20.76	pill
+eval-composite-pill-24-1.jpg	composite	24	pill	missed	None	False	source-quality		None			
+eval-composite-pill-24-2.png	composite	24	pill	correct	pill	True	accepted	0.9521	ellipse	0.8767	21.83	pill
+eval-composite-pill-24-3.jpg	composite	24	pill	missed	None	False	source-quality		None			
+eval-composite-pill-32-0.png	composite	32	pill	correct	pill	True	accepted	0.9331	ellipse	0.7621	39.31	pill
+eval-composite-pill-32-1.jpg	composite	32	pill	missed	None	False	source-quality		None			
+eval-composite-pill-32-2.png	composite	32	pill	correct	pill	True	accepted	0.9803	ellipse	0.8488	38.53	pill
+eval-composite-pill-32-3.jpg	composite	32	pill	missed	pill	False	composite-interior:fit	0.9035	ellipse	0.6195	38.38	pill
+eval-composite-pill-40-0.png	composite	40	pill	correct	pill	True	accepted	0.9758	ellipse	0.9414	61.67	pill
+eval-composite-pill-40-1.jpg	composite	40	pill	missed	None	False	components		None			
+eval-composite-pill-40-2.png	composite	40	pill	correct	pill	True	accepted	0.9563	ellipse	0.9074	62.62	pill
+eval-composite-pill-40-3.jpg	composite	40	pill	missed	None	False	source-quality		None			

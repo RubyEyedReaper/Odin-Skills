@@ -23,7 +23,8 @@ mkdir -p "$work"
 
 bash "$skill/scripts/doctor.sh" >/dev/null || { echo "primitives-eval: toolchain unavailable (run scripts/doctor.sh)" >&2; exit 2; }
 
-eval_py() { PYTHONPATH="$skill" uv run --no-project --quiet --with "$I2C_RESVG" --with "$I2C_PILLOW" python3 "$@"; }
+# vtracer since batch 3: a composite tile's interior is traced (harness:RM-0678).
+eval_py() { PYTHONPATH="$skill" uv run --no-project --quiet --with "$I2C_VTRACER" --with "$I2C_RESVG" --with "$I2C_PILLOW" python3 "$@"; }
 
 eval_py "$here/make_sources.py" "$work/src" || exit 2
 eval_py "$here/evaluate.py" measure "$work/src" "$work/raw.jsonl" || exit 2

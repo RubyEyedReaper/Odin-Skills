@@ -8,5 +8,8 @@
   "bbox_fill": 0.7,
   "symmetry": 0.9,
   "min_px": 10,
+  "concentric": 0.7,
+  "stroke_bar": 0.7,
+  "interior_bar": 0.4,
   "sigmas": [0, 0.4, 0.7, 1.0, 1.4, 1.9]
 }

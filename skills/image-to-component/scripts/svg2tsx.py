@@ -42,8 +42,13 @@ GEOMETRY = {
     "ellipse": {"cx", "cy", "rx", "ry"},
 }
 ELEMENTS = set(GEOMETRY)
+# A stroked primitive (harness:RM-0679) is one element with a stroke width, legal on the three
+# primitive elements and nowhere else: a traced path never carries one, so the refusal that names a
+# `stroke-width` on a <path> as outside the dialect keeps its precision.
+PRIMITIVE_PAINT = {"stroke-width"}
+PRIMITIVES = {"rect", "circle", "ellipse"}
 # The widest attribute set any element may carry, for callers that ask about the dialect as a whole.
-ATTRS = COMMON_ATTRS | set().union(*GEOMETRY.values())
+ATTRS = COMMON_ATTRS | PRIMITIVE_PAINT | set().union(*GEOMETRY.values())
 PAINT_ATTRS = {"fill", "stroke"}
 ROOT_DROPPED_ATTRS = {"width", "height", "version", "x", "y", "enable-background"}
 ROOT_ATTRS = COMMON_ATTRS | ROOT_DROPPED_ATTRS | {"viewBox", "xmlns"}
@@ -52,7 +57,7 @@ DIALECT = "svg, g, path from vtracer + SVGO; rect, circle, ellipse from a fitted
 
 def allowed_attrs(tag: str) -> set[str]:
     """The attributes this element may carry: the common paint set plus its own geometry."""
-    return COMMON_ATTRS | GEOMETRY.get(tag, set())
+    return COMMON_ATTRS | GEOMETRY.get(tag, set()) | (PRIMITIVE_PAINT if tag in PRIMITIVES else set())
 
 
 NO_PAINT = {"none", "transparent", "currentColor", "inherit"}

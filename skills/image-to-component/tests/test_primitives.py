@@ -165,6 +165,201 @@ class CandidateTest(unittest.TestCase):
                                primitives.candidate(solid, w, h, self.PARAMS)["bbox_fill"], delta=1e-9)
 
 
+def ring(size: int, outer: float, inner: float, cx: float | None = None, cy: float | None = None):
+    """An anti-aliased annulus; `cx`/`cy` move the HOLE, so an off-centre hole is a knockout."""
+    c = size / 2
+    hx, hy = (c if cx is None else cx), (c if cy is None else cy)
+    out = bytearray()
+    for y in range(size):
+        for x in range(size):
+            hits = 0
+            for i in range(4):
+                for j in range(4):
+                    px, py = x + (i + 0.5) / 4, y + (j + 0.5) / 4
+                    hits += ((px - c) ** 2 + (py - c) ** 2 <= outer ** 2
+                             and (px - hx) ** 2 + (py - hy) ** 2 > inner ** 2)
+            out.append(round(255 * hits / 16))
+    return bytes(out), size, size
+
+
+class StrokeTest(unittest.TestCase):
+    """harness:RM-0679 — a ring or a stroked container is a primitive with a stroke width.
+
+    Batch 2 refused every interior hole, 52 of the 118 negative refusals. A hole is admitted when
+    it is the ONLY one and it is concentric with the outer contour: the band between them is the
+    same width on all four sides of the box. A knockout glyph, a letterform's counter and an
+    off-centre cut-out are not, and still refuse at `hole`.
+    """
+
+    PARAMS = {"hull_fill": 0.9, "bbox_fill": 0.6, "symmetry": 0.0, "min_px": 0, "concentric": 0.7}
+
+    def test_a_centred_ring_reads_as_one_concentric_hole_with_its_band_width(self):
+        alpha, w, h = ring(32, 12.0, 9.0)
+        reading = primitives.stroke_reading(alpha, w, h)
+        self.assertGreater(reading["concentric"], 0.85)
+        self.assertAlmostEqual(reading["width"], 3.0, delta=0.8)
+
+    def test_an_off_centre_hole_is_not_concentric(self):
+        alpha, w, h = ring(32, 12.0, 5.0, cx=19.0, cy=16.0)
+        self.assertLess(primitives.stroke_reading(alpha, w, h)["concentric"], 0.5)
+
+    def test_two_holes_have_no_stroke_reading(self):
+        alpha, w, h = mask(["#######",
+                            "#.###.#",
+                            "#######"])
+        self.assertIsNone(primitives.stroke_reading(alpha, w, h))
+
+    def test_a_filled_shape_has_no_stroke_reading(self):
+        alpha, w, h = disc(24, 8.0)
+        self.assertIsNone(primitives.stroke_reading(alpha, w, h))
+
+    def test_a_ring_is_a_stroked_candidate(self):
+        alpha, w, h = ring(32, 12.0, 9.0)
+        gate = primitives.candidate(alpha, w, h, self.PARAMS)
+        self.assertTrue(gate["ok"], gate)
+        self.assertTrue(gate["stroked"])
+        self.assertAlmostEqual(gate["stroke"], 3.0, delta=0.8)
+
+    def test_a_knocked_out_off_centre_hole_still_refuses_at_hole(self):
+        alpha, w, h = ring(32, 12.0, 5.0, cx=19.0, cy=16.0)
+        self.assertEqual(primitives.candidate(alpha, w, h, self.PARAMS)["reason"], "hole")
+
+    def test_without_a_concentric_floor_every_hole_refuses_as_batch_2_did(self):
+        alpha, w, h = ring(32, 12.0, 9.0)
+        params = {k: v for k, v in self.PARAMS.items() if k != "concentric"}
+        self.assertEqual(primitives.candidate(alpha, w, h, params)["reason"], "hole")
+
+    def test_the_convexity_floors_read_the_filled_outline_not_the_band(self):
+        """A ring's band fills a fraction of its box; the shape it outlines fills all of a disc's."""
+        alpha, w, h = ring(32, 12.0, 9.0)
+        gate = primitives.candidate(alpha, w, h, self.PARAMS)
+        self.assertGreater(gate["bbox_fill"], 0.7)
+        self.assertGreater(gate["hull_fill"], 0.9)
+
+    def test_a_stroked_fit_keeps_the_outer_box_and_carries_the_width(self):
+        alpha, w, h = ring(32, 12.0, 9.0)
+        m = primitives.moments(primitives.fill_holes(alpha, w, h), w, h)
+        fit = primitives.fit_family("ellipse", m, stroke=3.0)
+        self.assertAlmostEqual(fit["params"]["rx"], 12.0, delta=0.8)
+        self.assertEqual(fit["params"]["stroke_width"], 3.0)
+
+    def test_a_stroked_element_is_drawn_on_its_centre_line(self):
+        """SVG strokes straddle the geometry, so the emitted geometry is inset by half the width:
+        the outer edge of the drawn band is the outer box that was fitted."""
+        fit = {"family": "circle", "params": {"cx": 12.0, "cy": 12.0, "r": 10.0, "stroke_width": 2.0}}
+        self.assertEqual(primitives.element(fit),
+                         '<circle cx="12" cy="12" r="9" fill="none" stroke="#000" stroke-width="2"/>')
+        rect = {"family": "rounded-rect",
+                "params": {"x": 2.0, "y": 4.0, "width": 20.0, "height": 16.0, "rx": 5.0, "stroke_width": 2.0}}
+        self.assertEqual(primitives.element(rect),
+                         '<rect x="3" y="5" width="18" height="14" rx="4" fill="none" stroke="#000"'
+                         ' stroke-width="2"/>')
+
+    def test_derive_names_a_stroked_shape_by_its_outer_geometry_and_keeps_the_width(self):
+        fit = {"family": "ellipse", "params": {"cx": 12.0, "cy": 12.0, "rx": 10.0, "ry": 10.0, "stroke_width": 2.0}}
+        derived = primitives.derive(fit, 0.125)
+        self.assertEqual(derived["family"], "circle")
+        self.assertEqual(derived["params"]["stroke_width"], 2.0)
+
+    def test_filled_is_the_same_geometry_with_no_stroke(self):
+        fit = {"family": "circle", "params": {"cx": 12.0, "cy": 12.0, "r": 10.0, "stroke_width": 2.0}}
+        self.assertEqual(primitives.filled(fit),
+                         {"family": "circle", "params": {"cx": 12.0, "cy": 12.0, "r": 10.0}})
+
+    def test_a_fixed_adversary_the_source_does_not_side_against_refuses(self):
+        """The filled shape of the same geometry is an adversary of every stroked verdict."""
+        params = {"bar": 0.5, "margin": 0.2, "min_weight": 4}
+        fits = {"rounded-rect": 0.9, "ellipse": 0.6}
+        pairs = {"ellipse": (0.9, 40.0), "rounded-rect": (0.1, 40.0)}
+        verdict = primitives.decide(fits, pairs, set(), params, fixed={"filled": (0.1, 40.0)})
+        self.assertFalse(verdict["accepted"])
+        self.assertEqual((verdict["reason"], verdict["runner_up"]), ("adversary", "filled"))
+        verdict = primitives.decide(fits, pairs, set(), params, fixed={"filled": (0.9, 40.0)})
+        self.assertTrue(verdict["accepted"])
+
+
+class CompositeTest(unittest.TestCase):
+    """harness:RM-0678 — a tile with a glyph on it is a fitted backplate plus a traced interior.
+
+    Batch 2 refused it outright, because the container underneath really IS a rounded rect and a
+    fit that drops the glyph is a wrong acceptance no threshold catches. The decomposition keeps the
+    glyph: the backplate is judged exactly as a whole-asset container is, and the interior must
+    trace and match on its own or the tile refuses, naming the region.
+    """
+
+    PARAMS = {"hull_fill": 0.9, "bbox_fill": 0.6, "symmetry": 0.0, "min_px": 0, "concentric": 0.7,
+              "interior_bar": 0.6}
+
+    def test_a_composite_tile_is_a_candidate_backplate_when_interiors_are_admitted(self):
+        alpha, w, h = disc(24, 8.0)
+        gate = primitives.candidate(alpha, w, h, self.PARAMS, composite=True)
+        self.assertTrue(gate["ok"], gate)
+        self.assertTrue(gate["composite"])
+
+    def test_without_an_interior_bar_a_composite_still_refuses_as_batch_2_did(self):
+        alpha, w, h = disc(24, 8.0)
+        params = {k: v for k, v in self.PARAMS.items() if k != "interior_bar"}
+        self.assertEqual(primitives.candidate(alpha, w, h, params, composite=True)["reason"], "composite")
+
+    def test_a_ring_with_something_drawn_on_it_is_out_of_scope(self):
+        """A band AND a second colour is two decompositions at once — each is an independent
+        chance at a wrong acceptance, so the batch admits one at a time."""
+        alpha, w, h = ring(32, 12.0, 9.0)
+        self.assertEqual(primitives.candidate(alpha, w, h, self.PARAMS, composite=True)["reason"],
+                         "composite")
+
+    def test_the_interior_is_the_ink_the_backplate_does_not_account_for(self):
+        self.assertEqual(primitives.interior(bytes([255, 255, 200, 0]), bytes([255, 40, 200, 0])),
+                         bytes([0, 215, 0, 0]))
+
+    def test_a_blend_between_the_two_colours_is_not_a_third_colour(self):
+        red, white = (225, 29, 46), (255, 255, 255)
+        blend = tuple((a + b) // 2 for a, b in zip(red, white))
+        rgba = b"".join(bytes((*c, 255)) for c in (red, red, white, blend))
+        self.assertEqual(primitives.third_colour_share(rgba, red, white, 200, 80), 0.0)
+
+    def test_a_third_flat_colour_is_counted_and_transparent_pixels_are_not(self):
+        """A dark tile holding a red disc with a white "!" is two-means'd into two colours; the
+        third is what `third_colour_share` finds, so the interior is not traced as one colour."""
+        dark, red, white = (20, 24, 33), (225, 29, 46), (255, 255, 255)
+        rgba = b"".join(bytes((*c, a)) for c, a in ((dark, 255), (dark, 255), (red, 255), (white, 255),
+                                                     (white, 0)))
+        self.assertAlmostEqual(primitives.third_colour_share(rgba, dark, red, 200, 80), 0.25)
+
+    @staticmethod
+    def _tile(glyph: set, size: int = 8) -> bytes:
+        blue, white = (24, 119, 242), (255, 255, 255)
+        return b"".join(bytes((*(white if (x, y) in glyph else blue), 255))
+                        for y in range(size) for x in range(size))
+
+    def test_a_glyph_too_small_for_the_knockout_share_floor_is_still_a_second_colour(self):
+        """Four white pixels are 6 % of this 8 x 8 tile and would be 2 % of a 14 x 14 one — under
+        `replace`'s share floor, and the glyph that shipped missing four times on the eval split."""
+        rgba = self._tile({(3, 3), (4, 3), (3, 4), (4, 4)})
+        found = primitives.second_colour(rgba, 8, 8, 200, 80, 4)
+        self.assertIsNotNone(found)
+        plate, plate_colour, ink = found
+        self.assertEqual(ink, (255, 255, 255))
+        self.assertEqual(plate[3 * 8 + 3], 0)
+        self.assertEqual(plate[0], 255)
+
+    def test_a_different_colour_on_the_silhouette_edge_is_not_drawn_on_it(self):
+        """JPEG ringing and keying blend live on the edge; a glyph on a tile does not."""
+        rgba = self._tile({(0, 0), (1, 0), (2, 0), (3, 0), (0, 1)})
+        self.assertIsNone(primitives.second_colour(rgba, 8, 8, 200, 80, 4))
+
+    def test_fewer_interior_pixels_than_the_floor_are_noise(self):
+        rgba = self._tile({(3, 3), (4, 4), (2, 5)})
+        self.assertIsNone(primitives.second_colour(rgba, 8, 8, 200, 80, 4))
+
+    def test_a_composite_document_draws_the_backplate_then_the_interior_in_their_own_colours(self):
+        fit = {"family": "circle", "params": {"cx": 12.0, "cy": 12.0, "r": 10.0}}
+        svg = primitives.composite_svg(fit, (0, 0, 24, 24), [("M0 0h4v4z", "translate(10,10)")],
+                                       (225, 29, 46), (255, 255, 255))
+        self.assertEqual(svg, '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#e11d2e"/>'
+                              '<path d="M0 0h4v4z" transform="translate(10,10)" fill="#ffffff"/></svg>')
+
+
 class FitTest(unittest.TestCase):
     def test_a_disc_fits_a_circle_at_its_centre_and_radius(self):
         alpha, w, h = disc(24, 8.0)

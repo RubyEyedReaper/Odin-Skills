@@ -190,6 +190,18 @@ class PrimitiveDialect(unittest.TestCase):
         self.assertNotIn("#e11d2e", tsx)
 
 
+    def test_a_stroked_primitive_carries_its_stroke_width(self):
+        """harness:RM-0679: a ring or a stroked tile is ONE element with a stroke width, so the width
+        is a number a reader edits. It is legal on the three primitive elements and nowhere else —
+        a traced path never carries one, and the refusal above still says so."""
+        svg = ('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#e11d2e"'
+               ' stroke-width="2"/></svg>')
+        tsx = svg2tsx.convert(svg, "Ring", color_mode="currentColor")
+        self.assertIn('fill="none"', tsx)
+        self.assertIn('stroke="currentColor"', tsx)
+        self.assertIn('strokeWidth="2"', tsx)
+
+
 class ReviewFindings(unittest.TestCase):
     """Each case is an input an adversarial review ran against the converter and broke it."""
 

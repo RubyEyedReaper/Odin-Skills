@@ -16,7 +16,7 @@ description: Use when a raster — PNG, JPG, WebP, screenshot, mockup crop — m
 | Designing a new icon or logo | `frontend-design`, `impeccable` |
 | A static HTML export | `web-artifacts-builder` |
 | A known icon or brand mark, recognisable but too small or degraded to trace | **here, `--replace`** — the pinned library vector, verified against its look-alikes ([references/replacement.md](references/replacement.md)) |
-| An asset that is WHOLLY a container shape — an app tile, a badge disc, a status pill, a rounded-rect backplate | **here, `--primitive`** — one fitted `<circle>`/`<rect rx>`/`<ellipse>`, verified against the family it could be instead ([ADR-0175](../../docs/adr/0175-in-asset-containers-are-fitted-primitives.md)) |
+| An asset that is WHOLLY a container shape — an app tile, a badge disc, a status pill, a rounded-rect backplate, a ring, or a tile with one glyph on it | **here, `--primitive`** — one fitted `<circle>`/`<rect rx>`/`<ellipse>` (stroked for a ring; plus the traced glyph for a tile), verified against the family it could be instead ([ADR-0175](../../docs/adr/0175-in-asset-containers-are-fitted-primitives.md)) |
 | **One isolated icon, logo mark, illustration or object → SVG + TSX** | **here** |
 
 ## Pipeline
@@ -34,8 +34,9 @@ bash scripts/typecheck.sh <dir> # strict tsc over every .tsx + writes index.ts
 stops at the first failed stage and names it. `--replace` runs first: an accepted replacement ends the run
 with the library vector; anything else continues exactly as without it, with the verdict filed in
 `qa.json` → `replacement`. `--primitive` runs next and behaves the same way, filing under
-`qa.json` → `primitive`; it accepts only an asset that is wholly one container shape and refuses
-everything else, including a tile with a glyph on it. Any vtracer parameter passes through as `--set key=value`. Exit 1 = a check refused; 2 = usage or tool failure. Nothing is installed
+`qa.json` → `primitive`; it accepts only an asset that is wholly one container shape — filled,
+stroked, or a backplate with one flat-colour glyph on it, which is traced (colour mode only; `--mono`
+would paint the glyph out) — and refuses everything else. Any vtracer parameter passes through as `--set key=value`. Exit 1 = a check refused; 2 = usage or tool failure. Nothing is installed
 globally — pins live in `scripts/toolchain.sh`.
 
 ## Start with `--auto`

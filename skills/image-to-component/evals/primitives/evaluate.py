@@ -52,6 +52,9 @@ SWEEP_MIN_PX = [0, 8, 10, 12, 14, 16, 20]
 # The radius-resolution agreement runs OPPOSITE to the family tie: looser means more
 # radii called unresolved, which is the SAFE direction. Its own parameter for that reason.
 SWEEP_RADIUS_RESOLVED = [0.90, 0.95, 0.97, 0.99]
+# How equal the four margins between a band's outer box and its hole must be (harness:RM-0679).
+# 1.0 would refuse every real ring — a blurred JPEG band is never pixel-exact on all four sides.
+SWEEP_CONCENTRIC = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 
 # Candidacy is measured with the floors OFF, so `hull_fill` and `bbox_fill` are swept from the
@@ -59,50 +62,26 @@ SWEEP_RADIUS_RESOLVED = [0.90, 0.95, 0.97, 0.99]
 # — every product glyph refuses there and never reaches a family decision — so leaving them out of
 # the sweep would call the eval calibrated while its main defence was a guess. Structural refusals
 # (empty, multi-component, a hole) are not thresholds and short-circuit here as they do in the skill.
-NO_FLOORS = {"hull_fill": 0.0, "bbox_fill": 0.0, "symmetry": 0.0, "min_px": 0}
+# `concentric` 0.0 admits every single-hole source to measurement, so the floor is swept from the
+# stored reading exactly as the other floors are (harness:RM-0679). Two or more holes still refuse
+# structurally: that has no stroke reading at all.
+NO_FLOORS = {"hull_fill": 0.0, "bbox_fill": 0.0, "symmetry": 0.0, "min_px": 0, "concentric": 0.0,
+             "interior_bar": 0.0}
 REFUSED = {"accepted": False, "reason": "floor", "family": None, "ties": []}
+# The sets drawn down the size ladder, reported per rung.
+RUNG_SETS = ("ladder", "stroked", "composite")
 
 
-def measure_one(path: str, params: dict) -> dict:
-    """Everything a later decision needs, rendered once. `equivalent` is stored as raw pair IoUs."""
-    assessment = primitives_run.source_quality(path, None, True)
-    if not assessment["pass"]:
-        return {"candidate": False, "reason": "source-quality", "candidacy": {}}
-    alpha, width, height, composite = primitives_run.keyed_reading(path, None, "auto", True)
-    gate = primitives.candidate(alpha, width, height, NO_FLOORS, composite=composite)
-    if not gate["ok"]:
-        return {"candidate": False, "reason": gate["reason"], "candidacy": gate}
-    m = primitives.moments(alpha, width, height)
-    canvas = primitives_run.Canvas(alpha, width, height, params["sigmas"], 1.0)
+def measure_one(path: str, params: dict, mono: bool = True) -> dict:
+    """Everything a later decision needs, rendered once, by the runner's own `examine`.
 
-    scales = scale.load(os.path.join(os.path.dirname(os.path.abspath(primitives.__file__)), "scales.json"))
-    crude_fits = {f: primitives.fit_family(f, m) for f in primitives.FITTED}
-    crude = {f: replace.soft_iou(alpha, canvas.degrade(canvas.clean(fit), 0.0))
-             for f, fit in crude_fits.items()}
-    sigma = canvas.sigma_for(crude_fits[max(crude, key=crude.get)])
-    best = {f: primitives_run.best_fit(canvas, f, m, sigma, scales["snap_tolerance"])
-            for f in primitives.FITTED}
-    fits_by_family = {f: b[0] for f, b in best.items()}
-    cleans = {f: b[1] for f, b in best.items()}
-    degraded = {f: canvas.degrade(c, sigma) for f, c in cleans.items()}
-    fits = {f: b[2] for f, b in best.items()}
-    full = {f: c.resize((width, height), primitives_run.Image.BOX).tobytes() for f, c in cleans.items()}
-    # Stored as IoUs rather than as booleans so `equivalent` itself can be swept without re-rendering.
-    agreement = {f"{a}|{b}": replace.soft_iou(full[a], full[b])
-                 for i, a in enumerate(primitives.FITTED) for b in primitives.FITTED[i + 1:]}
-    pairs = {f"{a}|{b}": replace.pair_margin(alpha, degraded[a], degraded[b])
-             for a in primitives.FITTED for b in primitives.FITTED if a != b}
-    # The name each fitted family carries. `best_fit` derived it before rendering, so this is read
-    # off the shape that was actually scored rather than computed a second time beside it.
-    derived = {f: fit["family"] for f, fit in fits_by_family.items()}
-    # Whether the winning radius is separable from the two that would rename the shape. Stored per
-    # `equivalent` in the sweep, because that is the parameter it turns on.
-    resolved = {str(a): primitives_run.radius_is_resolved(
-        canvas, fits_by_family["rounded-rect"], sigma, scales["snap_tolerance"], a)
-        for a in SWEEP_RADIUS_RESOLVED}
-    return {"candidate": True, "sigma": sigma, "fits": fits, "agreement": agreement,
-            "pairs": pairs, "candidacy": gate, "derived": derived, "resolved": resolved,
-            "params": {f: fit["params"] for f, fit in fits_by_family.items()}}
+    Radius resolution is stored per agreement in the sweep, because that is the parameter it turns on.
+    """
+    seen = primitives_run.examine(path, None, "auto", mono, {**params, **NO_FLOORS}, 1.0,
+                                  tuple(SWEEP_RADIUS_RESOLVED))
+    seen.pop("canvas", None)
+    seen.pop("source_quality", None)
+    return seen
 
 
 def redecide(row: dict, params: dict, apply_floors: bool = True) -> dict:
@@ -113,24 +92,14 @@ def redecide(row: dict, params: dict, apply_floors: bool = True) -> dict:
         refusal = floor_refusal(row, params)
         if refusal:
             return refusal
-    fits = row["fits"]
-    leader = max(fits, key=lambda f: (fits[f], -primitives.PARAM_COUNT[f]))
-
-    def agree(a: str, b: str) -> float:
-        return row["agreement"].get(f"{a}|{b}", row["agreement"].get(f"{b}|{a}", 0.0))
-
-    ties = {f for f in fits if f != leader and agree(leader, f) >= params["equivalent"]}
-    chosen = primitives.select(fits, ties)
-    pairs = {f: tuple(row["pairs"][f"{chosen}|{f}"]) for f in fits if f != chosen}
-    verdict = primitives.decide(fits, pairs, ties, params, names=row["derived"])
-    if verdict["fitted"] == "rounded-rect" and not row["resolved"][str(params["radius_resolved"])]:
-        verdict.update(accepted=False, reason="radius")
-    return verdict
+    return primitives_run.verdict_from(row, params)
 
 
 def floor_refusal(row: dict, params: dict) -> dict | None:
-    """The candidacy floors, applied to the stored numbers. None when both pass."""
+    """The candidacy floors, applied to the stored numbers. None when every one passes."""
     gate = row["candidacy"]
+    if gate.get("stroked") and gate.get("concentric", 0.0) < params["concentric"]:
+        return {"accepted": False, "reason": "hole", "family": None, "ties": []}
     if gate.get("hull_fill", 0.0) < params["hull_fill"]:
         return {"accepted": False, "reason": "convexity", "family": None, "ties": []}
     if gate.get("bbox_fill", 0.0) < params["bbox_fill"]:
@@ -148,6 +117,12 @@ def classify(row: dict, verdict: dict) -> str:
         return "WRONG" if verdict["accepted"] else "refused"
     if not verdict["accepted"]:
         return "missed"
+    # A ring accepted as a filled disc, a disc as a ring, or a tile shipped without the glyph drawn
+    # on it, is the wrong shape whatever its family.
+    if bool(verdict.get("stroked")) != bool(row.get("stroked")):
+        return "WRONG"
+    if bool(verdict.get("composite")) != bool(row.get("composite")):
+        return "WRONG"
     if verdict["family"] == row["truth"] or row["truth"] in verdict.get("ties", []):
         return "correct"
     return "WRONG"
@@ -162,7 +137,9 @@ def cmd_measure(args: argparse.Namespace) -> int:
         for n, row in enumerate(manifest, 1):
             path = row["file"] if os.path.isabs(row["file"]) else os.path.join(args.src, row["file"])
             try:
-                measured = measure_one(path, params)
+                # A composite is a two-colour asset, so its caller runs in original colour mode —
+                # `--mono` refuses a composite outright. The flag is the caller's, not a label.
+                measured = measure_one(path, params, mono=not row.get("composite"))
             except Exception as exc:  # a source that cannot be keyed is a refusal, recorded as one
                 measured = {"candidate": False, "reason": f"error:{type(exc).__name__}", "candidacy": {}}
             out.write(json.dumps({**row, **measured}) + "\n")
@@ -194,10 +171,11 @@ def cmd_score(args: argparse.Namespace) -> int:
         print(f"{name}\t-\t{outcome}\t{count}")
     by_rung: dict[tuple, int] = {}
     for row, _, outcome in detail:
-        if row["set"] == "ladder":
-            by_rung[(row["px"], outcome)] = by_rung.get((row["px"], outcome), 0) + 1
-    for (px, outcome), count in sorted(by_rung.items()):
-        print(f"ladder\t{px}\t{outcome}\t{count}")
+        if row["set"] in RUNG_SETS and row["px"] is not None:
+            key = (row["set"], row["px"], outcome)
+            by_rung[key] = by_rung.get(key, 0) + 1
+    for (name, px, outcome), count in sorted(by_rung.items()):
+        print(f"{name}\t{px}\t{outcome}\t{count}")
 
     if args.tsv:
         with open(args.tsv, "w", encoding="utf-8") as fh:
@@ -216,6 +194,43 @@ def cmd_score(args: argparse.Namespace) -> int:
     wrong = sum(count for (_, outcome), count in table.items() if outcome == "WRONG")
     print(f"primitives-eval: wrong acceptances on the {args.split} split: {wrong}", file=sys.stderr)
     return 1 if wrong else 0
+
+
+# Stage 1 closes the band admission, so the shared parameters are calibrated on exactly the
+# population batch 2 calibrated them on — every hole refuses, whatever its concentricity.
+CLOSED = 2.0
+SWEEP_STROKE_BAR = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85]
+# The interior's own match against the traced glyph (harness:RM-0678).
+SWEEP_INTERIOR_BAR = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
+
+def calibrate_decomposition(rows: list[dict], shared: dict) -> dict:
+    """Stage 2: `concentric`, `stroke_bar` (harness:RM-0679) and `interior_bar` (harness:RM-0678),
+    with every shared parameter held.
+
+    Two stages, not one product, and on purpose. The two new parameters only ever decide a row whose
+    candidacy read a band, and the shared sweep is already 4 x 10^6 floor combinations; multiplying
+    it by 36 turns a two-minute calibration into an hour to learn nothing the sequential one cannot.
+    The rule is stage 1's: among the settings with zero wrong acceptances on the WHOLE calibrate
+    split — negatives included, since a letterform's counter is exactly what `concentric` refuses —
+    the best correct count, then the strictest.
+    """
+    clean = []
+    for conc in SWEEP_CONCENTRIC:
+        for stroke_bar in SWEEP_STROKE_BAR:
+            for interior_bar in SWEEP_INTERIOR_BAR:
+                params = {**shared, "concentric": conc, "stroke_bar": stroke_bar,
+                          "interior_bar": interior_bar}
+                table, _ = _counts(rows, params)
+                if any(outcome == "WRONG" for (_, outcome) in table):
+                    continue
+                correct = sum(n for (_, outcome), n in table.items() if outcome == "correct")
+                clean.append((correct, params))
+    if not clean:
+        raise SystemExit("primitives-eval: no stroke setting reaches zero wrong acceptances")
+    best = max(c for c, _ in clean)
+    return max((p for c, p in clean if c == best),
+               key=lambda p: (p["concentric"], p["stroke_bar"], p["interior_bar"]))
 
 
 def cmd_calibrate(args: argparse.Namespace) -> int:
@@ -243,7 +258,8 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
                 for min_weight in SWEEP_MIN_WEIGHT:
                   for resolved_at in SWEEP_RADIUS_RESOLVED:
                     decision = {**base, "equivalent": equivalent, "bar": bar, "margin": margin,
-                                "min_weight": min_weight, "radius_resolved": resolved_at}
+                                "min_weight": min_weight, "radius_resolved": resolved_at,
+                                "concentric": CLOSED, "interior_bar": CLOSED}
                     # A floor can only turn an acceptance into a refusal, so each row's outcome is
                     # computed once and the floors are a filter over four stored scalars. The WRONG
                     # list is a handful of rows, so most floor combinations are rejected on it
@@ -252,19 +268,27 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
                     gates = {"correct": [], "WRONG": []}
                     for row in rows:
                         outcome = classify(row, redecide(row, decision, apply_floors=False))
-                        if outcome in gates:
+                        # Stage 1 admits no band and no interior, so neither row can count here.
+                        if outcome in gates and not row["candidacy"].get("stroked") and not row.get("interior"):
                             g = row["candidacy"]
+                            # A filled row has no band, so no concentric floor can refuse it.
+                            concentric = g.get("concentric", 0.0) if g.get("stroked") else 1.0
                             gates[outcome].append((g.get("hull_fill", 0.0), g.get("bbox_fill", 0.0),
-                                                   g.get("symmetry", 0.0), g.get("extent", 0.0)))
+                                                   g.get("symmetry", 0.0), g.get("extent", 0.0),
+                                                   concentric))
+
+                    def passes(gate: tuple, floors: tuple) -> bool:
+                        return all(value >= floor for value, floor in zip(gate, floors))
                     for hull in SWEEP_HULL:
                         for bbox in SWEEP_BBOX:
                             for sym in SWEEP_SYMMETRY:
                                 for min_px in SWEEP_MIN_PX:
-                                    if any(h >= hull and b >= bbox and y >= sym and e >= min_px
-                                           for h, b, y, e in gates["WRONG"]):
+                                    # Stage 1 already left every band out of `gates`, so the
+                                    # concentric floor has nothing to decide here.
+                                    floors = (hull, bbox, sym, min_px, 0.0)
+                                    if any(passes(g, floors) for g in gates["WRONG"]):
                                         continue
-                                    correct = sum(1 for h, b, y, e in gates["correct"]
-                                                  if h >= hull and b >= bbox and y >= sym and e >= min_px)
+                                    correct = sum(1 for g in gates["correct"] if passes(g, floors))
                                     clean.append((correct, {**decision, "hull_fill": hull,
                                                             "bbox_fill": bbox, "symmetry": sym,
                                                             "min_px": min_px}))
@@ -277,6 +301,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     chosen = max(at_best, key=lambda p: (p["min_px"], p["symmetry"], p["hull_fill"], p["bbox_fill"],
                                         p["bar"], p["margin"], p["min_weight"], p["equivalent"],
                                         -p["radius_resolved"]))
+    chosen = calibrate_decomposition(rows, chosen)
 
     _, detail = _counts(rows, chosen)
     margins = [v["margin"] for _, v, o in detail if o == "correct" and v.get("margin") is not None]
@@ -284,7 +309,9 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     fits = [v["fit"] for _, v, o in detail if o == "correct"]
     print(json.dumps({k: chosen[k] for k in ("bar", "margin", "min_weight", "equivalent",
                                             "radius_resolved", "hull_fill", "bbox_fill",
-                                            "symmetry", "min_px")}, indent=2))
+                                            "symmetry", "min_px", "concentric", "stroke_bar",
+                                            "interior_bar")},
+                     indent=2))
     print(f"\nzero wrong at {len(clean)} of the swept settings; best correct {best_correct} of "
           f"{len(rows)}, reached by {len(at_best)}; the strictest is above.", file=sys.stderr)
     print(f"headroom on the correct acceptances: worst margin {min(margins):.3f} (bar {chosen['margin']}), "

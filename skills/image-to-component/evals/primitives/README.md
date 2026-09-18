@@ -4,14 +4,18 @@ Does `--primitive` fit the right container shape, and never the wrong one? The e
 **wrong acceptance**: a shape that passes every silhouette number and looks wrong on the page. So the
 record is three counts, always together — correct, wrong, missed — and any wrong acceptance is exit 1.
 
+Batch 3 (harness:RM-0678, RM-0679, RM-0680) added a stroked set and a composite set, re-padded the
+negatives, and measured whether an 8 px source carries the family distinction at all.
+
 ```sh
 bash evals/primitives/run.sh                                        # sources, measure, score
 python3 evals/primitives/evaluate.py calibrate out/.work/raw.jsonl  # reads the calibrate split ONLY
+python3 evals/primitives/separability.py out/.work/src --split eval  # the 8 px oracle (RM-0680)
 ```
 
 **This eval is offline.** No library is fetched and no index is built: the positives are drawn from
-parameters and the negatives are artwork this repository already commits. It needs `resvg` and
-`Pillow` (exit 2 without them) because every candidate is scored as the SVG that would actually be
+parameters and the negatives are artwork this repository already commits. It needs `resvg`,
+`Pillow` and — since a composite's interior is traced — `vtracer` (exit 2 without them) because every candidate is scored as the SVG that would actually be
 emitted — scoring an analytic raster instead would let the emitted artifact differ from the thing
 that passed, which is the failure mode this route exists to prevent.
 
@@ -23,9 +27,19 @@ that passed, which is the failure mode this route exists to prevent.
 |---|---|---|
 | ladder | 5 families × 8 rungs (8–40 px) × 3, aspect and radius jittered | 120 |
 | confusers | a rounded rect just under the pill snap band, a near-square pill, a near-circular ellipse, at 8–16 px | 24 |
-| negatives | the product's own glyphs and marks — `evals/degraded/src/`, `evals/heldout/src/` — each at every rung | 118–126 |
+| stroked | 5 families × 8 rungs × 4, drawn as an outline with a stroke of 10–22 % of the short side | 160 |
+| composite | 5 backplates × 8 rungs × 4 with one of four glyphs (plus, triangle, bang, chevron) in a second flat colour; half PNG, half JPEG | 160 |
+| composite (committed) | `alert-mark` → circle, `facebook-mark` and `facebook-banner-mark` → rounded-rect, relabelled from negatives — the one reading of the pixels, stated once | 27 |
+| negatives | the product's own glyphs and marks — `evals/degraded/src/`, `evals/heldout/src/` — each at every rung | 91–99 |
 
 Every source is padded, blurred (σ 0–0.9), noised (σ 0–8) and JPEG-compressed at quality 20–60.
+The stroked and composite sets draw from their own seeds and are placed after the batch-2 sets, so
+every batch-2 source is byte-identical and the ladder's 147 is directly comparable.
+
+**Negatives are padded with their own page colour.** 26 of the 28 committed negatives are opaque
+dark-UI crops; batch 2 padded them with white, which invented a dark tile around every glyph — a
+tile a composite decomposition then correctly found. The padding is now the source's corner colour
+when it is opaque. The count per split fell because three marks moved to the composite set.
 
 **A confuser sits just OUTSIDE the snap band, never inside it.** `scales.json` declares a relative
 `snap_tolerance` of 0.125, so `derive` reads any axis ratio at or above 0.875 as equal: a 10×9
@@ -57,6 +71,8 @@ that still depicts the asset.
 |---|---|---|---|
 | ladder | the emitted family is the truth, or ties with it | any other accepted family | refused |
 | confusers | same | same | refused — the intended answer at these sizes |
+| stroked | the family is the truth **and** the verdict is a band | any other family, or a filled shape | refused |
+| composite | the backplate family is the truth **and** the verdict is a composite | any other family, or a plain primitive — a tile shipped without its glyph | refused |
 | negatives | — | **any** acceptance | refused |
 
 `measure` renders each family once and stores the fits, the pair margins, the equivalence IoUs, the
@@ -91,57 +107,101 @@ Two constraints are stated rather than swept to their edge:
   instead of the best-fitting one; at 0.90 a 24 px square and the same square with a 6 px radius tied
   and the squircle shipped as a square.
 
+**Two stages.** Stage 1 sweeps the shared parameters with bands and interiors closed
+(`concentric` and `interior_bar` at 2.0), so it reads exactly the batch-2 population and returned
+batch 2's values unchanged. Stage 2 holds those and sweeps `concentric` (0.4–0.9), `stroke_bar`
+(0.6–0.85) and `interior_bar` (0.4–0.9) over the whole calibrate split, negatives included — a
+letterform's counter is exactly what `concentric` refuses. One product of both would multiply a
+4 × 10⁶ floor sweep by the stage-2 grid to learn nothing the sequence cannot. Result: `concentric`
+0.7, `stroke_bar` 0.7, `interior_bar` 0.4, with 170 correct of 790 on the calibrate split and 0
+wrong.
+
+`stroke_bar` is a separate bar, not a looser `bar`: a band is a few pixels wide on each side, so its
+soft IoU against a blurred source runs 0.77–0.85 where a filled shape of the same box reads 0.9+.
+The filled `bar` is unchanged.
+
 ## What the verifier refuses, and why each one exists
 
 | Refusal | The source | Why no threshold catches it |
 |---|---|---|
 | `components` | two blobs | — |
-| `hole` | a ring, a knockout tile, a letterform | — |
-| `composite` | a tile with a glyph on it — the alert mark, the old Facebook square | the container underneath really **is** a rounded rect and fits like one (0.884 and 0.778). Keying leaves some of them with no interior hole at all. The caller reads the second flat colour; the predicate turns that into a refusal |
+| `hole` | a knockout tile, a letterform, a ring whose four margins disagree below `concentric` | a centred counter and a ring differ in whether the hole's margins to the outline agree — a ratio, not a size |
+| `hole-shape` | a glyph centred in a tile: its **box** is concentric, its shape is not | the band's own inset is rendered and the source's hole must match it at the filled `bar` |
+| `composite` | a second flat colour when `interior_bar` is unset, or on a band — a ring with a glyph in it | two decompositions at once are two independent chances at a wrong acceptance |
+| `composite-interior:key` | the second colour cannot be separated from the plate | — |
+| `composite-interior:trace` | vtracer returns no path for the interior | — |
+| `composite-interior:fit` | the backplate plus traced interior, rendered, matches the source's interior below `interior_bar` | — |
+| `composite-interior:colours` | a third flat colour | a tile is plate plus one ink; the share of pixels off the plate–ink segment is measured, and above the knockout share floor it refuses |
+| `composite-interior:mono` | `--mono` was asked of a composite | mono paints plate and glyph one colour — the output would be a blank tile |
 | `too-small` | fewer pixels than five names can be told apart with | the same refusal `--replace` makes with `auto_min_px` |
 | `convexity`, `bbox-fill` | a glyph | both ratios count visible pixels on **both** sides; a soft numerator over a visible-pixel hull read a blurred disc as non-convex and refused 86 of 92 ladder sources |
 | `asymmetry` | a bulb at one end — a thermometer, an arrow | every admissible family mirrors about both axes of its own box; a glyph does not |
 | `source-quality` | degraded past the point where its own noise decides its silhouette | `--replace` runs ahead of this check on purpose, because the truth lives in a library. A primitive has no external truth: the source **is** the evidence |
 | `radius` | a stadium whose best radius is 0.8 of its cap | `rect`, `rounded-rect` and `pill` are one family split by one number. When the winning radius renders the same as the one that would rename the shape, the name is undetermined and saying so beats guessing |
-| `bar`, `adversary`, `indistinguishable` | the family itself is not resolved | batch 1's rule, unchanged |
+| `bar`, `adversary`, `indistinguishable` | the family itself is not resolved | batch 1's rule, unchanged. A band has two extra adversaries: its own geometry **filled**, and — for a rounded box — the radius that would rename it |
 
 ## Results — eval split, committed numbers
 
 `out/counts.tsv` and `out/eval.tsv` are the record. See those files; the headline is below.
 
-**Eval split, 462 sources, at the parameters in `scripts/primitives.json`: 0 wrong acceptances.**
+**Eval split, 782 sources, at the parameters in `scripts/primitives.json`: 0 wrong acceptances on
+every set.**
 
 | Set | correct | WRONG | missed / refused |
 |---|---|---|---|
-| ladder (320) | 147 | **0** | 173 |
+| ladder (320) | 147 | **0** | 173 — batch 2's number, unchanged |
+| stroked (160) | 52 | **0** | 108 |
+| composite (187) | 29 | **0** | 158 |
 | confusers (24) | 1 | **0** | 23 — the intended answer |
-| negatives (118) | — | **0** | 118 refused |
+| negatives (91) | — | **0** | 91 refused |
 
-Per rung, and it is a size story from end to end:
+Per rung (composite: 20 synthetic plus the 3 committed tiles at each rung; the 3 unscaled originals carry no rung):
 
 | px | 8 | 10 | 12 | 16 | 20 | 24 | 32 | 40 |
 |---|---|---|---|---|---|---|---|---|
-| correct | 0 | 4 | 9 | 17 | 18 | 30 | 34 | 35 |
-| of | 40 | 40 | 40 | 40 | 40 | 40 | 40 | 40 |
+| ladder, of 40 | 0 | 4 | 9 | 17 | 18 | 30 | 34 | 35 |
+| stroked, of 20 | 0 | 1 | 5 | 0 | 6 | 10 | 14 | 16 |
+| composite, of 23 | 0 | 1 | 0 | 0 | 3 | 6 | 9 | 10 |
 
-Correct acceptances by family: `circle` 52, `rect` 35, `rounded-rect` 23, `pill` 21, `ellipse` 16 —
-every family is reached, and the one-parameter family is reached most, which is what a fewest-
-parameters tie-break should do.
+Correct acceptances by family — ladder: `circle` 52, `rect` 35, `rounded-rect` 23, `pill` 21,
+`ellipse` 16. Stroked: `circle` 18, `rounded-rect` 15, `ellipse` 9, `pill` 5, `rect` 5. Composite:
+`circle` 8, `pill` 7, `ellipse` 6, `rect` 4, `rounded-rect` 4. Every family is reached in every set.
 
-Why the 173 ladder refusals happened, and why each is the right answer at that size:
+Why the refusals happened:
 
-| Reason | n | |
-|---|---|---|
-| `too-small` | 98 | below the `min_px` floor of 10 — every 8 px source and most of the 10 px ones |
-| `adversary` | 24 | a family the source does not side against by `margin` |
-| `radius` | 21 | the winning radius renders the same as one that would rename the shape |
-| `indistinguishable` | 16 | fewer than `min_weight` pixels of disagreement to judge on |
-| `bar` | 11 | nothing fitted well enough |
-| `source-quality`, `asymmetry`, `convexity` | 26 | the source's own noise decides its silhouette, or the degradation broke the shape |
+| Set | Reasons |
+|---|---|
+| ladder | `too-small` 85, `radius` 21, `adversary` 21, `bar` 11, `indistinguishable` 11, `asymmetry` 10, `source-quality` 8, `convexity` 6 |
+| stroked | `too-small` 28, `adversary` 24, `hole` 16, `indistinguishable` 14, `components` 13, `asymmetry` 4, `convexity` 4, `radius` 2, `hole-shape` 2, `source-quality` 1 |
+| composite | `source-quality` 147 (99 JPEG, 48 PNG), `too-small` 4, `radius` 3, `components` 2, `composite-interior:fit` 2 |
+| negatives | `source-quality` 43, `hole` 20, `components` 17, `convexity` 10, `composite` 1 |
 
-And the negatives, which is the count that matters: 52 refused at `hole`, 32 at `composite`, 24 at
-`source-quality`, 5 at `convexity`, 4 at `components`, 1 at `asymmetry`. **Not one reached a family
-decision.** Candidacy is the defence; the margin is the second one.
+`components` and `hole` on the stroked set are the band's own degradation: at 10–16 px a 1–2 px
+stroke breaks into pieces or closes unevenly under JPEG. Composite PNG sources reach 27 of 83; the
+JPEG half is refused ahead of candidacy because a composite is assessed in colour mode, whose
+stability floor a chroma-subsampled two-colour tile at quality 20–60 does not clear. **Not one
+negative reached a family decision.**
+
+## Is an 8 px source separable at all — `separability.py` (harness:RM-0680)
+
+`min_px` is 10, and every 8 px source refuses at `too-small`. Lowering the floor to raise the count
+is the move this eval forbids, so the question is asked of an **oracle** instead: given the true
+family, the true box and the source's own blur, fit the truth perfectly, search the other fitted
+family for its best rival, and ask the verifier's two questions — does the truth beat it by `margin`
+on at least `min_weight` pixels, and is the radius name resolved. If the oracle cannot separate a
+rung, no change to the verifier can.
+
+| px | 8 | 10 | 12 | 16 |
+|---|---|---|---|---|
+| separable, calibrate | 0 / 40 | 6 / 40 | 10 / 40 | 9 / 40 |
+| separable, eval | 0 / 40 | 6 / 40 | 8 / 40 | 11 / 40 |
+| rival fits better than the truth (t < 0), calibrate | 22 | 22 | 11 | 2 |
+| rival fits better than the truth (t < 0), eval | 22 | 12 | 6 | 7 |
+
+At 8 px every source is `family:too-few-pixels` — the largest disagreement between the truth and its
+rival is 10.9 / 11.7 pixels, under the 12 `min_weight` needs — and in 44 of 80 the rival fits the
+source **better** than the truth does. Ignoring the weight floor entirely, t ≥ 0.5 holds in 3 of 40.
+**`min_px` stays at 10: below it the floor is on the information, not on the verifier.**
 
 ## Residue
 
@@ -157,8 +217,18 @@ decision.** Candidacy is the defence; the margin is the second one.
   the same rounded rectangle. What separates them is the inventory step of
   [`references/rebuild-route.md`](../../references/rebuild-route.md), which is an agent's judgement
   (ADR-0175, stated residue).
-- **A composite tile is refused, not decomposed.** Fitting the backplate and routing its interior
-  through the trace route is a later batch; each extra region is an independent chance at a wrong
-  acceptance, and measuring one acceptance had to come first.
-- **Stroked and ringed containers refuse** at `hole`. Admitting them needs a stroke width and a
-  second calibration axis.
+- **The committed composite tiles are refused at `source-quality`, all 27 rows.** They are the
+  `.low` fixtures of the degraded eval, and in colour mode their degradation decides the silhouette.
+  The decomposition is measured on the synthetic set; a clean crop of a real tile is the next
+  evidence, not a lower stability floor.
+- **Half the composite set refuses ahead of candidacy.** JPEG chroma subsampling at quality 20–60
+  moves a two-colour tile past the colour-mode stability floor. Reported, not tuned: the floor is
+  shared with the trace route.
+- **The compare sheet shows the silhouette only.** `_compare_sheet` renders the emitted SVG against
+  the keyed alpha, so a composite's interior is judged by `interior_bar` but not drawn for a human.
+- **The oracle and the verifier disagree at 16 px.** The oracle separates 9–11 of 40 there while the
+  shipped verifier accepts 17 correctly: the oracle judges the truth against its single best rival at
+  every radius, while the verifier's ties remove equivalent families from the adversary set. The
+  oracle bounds the family question where it reads zero — at 8 px — and is not a ceiling on the
+  verifier's count above 10 px.
+- **A ring with a glyph in it refuses.** Band plus composite is two decompositions at once.

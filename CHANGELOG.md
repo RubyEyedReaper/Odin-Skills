@@ -10,6 +10,14 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component --primitive` decomposes a ring and a composite tile.** A ring or stroked
+  container — one hole concentric with its outline — is emitted as one element with `stroke-width`,
+  and must beat its own geometry filled as well as the other family. A tile with a glyph in a second
+  flat colour is the fitted backplate plus the glyph traced with vtracer; a refusal names the region
+  (`composite-interior:key|trace|fit|colours|mono`). The primitives eval gains a stroked and a
+  composite set, and `evals/primitives/separability.py` shows an oracle given the true shape and
+  blur separates no 8 px source, so `min_px` stays at 10. 782 eval sources, 0 wrong acceptances on
+  every set.
 - **`image-to-component --primitive`** — an asset that is **wholly** one container shape (an app
   tile, a badge disc, a status pill, a rounded-rect backplate) is fitted rather than traced, and
   emitted as one native `<rect rx>`, `<circle>` or `<ellipse>`. Candidacy is four predicates over the

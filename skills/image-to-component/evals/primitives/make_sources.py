@@ -32,8 +32,12 @@ INK = (20, 24, 33)
 NEGATIVE_DIRS = ("evals/degraded/src", "evals/heldout/src")
 
 
-def draw(family: str, px: int, rng: random.Random) -> tuple[Image.Image, dict]:
-    """One source at `px` on its long side, with the family's own parameters jittered."""
+def draw(family: str, px: int, rng: random.Random, stroked: bool = False) -> tuple[Image.Image, dict]:
+    """One source at `px` on its long side, with the family's own parameters jittered.
+
+    `stroked` draws the same outer shape as a band (harness:RM-0679): PIL draws an outline INSIDE
+    its box, so the box stays the outer edge and the truth is the family plus a stroke width.
+    """
     long_side = px
     if family in ("rect", "rounded-rect"):
         short = max(4, round(long_side * rng.uniform(0.55, 1.0)))
@@ -59,14 +63,19 @@ def draw(family: str, px: int, rng: random.Random) -> tuple[Image.Image, dict]:
     x0 = (canvas - w) // 2 * SS
     y0 = (canvas - h) // 2 * SS
     box = [x0, y0, x0 + w * SS - 1, y0 + h * SS - 1]
+    # A band at least one pixel wide, and never so wide that the hole closes at this size.
+    stroke = max(1.0, round(min(w, h) * rng.uniform(0.1, 0.22) * 2) / 2) if stroked else 0.0
+    paint = ({"outline": INK + (255,), "width": round(stroke * SS)} if stroked
+             else {"fill": INK + (255,)})
     if family in ("circle", "ellipse"):
-        d.ellipse(box, fill=INK + (255,))
+        d.ellipse(box, **paint)
     elif family == "rect":
-        d.rectangle(box, fill=INK + (255,))
+        d.rectangle(box, **paint)
     else:
-        d.rounded_rectangle(box, radius=radius * SS, fill=INK + (255,))
+        d.rounded_rectangle(box, radius=radius * SS, **paint)
     img = img.resize((canvas, canvas), Image.BOX)
-    return img, {"w": w, "h": h, "radius": round(radius, 3), "canvas": canvas}
+    return img, {"w": w, "h": h, "radius": round(radius, 3), "canvas": canvas,
+                 "stroked": stroked, "stroke": stroke}
 
 
 def degrade(img: Image.Image, rng: random.Random) -> tuple[Image.Image, dict]:
@@ -137,6 +146,54 @@ def draw_confuser(family: str, px: int, tweak: dict, rng: random.Random) -> tupl
                                                      "canvas": canvas}
 
 
+# The committed tiles that are one backplate with one glyph on it, read off the pixels: the alert
+# mark is a red disc under a white "!", both Facebook marks a blue rounded square under an "f". A
+# hand label is a claim, so it is stated once, here, with what it rests on. Every other committed
+# file stays a negative — a gamepad, a gear or a thermometer has no backplate to be right about.
+COMPOSITE_TRUTH = {"alert-mark": "circle", "facebook-banner-mark": "rounded-rect",
+                   "facebook-mark": "rounded-rect"}
+PLATES = ((24, 119, 242), (225, 29, 46), (22, 163, 74), (124, 58, 237))
+GLYPHS = ("plus", "triangle", "bang", "chevron")
+
+
+def _glyph(d: ImageDraw.ImageDraw, kind: str, cx: float, cy: float, g: float, colour: tuple) -> None:
+    """One glyph of size `g` centred at (cx, cy), in supersampled pixels."""
+    t = g / 4
+    if kind == "plus":
+        d.rectangle([cx - t / 2, cy - g / 2, cx + t / 2, cy + g / 2], fill=colour)
+        d.rectangle([cx - g / 2, cy - t / 2, cx + g / 2, cy + t / 2], fill=colour)
+    elif kind == "triangle":
+        d.polygon([(cx, cy - g / 2), (cx + g / 2, cy + g / 2), (cx - g / 2, cy + g / 2)], fill=colour)
+    elif kind == "bang":
+        d.rectangle([cx - t / 2, cy - g / 2, cx + t / 2, cy + g / 5], fill=colour)
+        d.rectangle([cx - t / 2, cy + g / 2 - t, cx + t / 2, cy + g / 2], fill=colour)
+    else:  # chevron
+        d.line([(cx - g / 2, cy - g / 4), (cx, cy + g / 4), (cx + g / 2, cy - g / 4)], fill=colour,
+               width=max(1, round(t)))
+
+
+def draw_composite(family: str, px: int, rng: random.Random) -> tuple[Image.Image, dict]:
+    """A filled backplate with a glyph drawn ON it in a second flat colour (harness:RM-0678).
+
+    Half on a white page with a pale glyph, half on a dark page with a white one — the white glyph
+    on a white page keys as a HOLE, not a second colour, and is the hole predicate's case.
+    """
+    img, shape = draw(family, px, rng)
+    dark = rng.random() < 0.5
+    page = (20, 24, 33) if dark else (255, 255, 255)
+    plate_colour = rng.choice(PLATES)
+    glyph_colour = (255, 255, 255) if dark else (250, 204, 21)
+    kind = rng.choice(GLYPHS)
+    canvas = shape["canvas"]
+    big = Image.new("RGB", (canvas * SS, canvas * SS), page)
+    mask = img.convert("L").resize(big.size, Image.BOX).point(lambda v: 255 - v)
+    big.paste(plate_colour, mask=mask)
+    d = ImageDraw.Draw(big)
+    g = min(shape["w"], shape["h"]) * rng.uniform(0.35, 0.55) * SS
+    _glyph(d, kind, canvas * SS / 2, canvas * SS / 2, g, glyph_colour)
+    return big.resize((canvas, canvas), Image.BOX), {**shape, "glyph": kind, "dark": dark}
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 1:
         print(__doc__.strip(), file=sys.stderr)
@@ -163,6 +220,19 @@ def main(argv: list[str]) -> int:
             img.save(os.path.join(out, name), quality=noise["quality"])
             rows.append({"file": name, "set": "confusers", "split": split, "truth": family,
                          "px": px, **shape, **noise})
+        # The stroked ladder (harness:RM-0679): the same five outer shapes drawn as a band. Its own
+        # set and its own seed, so every batch-2 source is drawn byte-identically and the filled
+        # ladder's counts stay comparable; half as many per rung.
+        stroked_rng = random.Random(seed + 2)
+        for family in FAMILIES:
+            for px in RUNGS:
+                for n in range(PER_RUNG // 2):
+                    img, shape = draw(family, px, stroked_rng, stroked=True)
+                    img, noise = degrade(img, stroked_rng)
+                    name = f"{split}-stroked-{family}-{px}-{n}.jpg"
+                    img.save(os.path.join(out, name), quality=noise["quality"])
+                    rows.append({"file": name, "set": "stroked", "split": split, "truth": family,
+                                 "px": px, **shape, **noise})
 
     # Negatives: the product's own glyphs and marks, committed and unmodified. Every acceptance is
     # WRONG — a glyph is never a container shape (ADR-0175). The source files are DEALT between the
@@ -192,18 +262,51 @@ def main(argv: list[str]) -> int:
             # file's provenance rather than read the image, which is a truth the pixels do not carry.
             # The real guard is upstream: crop something that still depicts the asset.
             continue
+        # A committed tile that IS one backplate with a glyph on it is a composite positive, not a
+        # negative, from batch 3 on (harness:RM-0678). Its truth is the backplate's family.
+        tile = COMPOSITE_TRUTH.get(stem.split(".")[0])
+        if tile:
+            rows[-1].update({"set": "composite", "truth": tile, "composite": True})
         source = Image.open(path).convert("RGBA")
+        # The page the crop was taken from, continued. 26 of the 28 committed files are opaque crops
+        # of a DARK UI, and padding them with white invented a dark square tile around every glyph —
+        # a container the product never drew. Batch 2 refused those at `composite` and `hole`, so the
+        # invention was invisible; batch 3 decomposes composites, and read it as a tile with a glyph
+        # on it, correctly, from pixels that were wrong (harness:RM-0678).
+        corner = source.getpixel((0, 0))
+        page = corner[:3] + (255,) if corner[3] == 255 else (255, 255, 255, 255)
         for px in RUNGS:
             long_side = max(source.size)
             k = px / long_side
             size = (max(3, round(source.size[0] * k)), max(3, round(source.size[1] * k)))
-            plate = Image.new("RGBA", (size[0] + 2 * PAD, size[1] + 2 * PAD), (255, 255, 255, 255))
+            plate = Image.new("RGBA", (size[0] + 2 * PAD, size[1] + 2 * PAD), page)
             plate.alpha_composite(source.resize(size, Image.LANCZOS), (PAD, PAD))
             img, noise = degrade(plate, rng[split])
             name = f"{split}-negative-{stem}-{px}.jpg"
             img.save(os.path.join(out, name), quality=noise["quality"])
-            rows.append({"file": name, "set": "negatives", "truth": None, "px": px,
-                         "split": split, **noise})
+            row = {"file": name, "set": "negatives", "truth": None, "px": px, "split": split, **noise}
+            if tile:
+                row.update({"set": "composite", "truth": tile, "composite": True})
+            rows.append(row)
+
+    # The synthetic composite set: each backplate family with a glyph drawn ON it in a second flat
+    # colour. Its own seed per split, so every batch-2 source is drawn byte-identically.
+    for split, seed in SPLITS.items():
+        composite_rng = random.Random(seed + 3)
+        for family in FAMILIES:
+            for px in RUNGS:
+                for n in range(PER_RUNG // 2):
+                    img, shape = draw_composite(family, px, composite_rng)
+                    img, noise = degrade(img, composite_rng)
+                    # Half lossless. A tile in a mockup is usually a PNG screenshot, and JPEG's 4:2:0
+                    # chroma subsampling smears a coloured edge across two pixels: measured, 170 of
+                    # 187 all-JPEG composites refused at `source-quality` on ramp extent, so the set
+                    # measured almost nothing about the decomposition. The JPEG half keeps that case.
+                    ext = "png" if n % 2 == 0 else "jpg"
+                    name = f"{split}-composite-{family}-{px}-{n}.{ext}"
+                    img.save(os.path.join(out, name), **({"quality": noise["quality"]} if ext == "jpg" else {}))
+                    rows.append({"file": name, "set": "composite", "split": split, "truth": family,
+                                 "px": px, "composite": True, **shape, **noise})
 
     with open(os.path.join(out, "manifest.jsonl"), "w", encoding="utf-8") as fh:
         for row in rows:

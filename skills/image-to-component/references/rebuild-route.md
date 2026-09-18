@@ -13,10 +13,13 @@ The last two rows are both containers, and the line between them is not their sh
 rounded rectangle too. It is whether the container is a **region of the page** or the **entire
 content of one crop**. A layout container holds text, state, focus and reflow, so it is CSS; an
 in-asset container holds nothing, so it is one `<circle>` or `<rect rx>` instead of a polygon
-approximating one. `--primitive` enforces that mechanically — four predicates over the keyed alpha
-(one component, no interior hole, convex, fills its box) and then an adversarial fit that must beat
-every other primitive family it could have been. Anything with text, a hole, a ring or a second
-region refuses and falls through to the row above.
+approximating one. `--primitive` enforces that mechanically — predicates over the keyed alpha
+(one component, convex, fills its box, symmetric) and then an adversarial fit that must beat every
+other primitive family it could have been. Two shapes that used to refuse are decomposed instead:
+a **ring or stroked container** — one hole, concentric with the outline — is one element with a
+`stroke-width`, and a **tile with a glyph drawn on it** in a second flat colour is the fitted
+backplate plus the glyph traced as a path. Anything with text, an off-centre hole, a third colour or
+a second component still refuses and falls through to the row above.
 
 The boundary and its residue: [ADR-0175](../../../docs/adr/0175-in-asset-containers-are-fitted-primitives.md).
 
