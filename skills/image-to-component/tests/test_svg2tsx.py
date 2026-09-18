@@ -121,8 +121,8 @@ class Dialect(unittest.TestCase):
     write, not to transcribe.
     """
 
-    def test_elements_outside_svg_g_path_are_refused_by_name(self):
-        for tag in ("circle", "text", "linearGradient", "rect"):
+    def test_elements_outside_the_dialect_are_refused_by_name(self):
+        for tag in ("text", "linearGradient", "polygon", "line"):
             with self.assertRaisesRegex(ValueError, rf"<{tag}> is outside the dialect", msg=tag):
                 svg2tsx.convert(f'<svg viewBox="0 0 1 1"><{tag}/></svg>', "X")
 
@@ -140,13 +140,54 @@ class Dialect(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             src = os.path.join(tmp, "in.svg")
             with open(src, "w", encoding="utf-8") as fh:
-                fh.write('<svg viewBox="0 0 1 1"><circle r="1"/></svg>')
+                fh.write('<svg viewBox="0 0 1 1"><text>hi</text></svg>')
             err = io.StringIO()
             with redirect_stderr(err):
                 rc = svg2tsx.main([src, "--name", "X", "--out", os.path.join(tmp, "X.tsx")])
             self.assertEqual(rc, 1)
-            self.assertIn("svg2tsx: refused: <circle> is outside the dialect", err.getvalue())
+            self.assertIn("svg2tsx: refused: <text> is outside the dialect", err.getvalue())
             self.assertFalse(os.path.exists(os.path.join(tmp, "X.tsx")))
+
+
+class PrimitiveDialect(unittest.TestCase):
+    """DEC-0186 widened the dialect to the three primitive elements a fitted container is emitted as.
+
+    A radius expressed as path data is a number nowhere, which is the defect ADR-0175 exists to
+    remove — so the primitive reaches the component as `<circle>`, `<rect rx>` or `<ellipse>`, and
+    the attribute allow-list is PER ELEMENT so the refusal that stops a foreign SVG being
+    transcribed keeps its precision.
+    """
+
+    def test_a_circle_is_transcribed(self):
+        tsx = svg2tsx.convert('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>', "Disc")
+        self.assertIn('<circle cx="12" cy="12" r="8" />', tsx)
+
+    def test_a_rounded_rect_keeps_its_radius_as_a_number(self):
+        tsx = svg2tsx.convert(
+            '<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="4"/></svg>', "Tile")
+        self.assertIn('rx="4"', tsx)
+
+    def test_an_ellipse_is_transcribed(self):
+        tsx = svg2tsx.convert('<svg viewBox="0 0 24 24"><ellipse cx="12" cy="8" rx="10" ry="6"/></svg>', "E")
+        self.assertIn('<ellipse cx="12" cy="8" rx="10" ry="6" />', tsx)
+
+    def test_a_primitives_geometry_attribute_is_refused_on_a_path(self):
+        with self.assertRaisesRegex(ValueError, "outside the dialect"):
+            svg2tsx.convert('<svg viewBox="0 0 1 1"><path d="M0 0" cx="1"/></svg>', "X")
+
+    def test_a_paths_geometry_attribute_is_refused_on_a_circle(self):
+        with self.assertRaisesRegex(ValueError, "outside the dialect"):
+            svg2tsx.convert('<svg viewBox="0 0 1 1"><circle cx="1" cy="1" r="1" d="M0 0"/></svg>', "X")
+
+    def test_a_rect_attribute_is_refused_on_a_circle(self):
+        with self.assertRaisesRegex(ValueError, "outside the dialect"):
+            svg2tsx.convert('<svg viewBox="0 0 1 1"><circle cx="1" cy="1" r="1" width="2"/></svg>', "X")
+
+    def test_a_primitive_takes_currentcolor_like_a_path_does(self):
+        tsx = svg2tsx.convert('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#e11d2e"/></svg>',
+                              "Disc", color_mode="currentColor")
+        self.assertIn('fill="currentColor"', tsx)
+        self.assertNotIn("#e11d2e", tsx)
 
 
 class ReviewFindings(unittest.TestCase):
