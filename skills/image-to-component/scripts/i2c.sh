@@ -8,11 +8,18 @@
 #   i2c.sh <image> --name <ComponentName> --kind icon|logo|illustration --out <dir> --auto
 #          [--crop x,y,w,h] [--bg auto|none|#rrggbb] [--color original|currentColor] [--allow-background]
 #   either form also takes --replace auto|<lib>:<slug>[,<lib>:<slug>...]
+#   and --primitive auto|rect|rounded-rect|circle|ellipse|pill
 #
 # --replace runs first, before prep's source-quality check: a known icon or brand mark in the source is
 # verified against the library icons it could be confused with (scripts/replace_run.py) and, when accepted,
 # the library vector is emitted instead of a trace. Nothing accepted → the run continues exactly as without
 # the flag. Either way qa.json carries the verdict under "replacement".
+# --primitive runs next, and only for an asset that is WHOLLY a container shape — a tile, a badge disc,
+# a status pill, a rounded-rect backplate (ADR-0175). Candidacy is a set of predicates over the keyed
+# alpha and acceptance is adversarial against the other four families (scripts/primitives_run.py);
+# accepted, the fitted <circle>/<rect rx>/<ellipse> is emitted instead of a polygon approximating it.
+# Nothing accepted → the run continues exactly as without the flag, and qa.json carries the verdict
+# under "primitive". A card, a panel or anything with text is NOT this — see references/rebuild-route.md.
 # --auto searches a fixed grid for the kind (scripts/autogrid.py), keeps the smallest SVG that passes
 # every check, and runs it through the stages below; qa.json records the grid under "search". It takes
 # no tuning flag — choosing them is its job. Nothing passing is exit 1, naming the nearest miss.
@@ -27,11 +34,11 @@ set -euo pipefail
 # shellcheck source=toolchain.sh
 . "$(dirname "${BASH_SOURCE[0]}")/toolchain.sh"
 
-usage() { sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+usage() { sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
 [ $# -ge 1 ] || usage
 src="$1"; shift
-name="" kind="" out="" crop="" bg="auto" key="flood" matte="hard" tolerance="40" scale="1" smooth="auto" sharpen="0" colors="0" color="original" allow_bg="" auto="" search_report="" tuned="" replace=""
+name="" kind="" out="" crop="" bg="auto" key="flood" matte="hard" tolerance="40" scale="1" smooth="auto" sharpen="0" colors="0" color="original" allow_bg="" auto="" search_report="" tuned="" replace="" primitive=""
 trace_sets=() qa_args=() pass_through=()
 need() { [ $# -ge 2 ] || { echo "i2c: $1 needs a value" >&2; exit 2; }; }
 while [ $# -gt 0 ]; do
@@ -53,6 +60,7 @@ while [ $# -gt 0 ]; do
     --set) need "$@"; trace_sets+=(--set "$2"); tuned="$1"; shift 2 ;;
     --auto) auto=1; shift ;;
     --replace) need "$@"; replace="$2"; shift 2 ;;
+    --primitive) need "$@"; primitive="$2"; shift 2 ;;
     --search-report) need "$@"; search_report="$2"; shift 2 ;;
     --iou|--mae|--edge-f1|--jaggedness|--staircase|--features) need "$@"; qa_args+=("$1" "$2"); shift 2 ;;
     *) echo "i2c: unknown argument $1" >&2; usage ;;
@@ -65,9 +73,10 @@ done
 mkdir -p "$out"
 
 stage() { printf 'i2c: %-9s %s\n' "$1" "$2" >&2; }
-replacement_report=""
+replacement_report="" primitive_report=""
 record_replacement() {
   [ -z "$replacement_report" ] || i2c_stdlib autorecord "$replacement_report" "$out/$name.qa.json" --key replacement
+  [ -z "$primitive_report" ] || i2c_stdlib autorecord "$primitive_report" "$out/$name.qa.json" --key primitive
 }
 fail() { echo "i2c: FAILED at $1 (exit $2)" >&2; record_replacement; exit "$3"; }
 
@@ -88,6 +97,22 @@ if [ -n "$replace" ]; then
     find "$out" -maxdepth 1 -name "$name.qa.json" -delete
     record_replacement
     stage done "$out/$name.{svg,tsx} (replaced)"
+    exit 0
+  fi
+fi
+
+if [ -n "$primitive" ]; then
+  stage primitive "$primitive"
+  primitive_args=("$src" --family "$primitive" --report "$work/primitive.json" --name "$name" --kind "$kind"
+                  --out "$out" "${pass_through[@]}")
+  [ "$color" = currentColor ] && primitive_args+=(--mono)
+  rc=0; i2c_py primitives_run "${primitive_args[@]}" || rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 4 ] || fail primitive "$rc" 2
+  primitive_report="$work/primitive.json"
+  if [ "$rc" -eq 0 ]; then
+    find "$out" -maxdepth 1 -name "$name.qa.json" -delete
+    record_replacement
+    stage done "$out/$name.{svg,tsx} (fitted primitive)"
     exit 0
   fi
 fi

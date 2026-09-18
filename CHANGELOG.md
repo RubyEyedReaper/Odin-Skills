@@ -10,6 +10,18 @@ sync; entries below record what changed in this distribution.
 
 ### Added
 
+- **`image-to-component --primitive`** — an asset that is **wholly** one container shape (an app
+  tile, a badge disc, a status pill, a rounded-rect backplate) is fitted rather than traced, and
+  emitted as one native `<rect rx>`, `<circle>` or `<ellipse>`. Candidacy is four predicates over the
+  keyed alpha — one component, no interior hole, convex enough, fills its box — plus symmetry, a
+  minimum extent and the source-quality check the replace route deliberately skips; acceptance is
+  batch 1's bar-and-margin rule over the family the shape could be instead. A layout container stays
+  on the rebuild route, in CSS. Two families are fitted and the other three are read off their
+  parameters, and the shape that is scored is the shape that ships. Adds `scripts/primitives.py`,
+  `scripts/primitives_run.py`, a widened `svg2tsx` dialect with a per-element attribute allow-list,
+  `references/rebuild-route.md`'s in-asset row, and `evals/primitives/` — offline by construction,
+  0 wrong acceptances on a 462-source eval split with all 118 negatives refused.
+
 - **`image-to-component --replace`** — recognise a known icon or brand mark in a raster and emit the
   pinned library vector (simple-icons, Material Symbols outlined) instead of a trace, accepted only when
   it clears a calibrated bar and beats every library adversary by a margin; refused otherwise, with the

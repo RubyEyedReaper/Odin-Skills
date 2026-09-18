@@ -1,10 +1,12 @@
 """Turn an optimized SVG into a typed React component.
 
-Stdlib only. The input is the narrow dialect vtracer + SVGO produce — `svg`, `g` and `path` with
-paint, geometry and transform attributes — and nothing else is transcribed: any other element or
-attribute is refused by name (exit 1). A general converter such as SVGR buys nothing here, and an
-offline converter is the only one the gated suite can exercise. Hand-authored SVG is a component to
-write, not one to run through this (#1352).
+Stdlib only. The input is a narrow dialect: `svg`, `g` and `path` as vtracer + SVGO produce them,
+plus `rect`, `circle` and `ellipse` as a fitted primitive produces them (DEC-0186, ADR-0175).
+Nothing else is transcribed — any other element or attribute is refused by name (exit 1), and the
+attribute allow-list is **per element**, so `cx` is legal on a `<circle>` and refused on a `<path>`.
+A general converter such as SVGR buys nothing here, and an offline converter is the only one the
+gated suite can exercise. Hand-authored SVG is a component to write, not one to run through this
+(#1352).
 
     python3 -m scripts.svg2tsx in.svg --name RubyTechLogo [--color currentColor] --out Out.tsx
             [--header LINE]... [--size 24]            # a --replace run: provenance comment, size prop
@@ -26,11 +28,33 @@ from .svgcheck import FORBIDDEN, is_external, parse_view_box
 SVG_NS = "http://www.w3.org/2000/svg"
 COLOR_MODES = ("original", "currentColor")
 DROPPED = {"title", "desc", "metadata"}
-ELEMENTS = {"svg", "g", "path"}
-ATTRS = {"d", "fill", "fill-rule", "fill-opacity", "opacity", "stroke", "transform"}
+# Paint and positioning every element in the dialect may carry.
+COMMON_ATTRS = {"fill", "fill-rule", "fill-opacity", "opacity", "stroke", "transform"}
+# Geometry, per element (DEC-0186). An element's own geometry is legal on it and on nothing else:
+# one shared set would make `cx` legal on a <path>, weakening the refusal that stops a foreign SVG
+# being transcribed into a component.
+GEOMETRY = {
+    "svg": set(),
+    "g": set(),
+    "path": {"d"},
+    "rect": {"x", "y", "width", "height", "rx", "ry"},
+    "circle": {"cx", "cy", "r"},
+    "ellipse": {"cx", "cy", "rx", "ry"},
+}
+ELEMENTS = set(GEOMETRY)
+# The widest attribute set any element may carry, for callers that ask about the dialect as a whole.
+ATTRS = COMMON_ATTRS | set().union(*GEOMETRY.values())
 PAINT_ATTRS = {"fill", "stroke"}
 ROOT_DROPPED_ATTRS = {"width", "height", "version", "x", "y", "enable-background"}
-ROOT_ATTRS = ATTRS | ROOT_DROPPED_ATTRS | {"viewBox", "xmlns"}
+ROOT_ATTRS = COMMON_ATTRS | ROOT_DROPPED_ATTRS | {"viewBox", "xmlns"}
+DIALECT = "svg, g, path from vtracer + SVGO; rect, circle, ellipse from a fitted primitive"
+
+
+def allowed_attrs(tag: str) -> set[str]:
+    """The attributes this element may carry: the common paint set plus its own geometry."""
+    return COMMON_ATTRS | GEOMETRY.get(tag, set())
+
+
 NO_PAINT = {"none", "transparent", "currentColor", "inherit"}
 INDENT = "  "
 IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
@@ -58,11 +82,12 @@ def _jsx_value(value: str) -> str:
     return f'"{value}"'
 
 
-def _refuse_outside_dialect(el: ET.Element, allowed: set[str]) -> None:
+def _refuse_outside_dialect(el: ET.Element, allowed: set[str] | None = None) -> None:
     tag = _local(el.tag)
     if tag not in ELEMENTS:
-        raise ValueError(f"<{tag}> is outside the dialect svg2tsx transcribes (svg, g, path from vtracer + SVGO);"
+        raise ValueError(f"<{tag}> is outside the dialect svg2tsx transcribes ({DIALECT});"
                          " write this component by hand")
+    allowed = allowed_attrs(tag) if allowed is None else allowed
     for attr in el.attrib:
         if attr not in allowed:
             raise ValueError(f"attribute {attr!r} on <{tag}> is outside the dialect svg2tsx transcribes"
@@ -96,7 +121,7 @@ def _render(el: ET.Element, color_mode: str, depth: int) -> list[str]:
     tag = _local(el.tag)
     if tag in DROPPED:
         return []
-    _refuse_outside_dialect(el, ATTRS)
+    _refuse_outside_dialect(el)
     pad = INDENT * depth
     attrs = " ".join(_attrs(el, color_mode, set()))
     head = f"<{tag}{' ' + attrs if attrs else ''}"
